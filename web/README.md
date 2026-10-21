@@ -68,12 +68,16 @@ de la misma red usa el despliegue de Vercel (o un túnel HTTPS).
      producción hay que registrar una app en Microsoft Entra (Clerk lo guía paso a paso).
 2. **Supabase** → Authentication → Sign In / Providers → **Third-Party Auth → Add provider → Clerk**
    y pega el Clerk domain.
-3. **Migración:** aplica `backend/sql/0018_clerk.sql`.
+3. **Migraciones:** aplica en orden `backend/sql/0018_clerk.sql`, `0019_secreto_webhook_clerk.sql`
+   y `0020_orden_webhooks_clerk.sql` antes de desplegar el webhook actualizado.
+   Tras aplicar 0020, vuelve a guardar los metadatos de cada usuario en Clerk para
+   reconciliar su estado actual mediante un evento nuevo; no reenvíes eventos antiguos.
 4. **Webhook:** despliega `backend/supabase/functions/clerk-webhook` con `verify_jwt = false`.
    En Clerk → **Webhooks → Add endpoint**:
    `https://rcvpowylehewvsxquhip.supabase.co/functions/v1/clerk-webhook`, eventos
    `user.created`, `user.updated` y `user.deleted`. Copia el **Signing secret** y guárdalo en
-   Supabase como secreto de Edge Functions `CLERK_WEBHOOK_SIGNING_SECRET`.
+   Supabase como secreto de Edge Functions `CLERK_WEBHOOK_SIGNING_SECRET`, o en Vault
+   mediante `guardar_secreto_webhook_clerk` usando únicamente `service_role`.
 5. **Primer administrador:** crea tu usuario en Clerk con `{ "perfil": "administrador" }`.
 
 La función `admin-crear-usuario` ya no se usa (creaba cuentas de Supabase Auth); puedes
