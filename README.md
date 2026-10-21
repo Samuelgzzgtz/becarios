@@ -12,9 +12,9 @@ Este repositorio consolida las tres propuestas del avance de Proyecto Integrador
 
 | Capa | Tecnología |
 | --- | --- |
-| Frontend | Android nativo, Kotlin + Jetpack Compose |
-| Reconocimiento facial | CameraX + ML Kit Face Detection + TensorFlow Lite |
-| Persistencia local | Room (SQLite) |
+| Frontend | **Webapp instalable (PWA)**: React + TypeScript, en Vercel — ver `web/README.md` |
+| Reconocimiento facial | Cámara del navegador + MediaPipe + el mismo modelo TFLite (LiteRT.js), todo en el teléfono |
+| Persistencia local | IndexedDB (cola de asistencias sin red) |
 | Backend / API | Supabase self-hosted (Postgres + GoTrue Auth + PostgREST + Kong + Storage + Studio) |
 | Infraestructura | VPS Hostinger + Docker + Nginx (reverse proxy) |
 
@@ -22,7 +22,8 @@ Este repositorio consolida las tres propuestas del avance de Proyecto Integrador
 
 ```
 becarios/
-├── app/               # App Android (Kotlin + Jetpack Compose)
+├── web/               # Webapp/PWA (React + TypeScript) — la app actual
+├── app/               # App Android anterior (Kotlin + Jetpack Compose), reemplazada por web/
 ├── backend/
 │   ├── supabase/      # Config y docker-compose de Supabase self-hosted
 │   └── sql/           # Migraciones y esquema de la base de datos
@@ -37,7 +38,12 @@ Ver `docs/plan-construccion-becarios.md` para el plan completo por fases (base d
 - **App:** pantallas de los tres perfiles completas, con el rediseño UX/UI descrito en `docs/sistema-diseno.md`.
 - **Auditoría:** `docs/auditoria-ux.md` lista los 55 hallazgos de UX y lógica, y en "Estado de corrección" dice cuáles ya se corrigieron.
 
-## Compilar
+## Webapp (actual)
+
+Funciona en Android y iPhone desde el navegador y se instala con "Agregar a pantalla de inicio".
+Desarrollo, despliegue en Vercel e instalación: `web/README.md`.
+
+## Compilar la app Android anterior
 
 1. Copia `local.properties.example` a `local.properties` y llena `sdk.dir`, `SUPABASE_URL` y `SUPABASE_PUBLISHABLE_KEY`.
 2. Usa JDK 17 y corre `./gradlew assembleDebug testDebugUnitTest` (en Windows, `gradlew.bat`).
