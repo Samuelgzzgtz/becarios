@@ -7,6 +7,12 @@ create table public.clerk_sincronizacion (
 alter table public.clerk_sincronizacion enable row level security;
 revoke all on public.clerk_sincronizacion from public, anon, authenticated;
 
+-- Las cuentas ya sincronizadas conservan su estado frente a reintentos previos
+-- al despliegue. Después se reconcilian con un evento nuevo desde Clerk.
+insert into public.clerk_sincronizacion (clerk_id, actualizado_en)
+select clerk_id, floor(extract(epoch from clock_timestamp()) * 1000)::bigint
+from public.usuarios where clerk_id is not null;
+
 drop function public.sincronizar_usuario_clerk(text, text, text, text, text, text, boolean, text);
 drop function public.desactivar_usuario_clerk(text);
 
