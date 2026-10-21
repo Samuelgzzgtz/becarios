@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { ChevronRight, CircleAlert, CloudUpload, FileText, LineChart, ScanFace } from 'lucide-react'
 import * as asistencias from '../../datos/asistencias'
-import { estadoVentana, modalidadDeHoy, progresoDe } from '../../datos/repositorios'
+import { enrolamientoPropio, estadoVentana, modalidadDeHoy, progresoDe } from '../../datos/repositorios'
 import { requerirUsuario, usuarioEnMemoria } from '../../datos/sesion'
 import { prepararMotor } from '../../facial/rostro'
 import { mensajeAmigable } from '../../lib/errores'
@@ -42,6 +42,7 @@ interface DatosInicio {
 
 async function cargar(): Promise<DatosInicio> {
   const usuario = await requerirUsuario()
+  if (navigator.onLine) await enrolamientoPropio(usuario.id).catch(() => undefined)
   // Primero se intenta subir lo que esté en cola, para que los números ya lo incluyan.
   if ((await asistencias.pendientesSinSubir(usuario.id)) > 0) await asistencias.sincronizarPendientes().catch(() => undefined)
 

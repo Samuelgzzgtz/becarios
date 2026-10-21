@@ -53,9 +53,11 @@ export function usuarioEnMemoria(): Usuario | null {
   return usuarioActual
 }
 
-async function copiaLocal(): Promise<Usuario> {
+async function copiaLocal(clerkId?: string): Promise<Usuario> {
+  const identidad = clerk.userId
   const copia = await cache.usuario()
-  if (copia) {
+  if (clerk.userId !== identidad || (clerkId && clerk.userId !== clerkId)) throw new CuentaSinAcceso()
+  if (copia && (!clerkId || copia.clerk_id === clerkId)) {
     usuarioActual = copia
     return copia
   }
@@ -63,7 +65,10 @@ async function copiaLocal(): Promise<Usuario> {
 }
 
 async function cargarPerfil(): Promise<Usuario | null> {
-  if (!(await esperarClerk())) return copiaLocal()
+  if (!(await esperarClerk())) {
+    if (!navigator.onLine) return copiaLocal()
+    throw new ErrorApi('auth', { message: 'No se pudo cargar la sesión. Vuelve a intentar.' })
+  }
 
   const clerkId = clerk.userId
   if (!clerkId) {
@@ -76,10 +81,13 @@ async function cargarPerfil(): Promise<Usuario | null> {
   try {
     usuario = await q(supabase.from('usuarios').select('*').eq('clerk_id', clerkId).maybeSingle<Usuario>())
   } catch (e) {
-    if (esErrorDeRed(e)) return copiaLocal()
+    if (esErrorDeRed(e)) return copiaLocal(clerkId)
     throw e
   }
+  // Una respuesta anterior no puede reemplazar el perfil de otra sesión.
+  if (clerk.userId !== clerkId) return null
   if (usuario) await cache.guardarUsuario(usuario)
+  if (clerk.userId !== clerkId) return null
   usuarioActual = usuario
   return usuario
 }

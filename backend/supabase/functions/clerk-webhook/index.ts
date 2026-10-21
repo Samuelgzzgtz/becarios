@@ -34,6 +34,7 @@ interface UsuarioClerk {
 }
 
 interface EventoClerk {
+  timestamp: number;
   type: string;
   data: UsuarioClerk | { id: string; deleted?: boolean };
 }
@@ -70,8 +71,12 @@ Deno.serve(async (req: Request) => {
     return respuesta({ error: "Firma inválida." }, 401);
   }
 
+  if (!Number.isSafeInteger(evento.timestamp) || evento.timestamp <= 0) {
+    return respuesta({ error: "Falta la fecha del evento." }, 400);
+  }
+
   if (evento.type === "user.deleted") {
-    const { error } = await supabase.rpc("desactivar_usuario_clerk", { p_clerk_id: evento.data.id });
+    const { error } = await supabase.rpc("desactivar_usuario_clerk", { p_clerk_id: evento.data.id, p_actualizado_en: evento.timestamp });
     if (error) return respuesta({ error: error.message }, 500);
     return respuesta({ ok: true });
   }
@@ -95,7 +100,8 @@ Deno.serve(async (req: Request) => {
     p_coordinacion: texto(meta.coordinacion),
     // Solo "Ban user" quita el acceso; un bloqueo temporal por intentos fallidos no.
     p_bloqueado: Boolean(u.banned),
-    p_estado: texto(meta.estado)
+    p_estado: texto(meta.estado),
+    p_actualizado_en: evento.timestamp
   });
   // Un error 500 hace que Clerk reintente el envío.
   if (error) return respuesta({ error: error.message }, 500);
