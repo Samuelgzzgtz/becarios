@@ -31,6 +31,18 @@ becarios/
 
 Ver `docs/plan-construccion-becarios.md` para el plan completo por fases (base de datos, backend, frontend por perfil y roadmap).
 
+## Estado actual
+
+- **Backend:** Supabase Cloud (proyecto `rcvpowylehewvsxquhip`) con las migraciones `backend/sql/0001`–`0017` aplicadas y la edge function `admin-crear-usuario` (v2) desplegada. La migración a self-hosted (Fase 1) sigue pendiente.
+- **App:** pantallas de los tres perfiles completas, con el rediseño UX/UI descrito en `docs/sistema-diseno.md`.
+- **Auditoría:** `docs/auditoria-ux.md` lista los 55 hallazgos de UX y lógica, y en "Estado de corrección" dice cuáles ya se corrigieron.
+
+## Compilar
+
+1. Copia `local.properties.example` a `local.properties` y llena `sdk.dir`, `SUPABASE_URL` y `SUPABASE_PUBLISHABLE_KEY`.
+2. Usa JDK 17 y corre `./gradlew assembleDebug testDebugUnitTest` (en Windows, `gradlew.bat`).
+3. El APK queda en `app/build/outputs/apk/debug/`.
+
 ## Equipo
 
 Proyecto Integrador 2 — FIME-UANL, Equipo 1.

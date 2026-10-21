@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Mismos valores que ui/theme/Color.kt (ventana, splash e ícono). -->
+    <color name="dc_verde">#FF1E7145</color>
+    <color name="dc_verde_oscuro">#FF154A2E</color>
+    <color name="dc_fondo">#FFF5F7F6</color>
+    <color name="dc_fondo_oscuro">#FF0F1412</color>
+    <color name="dc_blanco">#FFFFFFFF</color>
+</resources>

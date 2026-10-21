@@ -1,0 +1,5 @@
+# Copiar a local.properties (NO se versiona) y llenar con los valores reales.
+sdk.dir=/ruta/a/tu/Android/sdk
+
+SUPABASE_URL=https://rcvpowylehewvsxquhip.supabase.co
+SUPABASE_PUBLISHABLE_KEY=sb_publishable_uHC_8pDKiSPp6mpVK0BzVA_aCT6GdHK
