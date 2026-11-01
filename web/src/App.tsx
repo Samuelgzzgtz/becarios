@@ -5,6 +5,7 @@ import { esMX } from '@clerk/localizations'
 import { eventosCola, sincronizarPendientes } from './datos/asistencias'
 import { registrarClerk } from './datos/sesion'
 import { ProveedorAvisos, useAvisos } from './ui/avisos'
+import AvisoInstalar from './ui/instalar'
 import { PantallaCompleta, Protegida } from './ui/navegacion'
 import Login from './pantallas/Login'
 
@@ -136,6 +137,7 @@ function Rutas() {
   return (
     <>
         <Sincronizador />
+        <AvisoInstalar />
         <Suspense fallback={<PantallaCompleta texto="Cargando…" />}>
           <Routes>
             <Route path="/login" element={<Login />} />
