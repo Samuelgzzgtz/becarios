@@ -95,15 +95,23 @@ body {
   color: var(--texto);
   font-size: 15px;
   line-height: 1.4;
-  overscroll-behavior: none;
-  /* Sin arrastre lateral de la página: lo que sí se desliza (tablas, pestañas) tiene su propio contenedor. */
-  overflow-x: hidden;
-  max-width: 100%;
+  overscroll-behavior-y: none;
 }
 
-/* Sin zoom de pellizco ni de doble toque; el desplazamiento normal se conserva. */
+/*
+ * Sin arrastre lateral de la página. Solo html lleva "hidden": si el body también
+ * lo llevara se volvería un contenedor de scroll y en iPhone trabaría el desplazamiento
+ * vertical. El body usa "clip", que recorta sin crear contenedor de scroll.
+ * Lo que sí se desliza (tablas, pestañas) tiene su propio contenedor.
+ */
 html {
-  touch-action: pan-x pan-y;
+  overflow-x: hidden;
+  /* Sin zoom de doble toque; el pellizco lo cortan el viewport y gesturestart. */
+  touch-action: manipulation;
+}
+
+body {
+  overflow-x: clip;
 }
 
 body {
