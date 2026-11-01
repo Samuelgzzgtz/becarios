@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { TrendingDown, TrendingUp, Trophy } from 'lucide-react'
 import { historialEntreFechas } from '../../datos/asistencias'
-import { progresoDe, semanaConRespaldo } from '../../datos/repositorios'
+import { jornadaMaximaHoras, progresoDe, semanaConRespaldo } from '../../datos/repositorios'
 import { requerirUsuario } from '../../datos/sesion'
 import { diaSemana, hoy, inicialDia, lunesDe, mesActual, mesLargo, nombreDia, numeroDia, sumarDias, type Fecha } from '../../lib/fechas'
 import { faltan, horas, numeroHoras, ritmoMes, ritmoSemana, vaAlRitmo } from '../../lib/formato'
@@ -32,8 +32,9 @@ async function cargar() {
   const usuario = await requerirUsuario()
   const progreso = await progresoDe(usuario.id)
   const lunes = lunesDe()
+  const tope = await jornadaMaximaHoras()
   const [porDia, modalidades] = await Promise.all([
-    historialEntreFechas(usuario.id, lunes, sumarDias(lunes, 6)).then(horasPorDia, () => new Map<Fecha, number>()),
+    historialEntreFechas(usuario.id, lunes, sumarDias(lunes, 6)).then((h) => horasPorDia(h, tope), () => new Map<Fecha, number>()),
     semanaConRespaldo(usuario.id).then(
       (dias) => new Map(dias.map((d) => [d.dia_semana, d.modalidad])),
       () => new Map<number, ModalidadTrabajo>()

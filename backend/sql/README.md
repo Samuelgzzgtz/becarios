@@ -23,11 +23,26 @@ en "Warnings que se dejaron a propósito" más abajo.
 | `0014_siase_reportes.sql` | Auditoría A-01/A-02/A-03/A-04/M-04/M-16: trigger que impide auto-confirmarse, ruta de Storage en vez de URL firmada, estado efectivo sin pg_cron, firma/exclusión por RPC |
 | `0015_operaciones_transaccionales.sql` | Auditoría C-05/C-06/A-05/A-10/A-13/M-10/M-11: RPC atómicas para transferencias, asignación, enrolamiento, configuración, cierre/apertura de periodo y bajas |
 | `0016_consultas_agregadas.sql` | Auditoría M-05/M-09/A-16: progreso del equipo en una llamada, indicadores del panel, exportación paginada |
+| `0021_integridad_horas.sql` | Integridad de horas: origen/revisión calculados por el servidor, tope de jornada, geocercas opcionales, bitácora de cambios y RPC de revisión (ver `docs/integridad-horas.md`) |
 
 Se aplican **en orden**. (`0006` ya no incluye el bloque de `pg_cron` comentado que
 trae el archivo en disco.) **0012–0016 se aplicaron al proyecto `rcvpowylehewvsxquhip`
 el 2026-10-20** y se probaron con los usuarios fixture dentro de una transacción
 revertida (no quedó ningún dato de prueba).
+
+## Integridad de horas (0021)
+
+Contrato completo en `docs/integridad-horas.md`. Lo esencial para quien toque el backend:
+
+- El disparador `asistencias_0_servidor` (se ordena antes de `asistencias_validar`) calcula
+  `origen`, `revision` y `motivo_revision` e ignora lo que mande el cliente. Sin usuario
+  (service role, jobs) no toca nada.
+- `horas_trabajadas` es la única función que empareja entrada → salida; aplica el tope
+  (`config_asistencia.jornada_maxima_horas`) y deja fuera lo `por_revisar`.
+- `config_asistencia`, `geocercas` y `bitacora_asistencias` no se escriben directo: solo por
+  RPC (`guardar_config_asistencia`, `guardar_geocerca`, `eliminar_geocerca`,
+  `aprobar_asistencia`) o por el disparador de bitácora.
+- Pruebas: `web/src/sql-tests/` carga 0001–0021 en PGlite (`cd web && npx vitest run src/sql-tests`).
 
 ## Correcciones de la auditoría UX (0012–0016)
 

@@ -18,15 +18,16 @@ const ReporteSiaseBecario = lazy(() => import('./pantallas/becario/ReporteSiase'
 const MiCuenta = lazy(() => import('./pantallas/compartido/MiCuenta'))
 
 // Ingeniero
+const AsistenciasBecario = lazy(() => import('./pantallas/ingeniero/AsistenciasBecario'))
 const PanelIngeniero = lazy(() => import('./pantallas/ingeniero/Panel'))
 const MisBecarios = lazy(() => import('./pantallas/ingeniero/MisBecarios'))
 const AsistenciasEquipo = lazy(() => import('./pantallas/ingeniero/AsistenciasEquipo'))
 const ReportesSiaseEquipo = lazy(() => import('./pantallas/ingeniero/ReportesSiaseEquipo'))
 const Transferencias = lazy(() => import('./pantallas/ingeniero/Transferencias'))
-const AsistenciasBecario = lazy(() => import('./pantallas/ingeniero/AsistenciasBecario'))
 const Enrolamiento = lazy(() => import('./pantallas/ingeniero/Enrolamiento'))
 const Modalidad = lazy(() => import('./pantallas/ingeniero/Modalidad'))
 const SolicitarTransferencia = lazy(() => import('./pantallas/ingeniero/SolicitarTransferencia'))
+const RevisarIngeniero = lazy(() => import('./pantallas/ingeniero/Revisar'))
 
 // Administrador
 const PanelAdmin = lazy(() => import('./pantallas/admin/Panel'))
@@ -40,6 +41,7 @@ const FirmasSiase = lazy(() => import('./pantallas/admin/FirmasSiase'))
 const Configuracion = lazy(() => import('./pantallas/admin/Configuracion'))
 const Exportar = lazy(() => import('./pantallas/admin/Exportar'))
 const AsignarIngeniero = lazy(() => import('./pantallas/admin/AsignarIngeniero'))
+const RevisarAdmin = lazy(() => import('./pantallas/admin/Revisar'))
 
 /**
  * Sube la cola offline al abrir la app, al volver la red, al regresar a la app y
@@ -160,6 +162,7 @@ function Rutas() {
               <Route path="siase" element={<ReportesSiaseEquipo />} />
               <Route path="cuenta" element={<MiCuenta />} />
               <Route path="transferencias" element={<Transferencias />} />
+              <Route path="revisar" element={<RevisarIngeniero />} />
               <Route path="becario/:id/asistencias" element={<AsistenciasBecario />} />
               <Route path="becario/:id/enrolamiento" element={<Enrolamiento />} />
               <Route path="becario/:id/modalidad" element={<Modalidad />} />
@@ -180,6 +183,8 @@ function Rutas() {
               <Route path="configuracion" element={<Configuracion />} />
               <Route path="exportar" element={<Exportar />} />
               <Route path="becario/:id/asignar" element={<AsignarIngeniero />} />
+              <Route path="revisar" element={<RevisarAdmin />} />
+              <Route path="becario/:id/asistencias" element={<AsistenciasBecario />} />
             </Route>
 
             <Route path="*" element={<Navigate to="/login" replace />} />

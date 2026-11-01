@@ -4,6 +4,7 @@ import { guardarConfiguracion, metasGlobales, ventanaConfig } from '../../datos/
 import { mensajeAmigable } from '../../lib/errores'
 import { AvisoBanner, Boton, CampoTexto, EncabezadoSeccion, Pantalla, SegunEstado, Tarjeta, useVolver } from '../../ui/componentes'
 import { useCarga } from '../../ui/hooks'
+import { TarjetaReglas, TarjetaZonas } from './ReglasYZonas'
 
 type Campo = 'semanal' | 'mensual' | 'semestral' | 'apertura' | 'cierre'
 
@@ -86,12 +87,12 @@ export default function Configuracion() {
   return (
     <Pantalla
       titulo="Configuración"
-      subtitulo="Metas de horas y ventana SIASE"
+      subtitulo="Metas, ventana SIASE, reglas y zonas"
       onVolver={volver}
       barraAccion={
         datos && (
           <Boton ancho icono={Save} cargando={guardando} onClick={guardar}>
-            Guardar cambios
+            Guardar metas y ventana
           </Boton>
         )
       }
@@ -130,6 +131,8 @@ export default function Configuracion() {
                 </p>
               )}
             </Tarjeta>
+            <TarjetaReglas />
+            <TarjetaZonas />
           </>
         )}
       </SegunEstado>

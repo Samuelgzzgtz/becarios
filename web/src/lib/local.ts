@@ -1,5 +1,5 @@
 import { openDB, type DBSchema, type IDBPDatabase } from 'idb'
-import type { DiaHorario, EnrolamientoFacial, ModalidadTrabajo, TipoAsistencia, Usuario } from './modelos'
+import type { ConfigAsistencia, DiaHorario, EnrolamientoFacial, ModalidadTrabajo, TipoAsistencia, Usuario } from './modelos'
 
 /**
  * Lo que la app guarda en el teléfono (IndexedDB), equivalente a Room +
@@ -21,6 +21,8 @@ export interface AsistenciaPendiente {
   modalidad: ModalidadTrabajo
   latitud?: number | null
   longitud?: number | null
+  /** Similitud facial 0..1 (0021). Opcional: los registros encolados antes de esta versión no lo traen. */
+  puntajeRostro?: number | null
   intentos: number
   /** Rechazo permanente del servidor: ya no se reintenta, se le muestra al becario. */
   error?: string | null
@@ -114,6 +116,8 @@ export const cache = {
   guardarEnrolamiento: (becarioId: string, e: EnrolamientoFacial | null) => escribir(`enrolamiento_${becarioId}`, e),
   horario: (becarioId: string) => leer<DiaHorario[]>(`horario_${becarioId}`),
   guardarHorario: (becarioId: string, dias: DiaHorario[]) => escribir(`horario_${becarioId}`, dias),
+  configAsistencia: () => leer<ConfigAsistencia>('config_asistencia'),
+  guardarConfigAsistencia: (c: ConfigAsistencia) => escribir('config_asistencia', c),
   ultimoRegistro: (becarioId: string) => leer<UltimoRegistro>(`ultimo_registro_${becarioId}`),
   guardarUltimoRegistro: (becarioId: string, r: UltimoRegistro) => escribir(`ultimo_registro_${becarioId}`, r),
   async limpiar() {

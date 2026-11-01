@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
+import { configAsistenciaActual, jornadaMaximaHoras } from '../datos/repositorios'
 import { mensajeAmigable } from '../lib/errores'
 
 /** Estado de una carga: lo mismo que UiState de la app Android. */
@@ -90,4 +91,17 @@ export function useEnLinea(): boolean {
     }
   }, [])
   return enLinea
+}
+
+/** Jornada máxima (horas) para calcular horas por día: 10 hasta que cargue la configuración del servidor. */
+export function useJornadaMaxima(): number {
+  const [tope, setTope] = useState(() => configAsistenciaActual().jornada_maxima_horas)
+  useEffect(() => {
+    let vigente = true
+    void jornadaMaximaHoras().then((t) => vigente && setTope(t))
+    return () => {
+      vigente = false
+    }
+  }, [])
+  return tope
 }

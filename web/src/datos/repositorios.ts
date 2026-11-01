@@ -2,7 +2,10 @@ import { ErrorApi, ErrorDeNegocio, esErrorDeRed } from '../lib/errores'
 import { diaSemana, esFechaValida, primerDiaMes, type Fecha } from '../lib/fechas'
 import { cache } from '../lib/local'
 import {
+  CONFIG_POR_OMISION,
   permiteSubir,
+  type ConfigAsistencia,
+  type Geocerca,
   type DiaHorario,
   type EnrolamientoFacial,
   type EstadoReporteSiase,
@@ -453,4 +456,97 @@ export async function exportarAsistenciasCsv(desde: Fecha, hasta: Fecha): Promis
     ...filas.map((f) => [f.matricula, f.nombre, f.tipo, f.modalidad, f.fecha, f.hora].map(campoCsv).join(','))
   ]
   return { contenido: '﻿' + lineas.join('\r\n') + '\r\n', registros: filas.length }
+}
+
+// ===========================================================================
+// Reglas de asistencia y zonas de registro (0021)
+// ===========================================================================
+
+let configCargada: ConfigAsistencia | null = null
+
+/** La última configuración leída (o la de por omisión): para cálculos síncronos como las horas por día. */
+export function configAsistenciaActual(): ConfigAsistencia {
+  return configCargada ?? CONFIG_POR_OMISION
+}
+
+/**
+ * Reglas vigentes. Guarda una copia en el teléfono y, si no hay red, usa la última
+ * conocida (o los valores por omisión) para que las horas se vean igual sin conexión.
+ */
+export async function configAsistencia(): Promise<ConfigAsistencia> {
+  try {
+    const fila = await q(
+      supabase.from('config_asistencia').select('jornada_maxima_horas, atraso_maximo_minutos, tolerancia_minutos').maybeSingle<ConfigAsistencia>()
+    )
+    const config: ConfigAsistencia = fila
+      ? {
+          jornada_maxima_horas: Number(fila.jornada_maxima_horas),
+          atraso_maximo_minutos: Number(fila.atraso_maximo_minutos),
+          tolerancia_minutos: Number(fila.tolerancia_minutos)
+        }
+      : CONFIG_POR_OMISION
+    configCargada = config
+    await cache.guardarConfigAsistencia(config)
+    return config
+  } catch (e) {
+    if (!esErrorDeRed(e)) throw e
+    const copia = (await cache.configAsistencia()) ?? configCargada
+    if (copia) {
+      configCargada = copia
+      return copia
+    }
+    throw e
+  }
+}
+
+/** Jornada máxima para calcular horas: nunca falla; usa 10 h hasta que cargue la configuración. */
+export async function jornadaMaximaHoras(): Promise<number> {
+  return (await configAsistencia().catch(() => configAsistenciaActual())).jornada_maxima_horas
+}
+
+export function guardarConfigAsistencia(jornadaMaxima: number, atrasoMaximoMinutos: number, toleranciaMinutos: number): Promise<void> {
+  return ejecutar(
+    supabase.rpc('guardar_config_asistencia', {
+      p_jornada_maxima: jornadaMaxima,
+      p_atraso_maximo_minutos: atrasoMaximoMinutos,
+      p_tolerancia_minutos: toleranciaMinutos
+    })
+  ).then(() => {
+    configCargada = {
+      jornada_maxima_horas: jornadaMaxima,
+      atraso_maximo_minutos: atrasoMaximoMinutos,
+      tolerancia_minutos: toleranciaMinutos
+    }
+    return cache.guardarConfigAsistencia(configCargada)
+  })
+}
+
+export async function geocercas(): Promise<Geocerca[]> {
+  const filas = await q<Geocerca[] | null>(supabase.from('geocercas').select('id, nombre, latitud, longitud, radio_m, activa').order('nombre'))
+  return (filas ?? []).map((g) => ({ ...g, latitud: Number(g.latitud), longitud: Number(g.longitud), radio_m: Number(g.radio_m) }))
+}
+
+/** Crea (id null) o actualiza una zona. Devuelve el id. */
+export function guardarGeocerca(
+  id: string | null,
+  nombre: string,
+  latitud: number,
+  longitud: number,
+  radioM: number,
+  activa: boolean
+): Promise<string> {
+  return q(
+    supabase.rpc('guardar_geocerca', {
+      p_id: id,
+      p_nombre: nombre.trim(),
+      p_latitud: latitud,
+      p_longitud: longitud,
+      p_radio_m: radioM,
+      p_activa: activa
+    })
+  )
+}
+
+export function eliminarGeocerca(id: string): Promise<void> {
+  return ejecutar(supabase.rpc('eliminar_geocerca', { p_id: id }))
 }

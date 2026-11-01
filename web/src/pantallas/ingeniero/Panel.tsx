@@ -1,6 +1,6 @@
 import { useNavigate } from 'react-router-dom'
-import { ArrowLeftRight, CalendarCheck, ChevronRight, FileText, History, TrendingDown, Users } from 'lucide-react'
-import { historialEquipo } from '../../datos/asistencias'
+import { ArrowLeftRight, CalendarCheck, ChevronRight, FileText, History, Hourglass, TrendingDown, Users } from 'lucide-react'
+import { anomalias, historialEquipo } from '../../datos/asistencias'
 import { estadoVentana, progresoEquipo } from '../../datos/repositorios'
 import { requerirUsuario, usuarioEnMemoria } from '../../datos/sesion'
 import { diaCompleto, fechaHora, fechaLocal, hoy, sumarDias } from '../../lib/fechas'
@@ -28,19 +28,22 @@ import { useAlReanudar, useCarga } from '../../ui/hooks'
 async function cargar() {
   await requerirUsuario()
   const equipo = await progresoEquipo()
-  const [ventana, registros] = await Promise.all([
+  const [ventana, registros, porRevisar] = await Promise.all([
     estadoVentana().catch(() => null),
     historialEquipo(
       equipo.map((b) => b.becario_id),
       sumarDias(hoy(), -6),
       hoy()
-    ).catch(() => null)
+    ).catch(() => null),
+    // Si falla, solo se oculta el número (–): no se rompe el panel.
+    anomalias().then((l) => l.length, () => null)
   ])
   const nombres = new Map(equipo.map((b) => [b.becario_id, b.nombre]))
   return {
     equipo,
     riesgo: equipo.filter(enRiesgo),
     ventana,
+    porRevisar,
     conRegistroHoy: registros ? new Set(registros.filter((r) => fechaLocal(r.asistencia.ocurrido_en) === hoy()).map((r) => r.asistencia.becario_id)).size : null,
     actividad: (registros ?? []).slice(0, 6).map((r) => ({ ...r, nombre: nombres.get(r.asistencia.becario_id) ?? 'Becario' }))
   }
@@ -65,6 +68,14 @@ export default function PanelIngeniero() {
                 icono={CalendarCheck}
                 detalle={`de ${d.equipo.length}`}
                 onClick={() => navegar('/ingeniero/asistencias')}
+              />
+              <TarjetaIndicador
+                valor={d.porRevisar != null ? String(d.porRevisar) : '–'}
+                etiqueta="Por revisar"
+                icono={Hourglass}
+                alerta={(d.porRevisar ?? 0) > 0}
+                detalle="registros"
+                onClick={() => navegar('/ingeniero/revisar')}
               />
               <TarjetaIndicador valor={String(d.riesgo.length)} etiqueta="Debajo de su meta" icono={TrendingDown} alerta={d.riesgo.length > 0} detalle="esta semana" />
               <TarjetaIndicador

@@ -1,8 +1,10 @@
 import { useState } from 'react'
-import { CalendarRange, CircleAlert, CloudOff, ScanFace, Trash2, UserCheck, X } from 'lucide-react'
+import { CalendarRange, CircleAlert, CircleCheck, CloudOff, Hourglass, ScanFace, Trash2, UserCheck, X } from 'lucide-react'
 import { diaCompleto, fechaCorta, fechaLocal, hoy, hora, lunesDe, parsear, sumarDias, diaMes, type Fecha } from '../../lib/fechas'
 import { horas as formatoHoras } from '../../lib/formato'
 import { horasPorDia, totalHoras, type AsistenciaUi } from '../../lib/modelos'
+import { explicacionMotivo, EXPLICACION_POR_REVISAR, EXPLICACION_TARDIO } from '../../ui/estadosVisuales'
+import { useJornadaMaxima } from '../../ui/hooks'
 import {
   Badge,
   BotonIcono,
@@ -62,6 +64,21 @@ export function TarjetaAsistencia(props: { item: AsistenciaUi; nombreBecario?: s
           ) : props.item.sinSubir ? (
             <Badge texto="Sin subir · se sube al haber conexión" tono="info" icono={CloudOff} />
           ) : null}
+          {a.revision === 'por_revisar' && (
+            <div className="columna" style={{ gap: 2 }}>
+              <Badge texto="Por revisar" tono="alerta" icono={Hourglass} />
+              <p className="chico texto-2">
+                {a.motivo_revision ? explicacionMotivo[a.motivo_revision] : null} {EXPLICACION_POR_REVISAR}
+              </p>
+            </div>
+          )}
+          {a.revision === 'aprobada' && <Badge texto="Aprobado" tono="exito" icono={CircleCheck} />}
+          {a.origen === 'cola' && (
+            <div className="columna" style={{ gap: 2 }}>
+              <Badge texto="Registro tardío" tono="info" icono={CloudOff} />
+              <p className="chico texto-2">{EXPLICACION_TARDIO}</p>
+            </div>
+          )}
         </div>
         {props.onEliminar && a.id && !props.item.sinSubir && (
           <BotonIcono icono={Trash2} etiqueta={`Eliminar registro de las ${h}`} onClick={props.onEliminar} />
@@ -86,6 +103,7 @@ export function AsistenciasPorDia(props: {
   agruparPorBecario?: boolean
   onEliminar?: (item: AsistenciaUi) => void
 }) {
+  const tope = useJornadaMaxima()
   const grupos = new Map<string, AsistenciaUi[]>()
   for (const item of props.lista) {
     const dia = fechaLocal(item.asistencia.ocurrido_en) ?? ''
@@ -98,9 +116,9 @@ export function AsistenciasPorDia(props: {
         if (props.agruparPorBecario) {
           const porBecario = new Map<string, AsistenciaUi[]>()
           for (const i of delDia) porBecario.set(i.asistencia.becario_id, [...(porBecario.get(i.asistencia.becario_id) ?? []), i])
-          horasDia = [...porBecario.values()].reduce((s, g) => s + totalHoras(g.map((i) => i.asistencia)), 0)
+          horasDia = [...porBecario.values()].reduce((s, g) => s + totalHoras(g.map((i) => i.asistencia), tope), 0)
         } else {
-          horasDia = [...horasPorDia(delDia.map((i) => i.asistencia)).values()].reduce((s, x) => s + x, 0)
+          horasDia = [...horasPorDia(delDia.map((i) => i.asistencia), tope).values()].reduce((s, x) => s + x, 0)
         }
         return (
           <section key={dia || 'sin-fecha'} className="columna" style={{ gap: 8 }}>
