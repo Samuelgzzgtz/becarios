@@ -144,7 +144,7 @@ El historial conserva los valores anteriores/nuevos, responsable y fecha.
 Si otro supervisor cambió el registro mientras estaba abierto, hay que volver
 a seleccionarlo; una solicitud obsoleta se rechaza sin aplicar cambios.
 
-Requiere `backend/sql/0021_correcciones_asistencias.sql`. Coordinar su aplicación
+Requiere `backend/sql/0022_correcciones_asistencias.sql`. Coordinar su aplicación
 con el despliegue web: la app Android anterior queda como código legado y sus
 correcciones directas ya no están soportadas con este backend.
 

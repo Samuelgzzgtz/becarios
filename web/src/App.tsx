@@ -195,7 +195,6 @@ function Rutas() {
               <Route path="exportar" element={<Exportar />} />
               <Route path="becario/:id/asignar" element={<AsignarIngeniero />} />
               <Route path="revisar" element={<RevisarAdmin />} />
-              <Route path="becario/:id/asistencias" element={<AsistenciasBecario />} />
             </Route>
 
             <Route path="*" element={<Navigate to="/login" replace />} />

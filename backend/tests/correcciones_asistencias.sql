@@ -1,4 +1,4 @@
--- Ejecutar después de 0021 como dueño de las tablas (postgres). Todo se revierte,
+-- Ejecutar después de 0022 como dueño de las tablas (postgres). Todo se revierte,
 -- incluso si una aserción falla.
 begin;
 
@@ -119,8 +119,8 @@ begin
   insert into public.asistencias (becario_id, tipo, ocurrido_en, modalidad)
   values (v_bec2, 'entrada', t0, 'presencial') returning id into v_ajena;
   perform pg_temp.exige(
-    (select actor_id is null and accion = 'insertar' and motivo is null
-     from public.auditoria_asistencias where asistencia_id = v_entrada),
+    (select hecho_por is null and accion = 'agregar' and motivo is null
+     from public.bitacora_asistencias where asistencia_id = v_entrada),
     'El insert de sistema se audita sin actor');
 
   -- ------------------------------------------------------------------ registro automático
@@ -128,8 +128,8 @@ begin
     'insert into public.asistencias (becario_id, tipo, ocurrido_en, modalidad) values (%L, ''entrada'', now(), ''presencial'')', v_bec),
     'El becario registra su asistencia');
   perform pg_temp.exige(
-    (select count(*) = 1 from public.auditoria_asistencias a
-     where a.becario_id = v_bec and a.accion = 'insertar' and a.actor_id = v_bec
+    (select count(*) = 1 from public.bitacora_asistencias a
+     where a.becario_id = v_bec and a.accion = 'agregar' and a.hecho_por = v_bec
        and a.actor_nombre = 'Becario Uno' and a.motivo is null and a.antes is null and a.despues is not null),
     'El registro automático queda auditado con el becario como actor');
   perform pg_temp.falla(k_bec, format(
@@ -185,8 +185,8 @@ begin
     (select verificado_por = v_ing from public.asistencias where becario_id = v_bec and ocurrido_en = t0 + interval '1 day 6 hours'),
     'La corrección marca verificado_por con el supervisor real');
   perform pg_temp.exige(
-    (select count(*) = 1 from public.auditoria_asistencias a
-     where a.becario_id = v_bec and a.accion = 'insertar' and a.actor_id = v_ing
+    (select count(*) = 1 from public.bitacora_asistencias a
+     where a.becario_id = v_bec and a.accion = 'agregar' and a.hecho_por = v_ing
        and a.actor_nombre = 'Ing Uno' and a.motivo = 'Olvidó registrar la salida' and a.solicitud_id is null),
     'La corrección directa queda auditada con actor y motivo');
 
@@ -232,9 +232,9 @@ begin
   perform pg_temp.exige(pg_temp.cuenta_como(k_admin, 'select count(*) from public.solicitudes_correccion') >= 2, 'El admin ve todas');
   perform pg_temp.exige(pg_temp.cuenta_como(k_ing2, 'select count(*) from public.solicitudes_correccion') = 0, 'Otro ingeniero no las ve');
   perform pg_temp.exige(pg_temp.cuenta_como(k_bec2, 'select count(*) from public.solicitudes_correccion') = 0, 'Otro becario no las ve');
-  perform pg_temp.exige(pg_temp.cuenta_como(k_bec2, format('select count(*) from public.auditoria_asistencias where becario_id = %L', v_bec)) = 0,
+  perform pg_temp.exige(pg_temp.cuenta_como(k_bec2, format('select count(*) from public.bitacora_asistencias where becario_id = %L', v_bec)) = 0,
     'Otro becario no ve la auditoría ajena');
-  perform pg_temp.exige(pg_temp.cuenta_como(k_ing, format('select count(*) from public.auditoria_asistencias where becario_id = %L', v_bec)) > 0,
+  perform pg_temp.exige(pg_temp.cuenta_como(k_ing, format('select count(*) from public.bitacora_asistencias where becario_id = %L', v_bec)) > 0,
     'El ingeniero ve la auditoría de su equipo');
 
   perform pg_temp.falla(k_bec, format(
@@ -242,12 +242,12 @@ begin
     'permission denied', 'Nadie inserta solicitudes sin la RPC');
   perform pg_temp.falla(k_bec, format('update public.solicitudes_correccion set estado = ''aprobada'' where id = %L', v_sol),
     'permission denied', 'El becario no se autoaprueba');
-  perform pg_temp.falla(k_admin, 'delete from public.auditoria_asistencias',
+  perform pg_temp.falla(k_admin, 'delete from public.bitacora_asistencias',
     'permission denied', 'La API no borra la auditoría');
-  perform pg_temp.falla(k_admin, 'insert into public.auditoria_asistencias (becario_id, asistencia_id, accion) values (gen_random_uuid(), gen_random_uuid(), ''insertar'')',
+  perform pg_temp.falla(k_admin, 'insert into public.bitacora_asistencias (becario_id, asistencia_id, accion) values (gen_random_uuid(), gen_random_uuid(), ''insertar'')',
     'permission denied', 'La API no inserta auditoría');
   begin
-    update public.auditoria_asistencias set motivo = 'alterado' where becario_id = v_bec;
+    update public.bitacora_asistencias set motivo = 'alterado' where becario_id = v_bec;
     raise exception 'FALLÓ: el dueño pudo editar la auditoría';
   exception when others then
     perform pg_temp.exige(sqlerrm like '%no se puede modificar%', 'La auditoría es append-only incluso para el dueño: ' || sqlerrm);
@@ -261,7 +261,7 @@ begin
   perform pg_temp.falla(k_ing, format('select public.resolver_correccion_asistencia(%L, true, '' '')', v_sol),
     'respuesta', 'Resolver exige respuesta');
 
-  v_auditoria := (select count(*) from public.auditoria_asistencias where asistencia_id = v_entrada);
+  v_auditoria := (select count(*) from public.bitacora_asistencias where asistencia_id = v_entrada);
   perform pg_temp.funciona(k_ing, format('select public.resolver_correccion_asistencia(%L, true, ''Aprobado'')', v_sol),
     'El ingeniero aprueba');
   perform pg_temp.exige(
@@ -272,10 +272,10 @@ begin
      from public.solicitudes_correccion where id = v_sol),
     'La solicitud queda aprobada');
   perform pg_temp.exige(
-    (select count(*) = v_auditoria + 1 from public.auditoria_asistencias where asistencia_id = v_entrada)
+    (select count(*) = v_auditoria + 1 from public.bitacora_asistencias where asistencia_id = v_entrada)
     and exists (
-      select 1 from public.auditoria_asistencias
-      where asistencia_id = v_entrada and accion = 'modificar' and actor_id = v_ing and solicitud_id = v_sol
+      select 1 from public.bitacora_asistencias
+      where asistencia_id = v_entrada and accion = 'editar' and hecho_por = v_ing and solicitud_id = v_sol
         and motivo = 'Trabajé desde casa' and antes ->> 'modalidad' = 'presencial' and despues ->> 'modalidad' = 'home_office'),
     'La aprobación queda auditada una sola vez con solicitud, motivo, antes y después');
 
@@ -285,7 +285,7 @@ begin
   perform pg_temp.falla(k_admin, format('select public.resolver_correccion_asistencia(%L, false, ''Tarde'')', v_sol),
     'solicitud_resuelta', 'No se rechaza una aprobada');
   perform pg_temp.exige(
-    (select count(*) = v_auditoria + 1 from public.auditoria_asistencias where asistencia_id = v_entrada),
+    (select count(*) = v_auditoria + 1 from public.bitacora_asistencias where asistencia_id = v_entrada),
     'Reintentar no agrega auditoría');
 
   -- Snapshot obsoleto por modificación directa: se rechaza aprobar, luego se rechaza la solicitud.
@@ -318,8 +318,8 @@ begin
     'select public.corregir_asistencia(%L, ''eliminar'', %L, null, null, null, ''Registro inválido'')', v_bec, v_otra),
     'El admin elimina con motivo');
   perform pg_temp.exige(
-    exists (select 1 from public.auditoria_asistencias
-            where asistencia_id = v_otra and accion = 'eliminar' and actor_id = v_admin
+    exists (select 1 from public.bitacora_asistencias
+            where asistencia_id = v_otra and accion = 'eliminar' and hecho_por = v_admin
               and motivo = 'Registro inválido' and antes is not null and despues is null),
     'El borrado queda auditado y la auditoría sobrevive a la asistencia');
   perform pg_temp.falla(k_admin, format('select public.resolver_correccion_asistencia(%L, true, ''Ok'')', v_sol2),
@@ -358,6 +358,21 @@ begin
     'select public.corregir_asistencia(%L, ''modificar'', %L, ''salida'', null, null, ''Tipo correcto'', %L::jsonb)', v_bec, v_conflicto, v_snapshot),
     'Una instantánea en otra zona horaria representa la misma fila');
 
+  -- La revisión independiente no invalida una solicitud de modalidad.
+  perform set_config('request.jwt.claims', '', true);
+  insert into public.asistencias(becario_id,tipo,ocurrido_en,modalidad,revision,motivo_revision)
+  values(v_bec,'salida',t0 + interval '2 days 6 hours','presencial','por_revisar','fuera_de_zona') returning id into v_conflicto;
+  perform pg_temp.funciona(k_bec, format(
+    'select public.solicitar_correccion_asistencia(''modificar'', %L, p_modalidad => ''home_office'', p_motivo => ''Trabajé desde casa'')', v_conflicto),
+    'Se solicita una corrección de modalidad');
+  select id into v_sol2 from public.solicitudes_correccion where asistencia_id=v_conflicto and estado='pendiente';
+  perform pg_temp.funciona(k_admin, format('select public.aprobar_asistencia(%L)',v_conflicto),
+    'Otro supervisor revisa la marcación');
+  perform pg_temp.funciona(k_ing, format('select public.resolver_correccion_asistencia(%L,true,''Modalidad confirmada'')',v_sol2),
+    'Revisar no vuelve obsoleta una corrección cuyos datos siguen iguales');
+  perform pg_temp.exige((select modalidad='home_office' from public.asistencias where id=v_conflicto),
+    'La corrección aprobada se aplica después de la revisión');
+
   -- ------------------------------------------------------------------ permisos vigentes
   perform public.desactivar_usuario_clerk(k_bec, 999);
   perform pg_temp.falla(k_bec, format(
@@ -365,7 +380,7 @@ begin
     'becario activo', 'Un becario inactivo no solicita');
   perform pg_temp.exige(pg_temp.cuenta_como(k_bec, 'select count(*) from public.solicitudes_correccion') = 0,
     'Un becario inactivo deja de ver sus solicitudes');
-  perform pg_temp.exige(pg_temp.cuenta_como(k_bec, 'select count(*) from public.auditoria_asistencias') = 0,
+  perform pg_temp.exige(pg_temp.cuenta_como(k_bec, 'select count(*) from public.bitacora_asistencias') = 0,
     'Un becario inactivo deja de ver su auditoría');
 
   update public.ingenieros_becarios set activo = false where ingeniero_id = v_ing;
@@ -375,11 +390,11 @@ begin
 
   -- ------------------------------------------------------------------ cascada de usuario
   perform set_config('request.jwt.claims', '', true);
-  v_auditoria := (select count(*) from public.auditoria_asistencias where becario_id = v_bec)
+  v_auditoria := (select count(*) from public.bitacora_asistencias where becario_id = v_bec)
     + (select count(*) from public.asistencias where becario_id = v_bec);
   delete from public.usuarios where id = v_bec;
   perform pg_temp.exige(
-    (select count(*) from public.auditoria_asistencias where becario_id = v_bec) = v_auditoria,
+    (select count(*) from public.bitacora_asistencias where becario_id = v_bec) = v_auditoria,
     'Borrar al usuario conserva la auditoría previa y audita cada borrado en cascada');
   perform pg_temp.exige(
     not exists (select 1 from public.solicitudes_correccion where becario_id = v_bec),

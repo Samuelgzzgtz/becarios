@@ -1,4 +1,4 @@
--- 0021: Solicitudes de corrección de asistencias y auditoría inmutable.
+-- 0022: Solicitudes de corrección de asistencias y auditoría inmutable.
 --
 --  * El becario activo pide agregar, modificar o eliminar un registro suyo
 --    (solicitar_correccion_asistencia). Su ingeniero asignado o un admin la
@@ -6,7 +6,7 @@
 --  * El ingeniero asignado o el admin corrigen directo con motivo
 --    (corregir_asistencia). Ya no pueden escribir en asistencias por la API.
 --  * Toda inserción, modificación o borrado de asistencias (registro automático,
---    corrección, cascada, service_role) queda en auditoria_asistencias, que no se
+--    corrección, cascada, service_role) queda en bitacora_asistencias, que no se
 --    puede editar ni borrar y no tiene llaves foráneas: sobrevive al borrado del
 --    registro o del usuario.
 --
@@ -17,6 +17,8 @@
 -- ---------------------------------------------------------------------------
 -- Tablas
 -- ---------------------------------------------------------------------------
+begin;
+
 create table public.solicitudes_correccion (
   id            uuid primary key default gen_random_uuid(),
   becario_id    uuid not null references public.usuarios (id) on delete cascade,
@@ -61,38 +63,26 @@ create unique index solicitudes_correccion_agregar_pendiente_idx
   on public.solicitudes_correccion (becario_id, tipo, ocurrido_en)
   where estado = 'pendiente' and accion = 'agregar';
 
-create table public.auditoria_asistencias (
-  id            uuid primary key default gen_random_uuid(),
-  becario_id    uuid not null,
-  asistencia_id uuid not null,
-  accion        text not null check (accion in ('insertar', 'modificar', 'eliminar')),
-  -- null = sin usuario de sesión (service_role, migraciones, cascadas de sistema).
-  actor_id      uuid,
-  actor_nombre  text,
-  antes         jsonb,
-  despues       jsonb,
-  -- null en el registro automático del becario.
-  motivo        text,
-  solicitud_id  uuid,
-  created_at    timestamptz not null default now()
-);
-
-create index auditoria_asistencias_becario_idx
-  on public.auditoria_asistencias (becario_id, created_at desc);
-create index auditoria_asistencias_asistencia_idx
-  on public.auditoria_asistencias (asistencia_id);
+-- Extend the existing ledger, preserving its IDs and prior events.
+alter table public.bitacora_asistencias
+  add column actor_nombre text,
+  add column motivo text,
+  add column solicitud_id uuid;
+update public.bitacora_asistencias b set actor_nombre = u.nombre
+from public.usuarios u where u.id = b.hecho_por;
+create index bitacora_asistencias_asistencia_idx on public.bitacora_asistencias(asistencia_id);
 
 -- ---------------------------------------------------------------------------
 -- Lectura: el becario activo lo suyo, el ingeniero asignado su equipo, el admin
 -- todo. Nadie escribe por la API: solo las RPC y el trigger (SECURITY DEFINER).
 -- ---------------------------------------------------------------------------
 alter table public.solicitudes_correccion enable row level security;
-alter table public.auditoria_asistencias enable row level security;
+alter table public.bitacora_asistencias enable row level security;
 
 revoke all on public.solicitudes_correccion from public, anon, authenticated, service_role;
-revoke all on public.auditoria_asistencias from public, anon, authenticated, service_role;
+revoke all on public.bitacora_asistencias from public, anon, authenticated, service_role;
 grant select on public.solicitudes_correccion to authenticated, service_role;
-grant select on public.auditoria_asistencias to authenticated, service_role;
+grant select on public.bitacora_asistencias to authenticated, service_role;
 
 create policy solicitudes_correccion_select on public.solicitudes_correccion
   for select to authenticated
@@ -102,7 +92,8 @@ create policy solicitudes_correccion_select on public.solicitudes_correccion
     or public.es_admin()
   );
 
-create policy auditoria_asistencias_select on public.auditoria_asistencias
+drop policy bitacora_asistencias_select on public.bitacora_asistencias;
+create policy bitacora_asistencias_select on public.bitacora_asistencias
   for select to authenticated
   using (
     (becario_id = (select public.uid_actual()) and public.usuario_activo())
@@ -121,11 +112,11 @@ begin
 end;
 $$;
 
-create trigger auditoria_asistencias_inmutable
-  before update or delete on public.auditoria_asistencias
+create trigger bitacora_asistencias_inmutable
+  before update or delete on public.bitacora_asistencias
   for each row execute function public.auditoria_inmutable();
-create trigger auditoria_asistencias_sin_truncate
-  before truncate on public.auditoria_asistencias
+create trigger bitacora_asistencias_sin_truncate
+  before truncate on public.bitacora_asistencias
   for each statement execute function public.auditoria_inmutable();
 
 -- ---------------------------------------------------------------------------
@@ -133,7 +124,7 @@ create trigger auditoria_asistencias_sin_truncate
 -- la solicitud en variables de la transacción; el registro automático no.
 -- TimeZone fijo: el jsonb de las fechas debe ser comparable entre sesiones.
 -- ---------------------------------------------------------------------------
-create or replace function public.auditar_asistencia()
+create or replace function public.asistencias_bitacora()
 returns trigger
 language plpgsql
 security definer
@@ -150,12 +141,15 @@ begin
     v_fila := new;
   end if;
 
-  insert into public.auditoria_asistencias
-    (becario_id, asistencia_id, accion, actor_id, actor_nombre, antes, despues, motivo, solicitud_id)
+  insert into public.bitacora_asistencias
+    (becario_id, asistencia_id, accion, hecho_por, actor_nombre, antes, despues, motivo, solicitud_id)
   values (
     v_fila.becario_id,
     v_fila.id,
-    case tg_op when 'INSERT' then 'insertar' when 'UPDATE' then 'modificar' else 'eliminar' end,
+    case tg_op when 'INSERT' then 'agregar' when 'UPDATE' then
+      case when old.revision <> 'aprobada' and new.revision = 'aprobada'
+        and (to_jsonb(new) - 'revision') = (to_jsonb(old) - 'revision')
+        then 'aprobar' else 'editar' end else 'eliminar' end,
     v_actor,
     (select u.nombre from public.usuarios u where u.id = v_actor),
     case when tg_op <> 'INSERT' then to_jsonb(old) end,
@@ -167,9 +161,10 @@ begin
 end;
 $$;
 
-create trigger asistencias_auditar
+drop trigger asistencias_bitacora on public.asistencias;
+create trigger asistencias_bitacora
   after insert or update or delete on public.asistencias
-  for each row execute function public.auditar_asistencia();
+  for each row execute function public.asistencias_bitacora();
 
 -- ---------------------------------------------------------------------------
 -- Escritura directa en asistencias: solo el propio registro del usuario, sin
@@ -269,7 +264,9 @@ begin
       raise exception 'El registro de asistencia no existe.';
     end if;
     v_antes := to_jsonb(a);
-    if p_antes is not null and jsonb_populate_record(null::public.asistencias, p_antes) is distinct from a then
+    -- Revisar una marcación no cambia la fecha/tipo/modalidad que vio el solicitante.
+    if p_antes is not null and jsonb_populate_record(null::public.asistencias,
+      p_antes || jsonb_build_object('revision', a.revision, 'motivo_revision', a.motivo_revision)) is distinct from a then
       raise exception 'El registro cambió desde que lo abriste. Vuelve a seleccionarlo antes de corregirlo.'
         using hint = 'solicitud_obsoleta';
     end if;
@@ -316,7 +313,7 @@ begin
   elsif p_accion = 'modificar' then
     update public.asistencias
     set tipo = p_tipo, ocurrido_en = p_ocurrido_en, modalidad = p_modalidad,
-        verificado_por = public.uid_actual()
+        verificado_por = public.uid_actual(), origen = 'manual', revision = 'aprobada', motivo_revision = null
     where id = p_asistencia;
   else
     delete from public.asistencias where id = p_asistencia;
@@ -421,7 +418,7 @@ begin
   if p_aprobar then
     if s.accion <> 'agregar' then
       select * into a from public.asistencias where id = s.asistencia_id for update;
-      if not found or to_jsonb(a) <> s.antes then
+      if not found or (to_jsonb(a) - 'revision' - 'motivo_revision') <> (s.antes - 'revision' - 'motivo_revision') then
         raise exception 'El registro cambió o se borró desde que se pidió la corrección; recházala.'
           using hint = 'solicitud_obsoleta';
       end if;
@@ -478,7 +475,7 @@ $$;
 -- Privilegios. Supabase concede EXECUTE a anon/authenticated por defecto.
 -- ---------------------------------------------------------------------------
 revoke execute on function public.auditoria_inmutable() from public, anon, authenticated;
-revoke execute on function public.auditar_asistencia() from public, anon, authenticated;
+revoke execute on function public.asistencias_bitacora() from public, anon, authenticated;
 revoke execute on function public.proteger_asistencias() from public, anon, authenticated;
 revoke execute on function public._preparar_correccion(uuid, text, uuid, public.tipo_asistencia, timestamptz, public.modalidad_trabajo, text, jsonb) from public, anon, authenticated;
 revoke execute on function public._aplicar_correccion(uuid, text, uuid, public.tipo_asistencia, timestamptz, public.modalidad_trabajo, text, uuid) from public, anon, authenticated;
@@ -489,3 +486,5 @@ revoke execute on function public.corregir_asistencia(uuid, text, uuid, public.t
 grant execute on function public.solicitar_correccion_asistencia(text, uuid, public.tipo_asistencia, timestamptz, public.modalidad_trabajo, text, jsonb) to authenticated;
 grant execute on function public.resolver_correccion_asistencia(uuid, boolean, text) to authenticated;
 grant execute on function public.corregir_asistencia(uuid, text, uuid, public.tipo_asistencia, timestamptz, public.modalidad_trabajo, text, jsonb) to authenticated;
+
+commit;

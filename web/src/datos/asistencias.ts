@@ -219,34 +219,6 @@ export async function siguienteTipo(becarioId: string): Promise<TipoAsistencia> 
   const ultimo = candidatos.sort((a, b) => b.instante.getTime() - a.instante.getTime())[0]
   return siguienteTipoSegun(ultimo?.tipo, ultimo?.instante)
 }
-<<<<<<< HEAD
-
-// ---------------------------------------------------------------------------
-// Corrección manual (ingeniero asignado o admin; RLS de 0013). C-04.
-// ---------------------------------------------------------------------------
-
-/** Agrega un registro con fecha/hora elegida (p. ej. la salida que el becario olvidó). */
-export function agregarManual(
-  becarioId: string,
-  tipo: TipoAsistencia,
-  ocurridoEn: Date,
-  modalidad: ModalidadTrabajo,
-  verificadoPor: string
-): Promise<void> {
-  return ejecutar(
-    supabase.from('asistencias').insert({
-      becario_id: becarioId,
-      tipo,
-      ocurrido_en: ocurridoEn.toISOString(),
-      modalidad,
-      verificado_por: verificadoPor
-    } satisfies Asistencia)
-  )
-}
-
-export function eliminar(asistenciaId: string): Promise<void> {
-  return ejecutar(supabase.from('asistencias').delete().eq('id', asistenciaId))
-}
 
 // ---------------------------------------------------------------------------
 // Integridad de horas (0021): anomalías, aprobación y bitácora
@@ -278,5 +250,3 @@ export function aprobarAsistencia(asistenciaId: string): Promise<void> {
 export async function bitacoraDe(becarioId: string, limite = 50): Promise<EntradaBitacora[]> {
   return (await q<EntradaBitacora[] | null>(supabase.rpc('bitacora_asistencias_de', { p_becario: becarioId, p_limite: limite }))) ?? []
 }
-=======
->>>>>>> 6a1cd6d (Agrega solicitudes de corrección de asistencias con motivo e historial)

@@ -43,9 +43,9 @@ Contrato completo en `docs/integridad-horas.md`. Lo esencial para quien toque el
   RPC (`guardar_config_asistencia`, `guardar_geocerca`, `eliminar_geocerca`,
   `aprobar_asistencia`) o por el disparador de bitácora.
 - Pruebas: `web/src/sql-tests/` carga 0001–0021 en PGlite (`cd web && npx vitest run src/sql-tests`).
-## Solicitudes e historial de asistencias (0021)
+## Solicitudes e historial de asistencias (0022)
 
-`0021_correcciones_asistencias.sql` se aplica después de 0020 junto con la web actualizada.
+`0022_correcciones_asistencias.sql` se aplica después de 0021 junto con la web actualizada.
 Agrega solicitudes del becario, aprobación o rechazo por su ingeniero o administrador,
 y auditoría de cada alta, modificación y eliminación. Las correcciones directas ahora
 requieren `corregir_asistencia` y un motivo. La web anterior no puede corregir registros

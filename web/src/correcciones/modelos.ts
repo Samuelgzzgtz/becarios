@@ -29,10 +29,10 @@ export interface SolicitudCorreccion {
 }
 
 export interface CambioAsistencia {
-  id: string
+  id: number
   becario_id: string
   asistencia_id: string
-  accion: 'insertar' | 'modificar' | 'eliminar'
+  accion: 'agregar' | 'editar' | 'eliminar' | 'aprobar'
   actor_id: string | null
   actor_nombre: string | null
   antes: unknown

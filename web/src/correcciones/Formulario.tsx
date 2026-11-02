@@ -65,9 +65,10 @@ export default function FormularioCorreccion(props: { becarioId: string; ocupado
         <label className="campo">Modalidad<select value={modalidad} disabled={props.ocupado} onChange={e => setModalidad(e.target.value === 'home_office' ? 'home_office' : 'presencial')}><option value="presencial">Presencial</option><option value="home_office">Home office</option></select></label>
       </>}
       <CampoTexto etiqueta="Motivo de la corrección" multilinea={3} valor={motivo} onCambio={setMotivo} deshabilitado={props.ocupado} ayuda="Entre 5 y 500 caracteres. Quedará guardado en el historial." />
+      {props.manual && accion !== 'eliminar' && <p role="note">La asistencia quedará manual y aprobada. Si es una salida, podrá contar horas por encima del máximo de jornada. Comprueba también la entrada correspondiente.</p>}
       {error && <p role="alert">{error}</p>}
       <div className="fila">
-        <Boton cargando={props.ocupado} onClick={guardar}>{props.manual ? 'Aplicar corrección' : 'Enviar solicitud'}</Boton>
+        <Boton cargando={props.ocupado} onClick={guardar}>{props.manual ? accion === 'eliminar' ? 'Eliminar registro' : 'Aplicar corrección y autorizar horas' : 'Enviar solicitud'}</Boton>
         <Boton variante="texto" deshabilitado={props.ocupado} onClick={props.onCancelar}>Cancelar</Boton>
       </div>
     </section>

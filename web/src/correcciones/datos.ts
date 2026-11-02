@@ -39,7 +39,7 @@ export async function solicitudes(pagina: number, soloPendientes: boolean, becar
 }
 
 export async function cambios(pagina: number, becarioId?: string) {
-  let consulta = supabase.from('auditoria_asistencias').select('*').order('created_at', { ascending: false }).order('id')
+  let consulta = supabase.from('bitacora_asistencias').select('id,becario_id,asistencia_id,accion,actor_id:hecho_por,actor_nombre,antes,despues,motivo,solicitud_id,created_at:hecho_en').order('hecho_en', { ascending: false }).order('id')
   if (becarioId) consulta = consulta.eq('becario_id', becarioId)
   const filas = await q<CambioAsistencia[]>(consulta.range(pagina * TAMANO_PAGINA, (pagina + 1) * TAMANO_PAGINA))
   return { filas: filas.slice(0, TAMANO_PAGINA), hayMas: filas.length > TAMANO_PAGINA }

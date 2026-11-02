@@ -1,9 +1,10 @@
 param([string]$Imagen = 'postgres:17-alpine')
 $ErrorActionPreference = 'Stop'
+$OutputEncoding = New-Object Text.UTF8Encoding($false)
 $contenedor = "becarios-pruebas-$PID"
 function EjecutarSql([string]$Ruta) {
     Get-Content -Raw -Encoding utf8 -LiteralPath $Ruta | docker exec -i $contenedor psql -U postgres -v ON_ERROR_STOP=1 -q
-    if ($LASTEXITCODE -ne 0) { throw "Falló SQL: $Ruta" }
+    if ($LASTEXITCODE -ne 0) { throw "SQL failed: $Ruta" }
 }
 try {
     docker run --rm -d --name $contenedor -e POSTGRES_HOST_AUTH_METHOD=trust $Imagen | Out-Null
