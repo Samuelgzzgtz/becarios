@@ -9,7 +9,7 @@ en "Warnings que se dejaron a propósito" más abajo.
 | --- | --- |
 | `0001_tipos_base.sql` | Enums de perfil, modalidad, estados; helper de `updated_at` |
 | `0002_tablas.sql` | Las 10 tablas de la sección "Base de datos" del plan |
-| `0003_auth_y_helpers.sql` | Trigger `auth.users` → `usuarios`; helpers de RLS |
+| `0003_auth_y_helpers.sql` | Trigger `auth.users` → `usuarios` (retirado en 0023); helpers de RLS |
 | `0004_rls.sql` | Políticas RLS por perfil (becario / ingeniero / administrador) |
 | `0005_funciones.sql` | Horas, ventana SIASE, cierre de ventana, cierre de semestre |
 | `0006_semillas.sql` | Ventana 26–30, metas globales, periodo inicial |
@@ -24,6 +24,8 @@ en "Warnings que se dejaron a propósito" más abajo.
 | `0015_operaciones_transaccionales.sql` | Auditoría C-05/C-06/A-05/A-10/A-13/M-10/M-11: RPC atómicas para transferencias, asignación, enrolamiento, configuración, cierre/apertura de periodo y bajas |
 | `0016_consultas_agregadas.sql` | Auditoría M-05/M-09/A-16: progreso del equipo en una llamada, indicadores del panel, exportación paginada |
 | `0021_integridad_horas.sql` | Integridad de horas: origen/revisión calculados por el servidor, tope de jornada, geocercas opcionales, bitácora de cambios y RPC de revisión (ver `docs/integridad-horas.md`) |
+| `0022_correcciones_asistencias.sql` | Solicitudes de corrección, corrección con motivo y auditoría inmutable |
+| `0023_seguridad.sql` | Modalidad y rostro revisados por el servidor, sin alta desde `auth.users`, campos protegidos de `usuarios`, firma SIASE solo por RPC, ventana y límites en Storage, correo verificado al enlazar con Clerk |
 
 Se aplican **en orden**. (`0006` ya no incluye el bloque de `pg_cron` comentado que
 trae el archivo en disco.) **0012–0016 se aplicaron al proyecto `rcvpowylehewvsxquhip`
@@ -50,6 +52,20 @@ Agrega solicitudes del becario, aprobación o rechazo por su ingeniero o adminis
 y auditoría de cada alta, modificación y eliminación. Las correcciones directas ahora
 requieren `corregir_asistencia` y un motivo. La web anterior no puede corregir registros
 una vez aplicada esta migración; coordinar el despliegue de backend y frontend.
+
+## Seguridad (0023)
+
+- El becario que registra su asistencia queda `por_revisar` si no manda `puntaje_rostro`
+  (`sin_rostro`) o si su modalidad no es la del horario de ese día local; sin horario
+  se espera `presencial` (`modalidad_distinta`).
+- `usuarios`: `clerk_id` y `email` solo los cambia la sincronización con Clerk; nombre,
+  perfil, estado y matrícula solo un administrador. El trigger mira `current_user`: la API
+  es `authenticated`; las RPC `SECURITY DEFINER`, `service_role` y migraciones pasan.
+- `reportes_siase`: la API solo escribe el reporte propio; firmar o excluir es
+  `firmar_reportes_siase`. Storage aplica la misma ventana y el mes en curso; el bucket
+  acepta hasta 10 MB de PDF o imagen.
+- El webhook de Clerk manda `p_correo_verificado`; sin verificar no se enlaza por correo
+  ni se guarda el correo. Aplicar 0023 antes de desplegar el webhook.
 
 Para verificar desde PostgreSQL vacío con Docker:
 `powershell -File backend/tests/ejecutar-local.ps1`.
@@ -112,10 +128,8 @@ Performance: solo "índice sin usar" en tablas casi vacías.
 **Pendiente de decidir (no se aplicó):** si al cerrar el semestre los becarios deben
 pasar a `egresado`/"Finalizado" (M-11). `cerrar_semestre` hoy solo archiva el periodo.
 
-**Edge function `admin-crear-usuario` v2 (desplegada 2026-10-20):** valida datos,
-revisa matrícula repetida antes de crear, traduce los errores de GoTrue a español y
-devuelve los errores de negocio con HTTP 200 + `{ "error": "..." }` para que la app
-siempre pueda leer el mensaje.
+**Edge function `admin-crear-usuario`:** se retiró en 0023 junto con el alta desde
+`auth.users`; las cuentas nacen en Clerk.
 
 ## Qué corrigieron 0007 y 0008
 
@@ -160,7 +174,8 @@ Los advisors tras aplicar 0001–0006 marcaron:
 - **`horas_trabajadas` no es `security definer`**: corre bajo el RLS de quien llama,
   así que preguntar por un becario ajeno devuelve `0`, no un error.
 - **Escalamiento de privilegios bloqueado**: el trigger `usuarios_proteger_campos`
-  impide que alguien se cambie `perfil`, `estado` o `matricula` a sí mismo. Sin eso,
+  impide que alguien se cambie `perfil`, `estado`, `matricula` o `nombre` a sí mismo
+  (y `clerk_id`/`email` nadie por la API, ver 0023). Sin eso,
   la política `usuarios_update_propio` permitiría que un becario se hiciera admin.
 - **El ingeniero no puede leer embeddings faciales**, solo insertarlos. La verificación
   corre en el dispositivo del becario, que lee el suyo.
@@ -184,11 +199,6 @@ Cifrarlo de verdad exige elegir dónde vive la llave; las dos rutas sobre la mes
 
 ## Datos de prueba
 
-El último punto de la Fase 2 ("poblar datos de prueba") **no está en estas migraciones**
-a propósito: los usuarios tienen que nacer en `auth.users` para que el trigger cree su
-fila en `usuarios`. Se crean por la API de Auth pasando el perfil en el metadata:
-
-```json
-{ "email": "...", "password": "...",
-  "user_metadata": { "perfil": "ingeniero", "matricula": "1900123", "nombre": "..." } }
-```
+Los usuarios nacen en Clerk: se crean o invitan desde su Dashboard con el perfil en el
+public metadata (`{ "perfil": "ingeniero", "matricula": "1900123" }`) y el webhook crea
+su fila en `usuarios` (ver `web/README.md`).

@@ -21,6 +21,7 @@ import { createClient } from "jsr:@supabase/supabase-js@2";
 interface CorreoClerk {
   id: string;
   email_address: string;
+  verification: { status: string } | null;
 }
 
 interface UsuarioClerk {
@@ -87,13 +88,12 @@ Deno.serve(async (req: Request) => {
 
   const u = evento.data as UsuarioClerk;
   const meta = u.public_metadata ?? {};
-  const correo =
-    u.email_addresses.find((e) => e.id === u.primary_email_address_id)?.email_address ?? u.email_addresses[0]?.email_address ?? null;
+  const correo = u.email_addresses.find((e) => e.id === u.primary_email_address_id) ?? u.email_addresses[0];
   const nombre = [u.first_name, u.last_name].filter(Boolean).join(" ") || texto(meta.nombre);
 
   const { data, error } = await supabase.rpc("sincronizar_usuario_clerk", {
     p_clerk_id: u.id,
-    p_email: correo,
+    p_email: correo?.email_address ?? null,
     p_nombre: nombre,
     p_perfil: texto(meta.perfil),
     p_matricula: texto(meta.matricula),
@@ -101,7 +101,9 @@ Deno.serve(async (req: Request) => {
     // Solo "Ban user" quita el acceso; un bloqueo temporal por intentos fallidos no.
     p_bloqueado: Boolean(u.banned),
     p_estado: texto(meta.estado),
-    p_actualizado_en: evento.timestamp
+    p_actualizado_en: evento.timestamp,
+    // Sin verificar, el servidor no enlaza por correo una cuenta existente (0023).
+    p_correo_verificado: correo?.verification?.status === "verified"
   });
   // Un error 500 hace que Clerk reintente el envío.
   if (error) return respuesta({ error: error.message }, 500);

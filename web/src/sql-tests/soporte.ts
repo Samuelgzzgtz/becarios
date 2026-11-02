@@ -52,9 +52,11 @@ const entorno = `
   grant execute on function auth.uid(), auth.jwt() to anon, authenticated, service_role;
 
   create schema storage;
-  create table storage.buckets (id text primary key, name text, public boolean default false);
+  create table storage.buckets (id text primary key, name text, public boolean default false, file_size_limit bigint, allowed_mime_types text[]);
   create table storage.objects (id uuid default gen_random_uuid() primary key, bucket_id text, name text);
   alter table storage.objects enable row level security;
+  grant usage on schema storage to authenticated;
+  grant select, insert, update on storage.objects to authenticated;
   create function storage.foldername(name text) returns text[] language sql immutable
     as $$ select string_to_array(name, '/') $$;
 
@@ -138,11 +140,22 @@ export async function reiniciarAsistencias(db: PGlite) {
   await db.exec(`
     -- Teardown local del dueño: la bitácora es inmutable en uso normal.
     alter table public.bitacora_asistencias disable trigger user;
-    truncate public.asistencias, public.bitacora_asistencias, public.geocercas;
+    truncate public.asistencias, public.bitacora_asistencias, public.geocercas, public.horarios_modalidad;
     alter table public.bitacora_asistencias enable trigger user;
     update public.config_asistencia
       set jornada_maxima_horas = 10, atraso_maximo_minutos = 60, tolerancia_minutos = 5;
   `)
+}
+
+/** Configura la misma modalidad los siete días para el becario (como dueño). */
+export async function horarioSemanal(db: PGlite, becario: Quien, modalidad: 'presencial' | 'home_office') {
+  await db.exec('reset role')
+  await db.query(
+    `insert into public.horarios_modalidad (becario_id, dia_semana, modalidad)
+     select $1, d, $2 from generate_series(0, 6) d
+     on conflict (becario_id, dia_semana) do update set modalidad = excluded.modalidad`,
+    [ids[becario], modalidad],
+  )
 }
 
 export interface NuevaAsistencia {
@@ -150,9 +163,11 @@ export interface NuevaAsistencia {
   tipo: 'entrada' | 'salida'
   /** Expresión SQL de la hora, p. ej. `timestamptz '2026-03-10 08:00-06'` o `now() - interval '30 minutes'`. */
   en?: string
+  /** Por omisión presencial: es lo que el servidor espera sin horario configurado. */
   modalidad?: 'presencial' | 'home_office'
   latitud?: number | null
   longitud?: number | null
+  /** Por omisión 0.9 (rostro verificado); null simula un registro sin verificación facial. */
   puntaje?: number | null
   /** Columnas que el cliente intenta mandar (el servidor debe ignorarlas). */
   extra?: Record<string, string>
@@ -165,10 +180,10 @@ export async function insertar(db: PGlite, a: NuevaAsistencia) {
   const params: unknown[] = [
     ids[a.becario],
     a.tipo,
-    a.modalidad ?? 'home_office',
+    a.modalidad ?? 'presencial',
     a.latitud ?? null,
     a.longitud ?? null,
-    a.puntaje ?? null,
+    a.puntaje === undefined ? 0.9 : a.puntaje,
   ]
   if (a.en) {
     cols.push('ocurrido_en')

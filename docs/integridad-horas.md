@@ -25,6 +25,10 @@ contrato entre la base (`backend/sql/0021_integridad_horas.sql`) y la app (`web/
   queda `por_revisar`. `home_office` no se evalúa.
 - `puntaje_rostro` (similitud del reconocimiento facial) se guarda para auditoría. Como la
   comparación corre en el teléfono, **no es una garantía**: sirve para detectar patrones.
+  Desde 0023, un registro propio sin puntaje queda `por_revisar` / `sin_rostro`.
+- Modalidad (0023): el servidor la compara con `horarios_modalidad` para el día local del
+  registro (sin horario se espera `presencial`); si no coincide queda `por_revisar` /
+  `modalidad_distinta`.
 
 ## Base de datos (0021)
 
@@ -38,7 +42,7 @@ Helpers existentes: `es_admin()`, `es_ingeniero_de(becario)`, `usuario_activo()`
 | --- | --- | --- |
 | `origen` | text, `'en_linea' \| 'cola' \| 'manual'`, default `'en_linea'` | Lo calcula el servidor; el cliente no lo decide |
 | `revision` | text, `'ok' \| 'por_revisar' \| 'aprobada'`, default `'ok'` | Idem |
-| `motivo_revision` | text null | `'atraso_cola' \| 'reloj_adelantado' \| 'sin_ubicacion' \| 'fuera_de_zona'` |
+| `motivo_revision` | text null | `'atraso_cola' \| 'reloj_adelantado' \| 'sin_ubicacion' \| 'fuera_de_zona' \| 'sin_rostro' \| 'modalidad_distinta'` (los dos últimos desde 0023) |
 | `puntaje_rostro` | numeric(5,4) null, 0 a 1 | Lo manda el cliente |
 
 Trigger `BEFORE INSERT` (se ejecuta antes de `asistencias_validar`): ignora y recalcula
@@ -49,6 +53,7 @@ Trigger `BEFORE INSERT` (se ejecuta antes de `asistencias_validar`): ignora y re
   - atraso entre `-tolerancia` y `+tolerancia`: `en_linea`, `ok`.
   - atraso mayor que la tolerancia: `origen='cola'`; si pasa `atraso_maximo_minutos` → `por_revisar` / `atraso_cola`.
   - hora futura más allá de la tolerancia: `ocurrido_en := now()`, `por_revisar` / `reloj_adelantado`.
+  - sin `puntaje_rostro` → `sin_rostro`; modalidad distinta a la del horario → `modalidad_distinta` (0023, solo si aún `ok`).
   - geocerca (solo si hay zonas activas, modalidad `presencial` y aún `ok`): sin latitud/longitud → `sin_ubicacion`; más lejos que el radio de todas las zonas (haversine) → `fuera_de_zona`.
 - Sin usuario (service role, jobs): no toca nada.
 
@@ -79,7 +84,7 @@ repita el emparejamiento por su cuenta.
 ```sql
 anomalias_asistencia(p_becario uuid default null, p_desde date default null, p_hasta date default null)
 returns table (
-  tipo           text,        -- 'turno_abierto' | 'jornada_larga' | 'atraso' | 'reloj_adelantado' | 'sin_ubicacion' | 'fuera_de_zona'
+  tipo           text,        -- 'turno_abierto' | 'jornada_larga' | 'atraso' | 'reloj_adelantado' | 'sin_ubicacion' | 'fuera_de_zona' | 'sin_rostro' | 'modalidad_distinta'
   becario_id     uuid,
   becario_nombre text,
   asistencia_id  uuid,        -- fila a revisar (turno_abierto: la entrada; jornada_larga: la salida)

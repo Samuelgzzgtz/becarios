@@ -80,8 +80,8 @@ de la misma red usa el despliegue de Vercel (o un túnel HTTPS).
    mediante `guardar_secreto_webhook_clerk` usando únicamente `service_role`.
 5. **Primer administrador:** crea tu usuario en Clerk con `{ "perfil": "administrador" }`.
 
-La función `admin-crear-usuario` ya no se usa (creaba cuentas de Supabase Auth); puedes
-borrarla del proyecto de Supabase.
+La función `admin-crear-usuario` se retiró del repositorio (creaba cuentas de Supabase Auth);
+bórrala del proyecto de Supabase si sigue desplegada.
 
 ## Desplegar en Vercel
 

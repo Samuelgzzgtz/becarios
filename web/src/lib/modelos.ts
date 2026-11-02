@@ -8,8 +8,16 @@ export type EstadoReporteSiase = 'pendiente' | 'subido' | 'confirmado' | 'exclui
 export type EstadoTransferencia = 'pendiente' | 'aprobada' | 'rechazada'
 export type OrigenAsistencia = 'en_linea' | 'cola' | 'manual'
 export type RevisionAsistencia = 'ok' | 'por_revisar' | 'aprobada'
-export type MotivoRevision = 'atraso_cola' | 'reloj_adelantado' | 'sin_ubicacion' | 'fuera_de_zona'
-export type TipoAnomalia = 'turno_abierto' | 'jornada_larga' | 'atraso' | 'reloj_adelantado' | 'sin_ubicacion' | 'fuera_de_zona'
+export type MotivoRevision = 'atraso_cola' | 'reloj_adelantado' | 'sin_ubicacion' | 'fuera_de_zona' | 'sin_rostro' | 'modalidad_distinta'
+export type TipoAnomalia =
+  | 'turno_abierto'
+  | 'jornada_larga'
+  | 'atraso'
+  | 'reloj_adelantado'
+  | 'sin_ubicacion'
+  | 'fuera_de_zona'
+  | 'sin_rostro'
+  | 'modalidad_distinta'
 
 /** Reglas de asistencia (tabla config_asistencia, 0021). */
 export interface ConfigAsistencia {

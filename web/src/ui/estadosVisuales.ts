@@ -65,7 +65,9 @@ export const explicacionMotivo: Record<MotivoRevision, string> = {
   atraso_cola: 'Se guardó sin conexión y llegó con mucho atraso.',
   reloj_adelantado: 'La hora del teléfono iba adelantada; se ajustó a la del servidor.',
   sin_ubicacion: 'No se pudo confirmar la ubicación al registrar.',
-  fuera_de_zona: 'Se registró fuera de las zonas permitidas.'
+  fuera_de_zona: 'Se registró fuera de las zonas permitidas.',
+  sin_rostro: 'Se registró sin verificación facial.',
+  modalidad_distinta: 'La modalidad no coincide con el horario de ese día.'
 }
 
 export const EXPLICACION_POR_REVISAR = 'No suma horas hasta que un ingeniero lo apruebe.'
@@ -77,7 +79,9 @@ export const etiquetaAnomalia: Record<TipoAnomalia, string> = {
   atraso: 'Registro con atraso',
   reloj_adelantado: 'Reloj adelantado',
   sin_ubicacion: 'Sin ubicación',
-  fuera_de_zona: 'Fuera de zona'
+  fuera_de_zona: 'Fuera de zona',
+  sin_rostro: 'Sin verificación facial',
+  modalidad_distinta: 'Modalidad distinta'
 }
 
 /** Cómo se resuelve cada anomalía: aprobar el registro, o corregirlo agregando/ajustando registros. */

@@ -14,6 +14,7 @@ import {
   como,
   comoAnon,
   crearBase,
+  horarioSemanal,
   horas,
   ids,
   insertar,
@@ -394,6 +395,8 @@ describe('(h) geocercas', () => {
     })
     expect([dentro.revision, dentro.motivo_revision]).toEqual(['ok', null])
 
+    await horarioSemanal(db, 'bec1', 'home_office')
+    await como(db, 'bec1')
     const casa = await insertar(db, {
       becario: 'bec1', tipo: 'salida', modalidad: 'home_office', en: `now() - interval '7 minutes'`,
     })

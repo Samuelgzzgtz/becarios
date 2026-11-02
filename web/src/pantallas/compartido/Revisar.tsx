@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { CalendarPlus, CheckCircle2, ClipboardCheck, Clock, MapPinOff, MapPin, TriangleAlert, Watch, type LucideProps } from 'lucide-react'
+import { CalendarPlus, CalendarX, CheckCircle2, ClipboardCheck, Clock, MapPinOff, MapPin, ScanFace, TriangleAlert, Watch, type LucideProps } from 'lucide-react'
 import type { ComponentType } from 'react'
 import { anomalias, aprobarAsistencia } from '../../datos/asistencias'
 import { mensajeAmigable } from '../../lib/errores'
@@ -17,7 +17,9 @@ const ICONOS: Record<TipoAnomalia, ComponentType<LucideProps>> = {
   atraso: Clock,
   reloj_adelantado: Watch,
   sin_ubicacion: MapPinOff,
-  fuera_de_zona: MapPin
+  fuera_de_zona: MapPin,
+  sin_rostro: ScanFace,
+  modalidad_distinta: CalendarX
 }
 
 const TONOS: Record<TipoAnomalia, Tono> = {
@@ -26,7 +28,9 @@ const TONOS: Record<TipoAnomalia, Tono> = {
   atraso: 'alerta',
   reloj_adelantado: 'alerta',
   sin_ubicacion: 'info',
-  fuera_de_zona: 'alerta'
+  fuera_de_zona: 'alerta',
+  sin_rostro: 'alerta',
+  modalidad_distinta: 'alerta'
 }
 
 /** Qué pasa al aprobar, dicho en claro, para la confirmación. */
@@ -132,13 +136,15 @@ export default function Revisar(props: { rutaBecario: (becarioId: string) => str
 
 function FilaAnomalia(props: { a: Anomalia; ocupado: boolean; onAprobar: () => void; onCorregir: () => void }) {
   const { a } = props
-  const I = ICONOS[a.tipo]
+  // Un motivo nuevo de la base no debe romper una versión vieja de la app en caché.
+  const I = ICONOS[a.tipo] ?? TriangleAlert
+  const etiqueta = etiquetaAnomalia[a.tipo] ?? 'Por revisar'
   const instante = parsear(a.ocurrido_en)
   return (
     <Tarjeta>
       <div className="columna" style={{ gap: 8 }}>
         <div className="fila" style={{ flexWrap: 'wrap' }}>
-          <Badge texto={etiquetaAnomalia[a.tipo]} tono={TONOS[a.tipo]} icono={I} />
+          <Badge texto={etiqueta} tono={TONOS[a.tipo] ?? 'alerta'} icono={I} />
           <span className="chico texto-2">
             {diaCompleto(a.fecha)}
             {instante ? ` · ${hora(instante)}` : ''}
@@ -149,7 +155,7 @@ function FilaAnomalia(props: { a: Anomalia; ocupado: boolean; onAprobar: () => v
         {a.tipo === 'atraso' && a.atraso_minutos != null && <p className="chico texto-2">Llegó {plural(a.atraso_minutos, 'minuto', 'minutos')} después.</p>}
         <div className="fila" style={{ justifyContent: 'flex-end' }}>
           {anomaliaSeAprueba(a.tipo) ? (
-            <Boton icono={CheckCircle2} deshabilitado={props.ocupado} onClick={props.onAprobar} etiqueta={`Aprobar ${etiquetaAnomalia[a.tipo].toLowerCase()} de ${a.becario_nombre}`}>
+            <Boton icono={CheckCircle2} deshabilitado={props.ocupado} onClick={props.onAprobar} etiqueta={`Aprobar ${etiqueta.toLowerCase()} de ${a.becario_nombre}`}>
               Aprobar
             </Boton>
           ) : (
