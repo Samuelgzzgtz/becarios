@@ -74,6 +74,7 @@ export default function Becarios() {
                   </p>
                 )}
                 <div className="envolver" style={{ marginTop: 12 }}>
+                  <Boton chico variante="texto" onClick={() => navegar(`/admin/becario/${u.id}/asistencias`)}>Asistencias y correcciones</Boton>
                   {activo && (
                     <Boton chico variante="secundario" icono={UserRoundCog} onClick={() => navegar(`/admin/becario/${u.id}/asignar`)}>
                       {ingeniero ? 'Reasignar' : 'Asignar'}

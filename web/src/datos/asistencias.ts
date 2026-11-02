@@ -219,6 +219,7 @@ export async function siguienteTipo(becarioId: string): Promise<TipoAsistencia> 
   const ultimo = candidatos.sort((a, b) => b.instante.getTime() - a.instante.getTime())[0]
   return siguienteTipoSegun(ultimo?.tipo, ultimo?.instante)
 }
+<<<<<<< HEAD
 
 // ---------------------------------------------------------------------------
 // Corrección manual (ingeniero asignado o admin; RLS de 0013). C-04.
@@ -277,3 +278,5 @@ export function aprobarAsistencia(asistenciaId: string): Promise<void> {
 export async function bitacoraDe(becarioId: string, limite = 50): Promise<EntradaBitacora[]> {
   return (await q<EntradaBitacora[] | null>(supabase.rpc('bitacora_asistencias_de', { p_becario: becarioId, p_limite: limite }))) ?? []
 }
+=======
+>>>>>>> 6a1cd6d (Agrega solicitudes de corrección de asistencias con motivo e historial)

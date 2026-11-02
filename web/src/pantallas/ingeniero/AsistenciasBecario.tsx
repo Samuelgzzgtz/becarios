@@ -1,4 +1,5 @@
 import { useState } from 'react'
+<<<<<<< HEAD
 import { useParams } from 'react-router-dom'
 import { Building2, CalendarPlus, CalendarX, ChevronDown, ChevronUp, History, Home, LogIn, LogOut, Plus } from 'lucide-react'
 import * as asistencias from '../../datos/asistencias'
@@ -24,16 +25,36 @@ import {
 import { useAvisos } from '../../ui/avisos'
 import { useAlReanudar, useCarga } from '../../ui/hooks'
 import { etiquetaAccionBitacora } from '../../ui/estadosVisuales'
+=======
+import { useLocation, useNavigate, useParams } from 'react-router-dom'
+import { CalendarX } from 'lucide-react'
+import * as asistencias from '../../datos/asistencias'
+import { usuario as obtenerUsuario } from '../../datos/repositorios'
+import { corregir } from '../../correcciones/datos'
+import FormularioCorreccion from '../../correcciones/Formulario'
+import type { PropuestaCorreccion } from '../../correcciones/modelos'
+import { mensajeAmigable } from '../../lib/errores'
+import type { Asistencia, TipoAsistencia } from '../../lib/modelos'
+import { Boton, Chip, EstadoVacio, Pantalla, SegunEstado, useVolver } from '../../ui/componentes'
+import { useAvisos } from '../../ui/avisos'
+import { useAlReanudar, useCarga, useUnaVez } from '../../ui/hooks'
+>>>>>>> 6a1cd6d (Agrega solicitudes de corrección de asistencias con motivo e historial)
 import { AsistenciasPorDia, FiltrosFecha, type FiltroFechas } from '../compartido/Asistencias'
 
-/** Historial de un becario con corrección manual (C-04): agregar la salida olvidada o borrar un registro equivocado. */
 export default function AsistenciasBecario() {
   const { id = '' } = useParams()
+<<<<<<< HEAD
   const volver = useVolver(usuarioEnMemoria()?.perfil === 'administrador' ? '/admin/becarios' : '/ingeniero/becarios')
+=======
+  const navegar = useNavigate()
+  const ubicacion = useLocation()
+  const base = ubicacion.pathname.startsWith('/admin') ? '/admin' : '/ingeniero'
+  const volver = useVolver(`${base}/becarios`)
+>>>>>>> 6a1cd6d (Agrega solicitudes de corrección de asistencias con motivo e historial)
   const avisos = useAvisos()
   const [filtro, setFiltro] = useState<FiltroFechas | null>(null)
-  const [tipo, setTipo] = useState<TipoAsistencia | null>(null)
   const [formulario, setFormulario] = useState(false)
+<<<<<<< HEAD
   const [aEliminar, setAEliminar] = useState<AsistenciaUi | null>(null)
   const [guardando, setGuardando] = useState(false)
   /** Sube con cada cambio para que la bitácora se vuelva a pedir. */
@@ -225,4 +246,34 @@ function DialogoRegistroManual(props: { guardando: boolean; onGuardar: (t: TipoA
       />
     </Dialogo>
   )
+=======
+  const [aEliminar, setAEliminar] = useState<Asistencia | undefined>()
+  const [tipo, setTipo] = useState<TipoAsistencia | null>(null)
+  const { ocupado, ejecutar } = useUnaVez()
+  const nombre = useCarga(() => obtenerUsuario(id).then(u => u?.nombre ?? null), [id], '')
+  const carga = useCarga(async () => {
+    const lista = filtro ? await asistencias.historialEntreFechas(id, filtro.desde, filtro.hasta) : await asistencias.historial(id, 200)
+    return lista.filter(a => !tipo || a.tipo === tipo).map(asistencia => ({ asistencia }))
+  }, [id, filtro?.desde, filtro?.hasta, tipo], 'No se pudo cargar el historial.')
+  useAlReanudar(carga.recargar)
+
+  function guardar(p: PropuestaCorreccion) {
+    void ejecutar(async () => {
+      try {
+        await corregir(id, p)
+        setFormulario(false); setAEliminar(undefined); carga.recargar()
+        avisos.exito('Corrección aplicada y guardada en el historial.')
+      } catch (e) { avisos.error(mensajeAmigable(e, 'No se pudo corregir el registro.')) }
+    })
+  }
+
+  return <Pantalla titulo="Asistencias" subtitulo={nombre.datos ?? 'Becario'} onVolver={volver}>
+    <Boton variante="secundario" onClick={() => { setAEliminar(undefined); setFormulario(true) }}>Corregir asistencia</Boton>
+    <Boton variante="texto" onClick={() => navegar(`${base}/becario/${id}/historial-cambios`)}>Ver historial de cambios</Boton>
+    {formulario && <FormularioCorreccion key={aEliminar?.id ?? id} becarioId={id} ocupado={ocupado} manual registroAEliminar={aEliminar} onGuardar={guardar} onCancelar={() => setFormulario(false)} />}
+    <FiltrosFecha filtro={filtro} onFiltro={setFiltro} conSemanaPasada onLimpiar={() => setFiltro(null)} />
+    <div className="chips"><Chip texto="Todos" activo={tipo == null} onClick={() => setTipo(null)} /><Chip texto="Entradas" activo={tipo === 'entrada'} onClick={() => setTipo('entrada')} /><Chip texto="Salidas" activo={tipo === 'salida'} onClick={() => setTipo('salida')} /></div>
+    <SegunEstado estado={carga.estado} onReintentar={carga.recargar}>{lista => lista.length ? <AsistenciasPorDia lista={lista} onEliminar={item => { if (!ocupado) { setAEliminar(item.asistencia); setFormulario(true) } }} /> : <EstadoVacio titulo="Sin asistencias en este rango" mensaje="Prueba con otras fechas." icono={CalendarX} />}</SegunEstado>
+  </Pantalla>
+>>>>>>> 6a1cd6d (Agrega solicitudes de corrección de asistencias con motivo e historial)
 }
