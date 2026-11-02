@@ -1,6 +1,7 @@
 -- 0021 — Integridad de horas y asistencias.
 -- Contrato: docs/integridad-horas.md. Migración aditiva e idempotente (se puede
--- correr dos veces) y compatible con la app en producción, que manda
+-- correr dos veces mientras no se aplique 0022: re-ejecutarla después
+-- revierte su bitácora y política) y compatible con la app en producción, que manda
 -- ocurrido_en con la hora del teléfono y no manda origen/revision.
 --
 --  1. asistencias: origen, revision, motivo_revision, puntaje_rostro.

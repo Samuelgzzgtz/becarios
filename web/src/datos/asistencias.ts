@@ -17,7 +17,6 @@ import {
   type Anomalia,
   type Asistencia,
   type AsistenciaUi,
-  type EntradaBitacora,
   type ModalidadTrabajo,
   type TipoAsistencia
 } from '../lib/modelos'
@@ -244,9 +243,4 @@ export async function anomalias(becarioId: string | null = null, desde: Fecha | 
 /** Deja el registro como 'aprobada': ya cuenta para las horas. Ingeniero asignado o administrador. */
 export function aprobarAsistencia(asistenciaId: string): Promise<void> {
   return ejecutar(supabase.rpc('aprobar_asistencia', { p_asistencia: asistenciaId }))
-}
-
-/** Historial de cambios de las asistencias de un becario (quién, cuándo, qué), del más reciente al más antiguo. */
-export async function bitacoraDe(becarioId: string, limite = 50): Promise<EntradaBitacora[]> {
-  return (await q<EntradaBitacora[] | null>(supabase.rpc('bitacora_asistencias_de', { p_becario: becarioId, p_limite: limite }))) ?? []
 }

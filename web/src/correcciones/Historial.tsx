@@ -33,7 +33,7 @@ export default function HistorialCambios() {
           <p>{fechaHora(c.created_at)} · {c.actor_nombre ?? (c.actor_id ? 'Usuario no disponible' : 'Sistema')}</p>
           <Instantanea etiqueta="Antes" valor={c.antes} />
           <Instantanea etiqueta="Después" valor={c.despues} />
-          <p>Motivo: {c.motivo ?? 'Registro de asistencia'}</p>
+          <p>Motivo: {c.motivo ?? (c.accion === 'agregar' && c.actor_id === c.becario_id ? 'Registro de asistencia' : 'Sin motivo registrado')}</p>
           {c.motivo == null && c.accion === 'agregar' && esMarcacionDiferida(c.despues) && <p>Recibida más de 5 minutos después de la marcación. La hora proviene del dispositivo; puede haberse guardado sin conexión.</p>}
           {c.solicitud_id && <p>Solicitud: {c.solicitud_id}</p>}
         </section>)}

@@ -1,5 +1,4 @@
 import { describe, expect, it } from 'vitest'
-import { describirBitacora } from './bitacora'
 import { aInstante } from './fechas'
 import {
   JORNADA_MAXIMA_POR_OMISION,
@@ -7,7 +6,6 @@ import {
   normalizarPuntaje,
   totalHoras,
   type Asistencia,
-  type EntradaBitacora,
   type OrigenAsistencia,
   type RevisionAsistencia,
   type TipoAsistencia
@@ -126,27 +124,5 @@ describe('validación de reglas y zonas', () => {
     const e = validarZona({ nombre: ' ', radio: '10', latitud: '91', longitud: '-181' }).errores
     expect(Object.keys(e).sort()).toEqual(['latitud', 'longitud', 'nombre', 'radio'])
     expect(validarZona({ nombre: 'x', radio: '5001', latitud: '0', longitud: '0' }).errores.radio).toBeDefined()
-  })
-})
-
-describe('describirBitacora', () => {
-  const base = { id: 1, hecho_en: local(dia, '10:00'), hecho_por: 'u', hecho_por_nombre: 'Ing. Pérez', asistencia_id: 'a' }
-  const antes = { tipo: 'salida' as const, ocurrido_en: local(dia, '18:00'), modalidad: 'presencial' as const }
-
-  it('agregar, eliminar y aprobar dicen quién y qué', () => {
-    const agregar: EntradaBitacora = { ...base, accion: 'agregar', antes: null, despues: antes }
-    expect(describirBitacora(agregar)).toMatch(/^Ing\. Pérez agregó una salida del /)
-    expect(describirBitacora({ ...base, accion: 'eliminar', antes, despues: null })).toMatch(/eliminó la salida/)
-    expect(describirBitacora({ ...base, accion: 'aprobar', antes, despues: { ...antes, revision: 'aprobada' } })).toMatch(/aprobó la salida/)
-  })
-
-  it('editar describe qué cambió', () => {
-    const t = describirBitacora({ ...base, accion: 'editar', antes, despues: { ...antes, ocurrido_en: local(dia, '19:00'), modalidad: 'home_office' } })
-    expect(t).toMatch(/la hora pasó de/)
-    expect(t).toMatch(/modalidad pasó de presencial a home office/)
-  })
-
-  it('sin nombre usa "Alguien"', () => {
-    expect(describirBitacora({ ...base, hecho_por_nombre: null, accion: 'eliminar', antes, despues: null })).toMatch(/^Alguien eliminó/)
   })
 })

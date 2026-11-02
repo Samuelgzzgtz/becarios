@@ -71,6 +71,7 @@ alter table public.bitacora_asistencias
 update public.bitacora_asistencias b set actor_nombre = u.nombre
 from public.usuarios u where u.id = b.hecho_por;
 create index bitacora_asistencias_asistencia_idx on public.bitacora_asistencias(asistencia_id);
+create index bitacora_asistencias_hecho_en_idx on public.bitacora_asistencias(hecho_en desc, id);
 
 -- ---------------------------------------------------------------------------
 -- Lectura: el becario activo lo suyo, el ingeniero asignado su equipo, el admin
@@ -84,21 +85,35 @@ revoke all on public.bitacora_asistencias from public, anon, authenticated, serv
 grant select on public.solicitudes_correccion to authenticated, service_role;
 grant select on public.bitacora_asistencias to authenticated, service_role;
 
+-- Mismo criterio que es_ingeniero_de, pero se evalúa una vez por consulta y no por
+-- fila: la bitácora crece con cada marcación y el historial no debe escanearla entera.
+create or replace function public.becarios_a_cargo()
+returns setof uuid language sql stable security definer
+set search_path = public, pg_temp
+as $$
+  select ib.becario_id from public.ingenieros_becarios ib
+  join public.usuarios u on u.id = ib.ingeniero_id
+  where ib.ingeniero_id = (select public.uid_actual()) and ib.activo
+    and u.estado = 'activo' and u.perfil = 'ingeniero';
+$$;
+revoke execute on function public.becarios_a_cargo() from public, anon;
+grant execute on function public.becarios_a_cargo() to authenticated;
+
 create policy solicitudes_correccion_select on public.solicitudes_correccion
   for select to authenticated
   using (
-    (becario_id = (select public.uid_actual()) and public.usuario_activo())
-    or public.es_ingeniero_de(becario_id)
-    or public.es_admin()
+    (select public.es_admin())
+    or (becario_id = (select public.uid_actual()) and (select public.usuario_activo()))
+    or becario_id in (select public.becarios_a_cargo())
   );
 
 drop policy bitacora_asistencias_select on public.bitacora_asistencias;
 create policy bitacora_asistencias_select on public.bitacora_asistencias
   for select to authenticated
   using (
-    (becario_id = (select public.uid_actual()) and public.usuario_activo())
-    or public.es_ingeniero_de(becario_id)
-    or public.es_admin()
+    (select public.es_admin())
+    or (becario_id = (select public.uid_actual()) and (select public.usuario_activo()))
+    or becario_id in (select public.becarios_a_cargo())
   );
 
 -- Append-only incluso para service_role y el dueño (salvo desactivar el trigger).

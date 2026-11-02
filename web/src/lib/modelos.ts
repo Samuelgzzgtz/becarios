@@ -50,18 +50,6 @@ export interface Anomalia {
   detalle: string
 }
 
-/** Fila de la RPC bitacora_asistencias_de() (0021). */
-export interface EntradaBitacora {
-  id: number
-  hecho_en: string
-  accion: 'agregar' | 'editar' | 'eliminar' | 'aprobar'
-  hecho_por: string | null
-  hecho_por_nombre: string | null
-  asistencia_id: string
-  antes: Partial<Asistencia> | null
-  despues: Partial<Asistencia> | null
-}
-
 export interface Usuario {
   id: string
   matricula: string

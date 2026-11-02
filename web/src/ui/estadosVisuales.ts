@@ -82,10 +82,3 @@ export const etiquetaAnomalia: Record<TipoAnomalia, string> = {
 
 /** Cómo se resuelve cada anomalía: aprobar el registro, o corregirlo agregando/ajustando registros. */
 export const anomaliaSeAprueba = (t: TipoAnomalia): boolean => t !== 'turno_abierto'
-
-export const etiquetaAccionBitacora: Record<'agregar' | 'editar' | 'eliminar' | 'aprobar', string> = {
-  agregar: 'Agregó un registro',
-  editar: 'Editó un registro',
-  eliminar: 'Eliminó un registro',
-  aprobar: 'Aprobó un registro'
-}
