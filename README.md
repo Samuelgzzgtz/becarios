@@ -34,7 +34,7 @@ Ver `docs/plan-construccion-becarios.md` para el plan completo por fases (base d
 
 ## Estado actual
 
-- **Backend:** Supabase Cloud (proyecto `rcvpowylehewvsxquhip`) con las migraciones `backend/sql/0001`–`0017` aplicadas y la edge function `admin-crear-usuario` (v2) desplegada. La migración a self-hosted (Fase 1) sigue pendiente.
+- **Backend:** Supabase Cloud (proyecto `rcvpowylehewvsxquhip`) con las migraciones `backend/sql/0001`–`0017` aplicadas. La migración a self-hosted (Fase 1) sigue pendiente.
 - **App:** pantallas de los tres perfiles completas, con el rediseño UX/UI descrito en `docs/sistema-diseno.md`.
 - **Auditoría:** `docs/auditoria-ux.md` lista los 55 hallazgos de UX y lógica, y en "Estado de corrección" dice cuáles ya se corrigieron.
 

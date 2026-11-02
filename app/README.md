@@ -80,5 +80,5 @@ vector.
 
 El proyecto Gradle vive en la raíz (`settings.gradle.kts`, `build.gradle.kts`,
 `app/` como módulo Android). Las migraciones SQL están en `backend/sql/` (ver su
-README) y la edge function `admin-crear-usuario` en `backend/supabase/functions/`.
+README) y el webhook de Clerk en `backend/supabase/functions/`.
 La documentación (planes, auditoría UX, sistema de diseño) está en `docs/`.

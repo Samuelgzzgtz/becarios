@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { CalendarPlus, CheckCircle2, ClipboardCheck, Clock, MapPinOff, MapPin, TriangleAlert, Watch, type LucideProps } from 'lucide-react'
+import { CalendarPlus, CalendarX, CheckCircle2, ClipboardCheck, Clock, MapPinOff, MapPin, ScanFace, TriangleAlert, Watch, type LucideProps } from 'lucide-react'
 import type { ComponentType } from 'react'
 import { anomalias, aprobarAsistencia } from '../../datos/asistencias'
 import { mensajeAmigable } from '../../lib/errores'
@@ -17,7 +17,9 @@ const ICONOS: Record<TipoAnomalia, ComponentType<LucideProps>> = {
   atraso: Clock,
   reloj_adelantado: Watch,
   sin_ubicacion: MapPinOff,
-  fuera_de_zona: MapPin
+  fuera_de_zona: MapPin,
+  sin_rostro: ScanFace,
+  modalidad_distinta: CalendarX
 }
 
 const TONOS: Record<TipoAnomalia, Tono> = {
@@ -26,7 +28,9 @@ const TONOS: Record<TipoAnomalia, Tono> = {
   atraso: 'alerta',
   reloj_adelantado: 'alerta',
   sin_ubicacion: 'info',
-  fuera_de_zona: 'alerta'
+  fuera_de_zona: 'alerta',
+  sin_rostro: 'alerta',
+  modalidad_distinta: 'alerta'
 }
 
 /** Qué pasa al aprobar, dicho en claro, para la confirmación. */

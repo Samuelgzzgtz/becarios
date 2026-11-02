@@ -36,6 +36,32 @@ begin
   if exists (select 1 from public.usuarios where clerk_id = v_clerk) then
     raise exception 'Una baja anterior al alta debe impedir su recreación';
   end if;
+
+  -- 0023: solo un correo verificado enlaza una cuenta existente sin clerk_id.
+  insert into public.usuarios (email, nombre, matricula, perfil, estado)
+  values ('legado@prueba.test', 'Legado', 'test_legado', 'becario', 'activo') returning id into v_becario;
+  v_clerk := 'test_' || gen_random_uuid()::text;
+  if public.sincronizar_usuario_clerk(v_clerk, 'legado@prueba.test', 'X', null, null, null, false, null, 100, false) is not null
+     or (select clerk_id from public.usuarios where id = v_becario) is not null then
+    raise exception 'Un correo sin verificar no debe enlazar ni duplicar la cuenta';
+  end if;
+  if public.sincronizar_usuario_clerk(v_clerk, 'legado@prueba.test', 'X', null, null, null, false, null, 200, true) <> v_becario then
+    raise exception 'Un correo verificado debe enlazar la cuenta existente';
+  end if;
+
+  -- 0023: por la API nadie cambia su clerk_id, ni con el ajuste de la sincronización.
+  perform set_config('request.jwt.claims', json_build_object('sub', v_clerk, 'role', 'authenticated')::text, true);
+  perform set_config('docencheck.sincronizando_clerk', 'on', true);
+  set local role authenticated;
+  begin
+    update public.usuarios set clerk_id = 'test_robado' where id = v_becario;
+    raise exception 'FALLÓ: el usuario cambió su clerk_id';
+  exception when others then
+    if sqlerrm not like '%desde Clerk%' then
+      raise;
+    end if;
+  end;
+  reset role;
 end;
 $$;
 rollback;
