@@ -135,6 +135,25 @@ cada 5 minutos mientras está abierta. A diferencia de Android, **iOS no permite
 sincronizar con la app cerrada**: los registros se suben la siguiente vez que se
 abra.
 
+## Correcciones de asistencia
+
+En **Registros → Solicitudes de corrección**, el becario puede solicitar agregar,
+modificar o eliminar una marcación con motivo. Su ingeniero o un administrador
+aprueba o rechaza y responde. Las correcciones directas también exigen motivo.
+El historial conserva los valores anteriores/nuevos, responsable y fecha.
+Si otro supervisor cambió el registro mientras estaba abierto, hay que volver
+a seleccionarlo; una solicitud obsoleta se rechaza sin aplicar cambios.
+
+Requiere `backend/sql/0022_correcciones_asistencias.sql`. Coordinar su aplicación
+con el despliegue web: la app Android anterior queda como código legado y sus
+correcciones directas ya no están soportadas con este backend.
+
+La QA local puede usar `vite.qa.config.ts` (PostgREST en 55433) y un archivo
+`.env.qa.local` con la misma clave pública de Clerk de desarrollo, URL
+`http://localhost:5173` y una clave pública local. Ejecutar
+`npm run dev -- --mode qa --config vite.qa.config.ts`. Nunca apuntar esa prueba
+a datos reales ni usar `service_role` en el frontend.
+
 ## Estructura
 
 ```

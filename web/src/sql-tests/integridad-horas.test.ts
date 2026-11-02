@@ -21,6 +21,7 @@ import {
   reiniciarAsistencias,
   sembrarUsuarios,
   sinSesion,
+  type NuevaAsistencia,
 } from './soporte'
 
 let db: PGlite
@@ -51,6 +52,17 @@ async function bitacora() {
   return r.rows
 }
 
+async function insertarManual(a: NuevaAsistencia) {
+  await db.query(
+    `select public.corregir_asistencia($1, 'agregar', null, $2, ${a.en ?? 'now()'}, $3, 'Alta manual de prueba')`,
+    [ids[a.becario], a.tipo, a.modalidad ?? 'home_office'],
+  )
+  return (await db.query<Record<string, unknown>>(
+    'select * from public.asistencias where becario_id=$1 and tipo=$2 order by created_at desc limit 1',
+    [ids[a.becario], a.tipo],
+  )).rows[0]
+}
+
 async function error(promesa: Promise<unknown>) {
   try {
     await promesa
@@ -72,14 +84,19 @@ describe('migración', () => {
   it('es segura de correr dos veces y deja la configuración inicial', async () => {
     const sql = leerMigraciones().find((m) => m.archivo.startsWith('0021'))!.sql
     await sinSesion(db)
-    await db.exec(sql)
-    const cfg = await db.query('select * from public.config_asistencia')
-    expect(cfg.rows).toHaveLength(1)
-    expect(cfg.rows[0]).toMatchObject({
-      jornada_maxima_horas: '10.0',
-      atraso_maximo_minutos: 60,
-      tolerancia_minutos: 5,
-    })
+    await db.exec('begin')
+    try {
+      await db.exec(sql)
+      const cfg = await db.query('select * from public.config_asistencia')
+      expect(cfg.rows).toHaveLength(1)
+      expect(cfg.rows[0]).toMatchObject({
+        jornada_maxima_horas: '10.0',
+        atraso_maximo_minutos: 60,
+        tolerancia_minutos: 5,
+      })
+    } finally {
+      await db.exec('rollback')
+    }
   })
 
   it('el disparador del servidor se ordena antes del anti-duplicado', async () => {
@@ -256,8 +273,8 @@ describe('(e) el becario no falsea origen / revisión / motivo', () => {
 describe('(f) alta manual por el ingeniero', () => {
   it('origen manual, suma aunque pase el tope y queda en la bitácora', async () => {
     await como(db, 'ing1')
-    const entrada = await insertar(db, { becario: 'bec1', tipo: 'entrada', en: t('08:00') })
-    const salida = await insertar(db, { becario: 'bec1', tipo: 'salida', en: t('23:59') })
+    const entrada = await insertarManual({ becario: 'bec1', tipo: 'entrada', en: t('08:00') })
+    const salida = await insertarManual({ becario: 'bec1', tipo: 'salida', en: t('23:59') })
     expect(entrada.origen).toBe('manual')
     expect(entrada.revision).toBe('ok')
     expect(salida.origen).toBe('manual')
@@ -270,20 +287,20 @@ describe('(f) alta manual por el ingeniero', () => {
 
   it('un ingeniero que no es el asignado no puede agregar', async () => {
     await como(db, 'ing2')
-    const e = await error(insertar(db, { becario: 'bec1', tipo: 'entrada', en: t('08:00') }))
-    expect(e.message).toMatch(/row-level security/)
+    const e = await error(insertarManual({ becario: 'bec1', tipo: 'entrada', en: t('08:00') }))
+    expect(e.message).toMatch(/No puedes corregir/)
   })
 
   it('el administrador también agrega como manual', async () => {
     await como(db, 'admin')
-    const fila = await insertar(db, { becario: 'bec2', tipo: 'entrada', en: t('09:00') })
+    const fila = await insertarManual({ becario: 'bec2', tipo: 'entrada', en: t('09:00') })
     expect(fila.origen).toBe('manual')
   })
 
-  it('los registros propios del becario no se anotan en la bitácora', async () => {
+  it('también conserva las marcaciones propias del becario en la bitácora', async () => {
     await como(db, 'bec1')
     await insertar(db, { becario: 'bec1', tipo: 'entrada' })
-    expect(await bitacora()).toEqual([])
+    expect(await bitacora()).toEqual([{ accion: 'agregar', hecho_por: ids.bec1 }])
   })
 })
 
@@ -292,11 +309,11 @@ describe('(g) bitácora de ediciones, borrados y aprobaciones', () => {
     await sinSesion(db)
     const entrada = await insertar(db, { becario: 'bec1', tipo: 'entrada', en: t('08:00') })
     await como(db, 'ing1')
-    await db.query(`update public.asistencias set ocurrido_en = ${t('08:30')} where id = $1`, [entrada.id])
-    await db.query('delete from public.asistencias where id = $1', [entrada.id])
+    await db.query(`select public.corregir_asistencia($1, 'modificar', $2, null, ${t('08:30')}, null, 'Hora confirmada')`, [ids.bec1, entrada.id])
+    await db.query("select public.corregir_asistencia($1, 'eliminar', $2, null, null, null, 'Registro duplicado')", [ids.bec1, entrada.id])
 
     const r = await db.query<{ accion: string; antes: Record<string, string> | null; despues: Record<string, string> | null }>(
-      'select accion, antes, despues from public.bitacora_asistencias order by id',
+      "select accion, antes, despues from public.bitacora_asistencias where accion <> 'agregar' order by id",
     )
     expect(r.rows.map((x) => x.accion)).toEqual(['editar', 'eliminar'])
     expect(r.rows[0].antes?.ocurrido_en).not.toEqual(r.rows[0].despues?.ocurrido_en)
@@ -311,13 +328,13 @@ describe('(g) bitácora de ediciones, borrados y aprobaciones', () => {
     await como(db, 'ing1')
     await db.query('select public.aprobar_asistencia($1)', [salida])
     const b = await bitacora()
-    expect(b.map((x) => x.accion)).toEqual(['aprobar'])
-    expect(b[0].hecho_por).toBe(ids.ing1)
+    expect(b.map((x) => x.accion)).toEqual(['agregar', 'agregar', 'aprobar'])
+    expect(b[2].hecho_por).toBe(ids.ing1)
   })
 
   it('bitacora_asistencias_de: visible para el equipo, el becario y el admin; no para otros', async () => {
     await como(db, 'ing1')
-    await insertar(db, { becario: 'bec1', tipo: 'entrada', en: t('08:00') })
+    await insertarManual({ becario: 'bec1', tipo: 'entrada', en: t('08:00') })
 
     const ver = async (quien: 'ing1' | 'bec1' | 'admin' | 'ing2' | 'bec2') => {
       await como(db, quien)
@@ -556,7 +573,7 @@ describe('(j) aprobar_asistencia', () => {
     await como(db, 'admin')
     await db.query('select public.aprobar_asistencia($1)', [salida])
     await db.query('select public.aprobar_asistencia($1)', [salida])
-    expect((await bitacora()).map((x) => x.accion)).toEqual(['aprobar'])
+    expect((await bitacora()).map((x) => x.accion)).toEqual(['agregar', 'agregar', 'aprobar'])
   })
 
   it('aprobar una entrada por revisar hace que la jornada vuelva a sumar', async () => {
@@ -617,9 +634,9 @@ describe('(k) escritura solo por RPC o disparador', () => {
 
   it('la bitácora se filtra por rol (RLS)', async () => {
     await como(db, 'ing1')
-    await insertar(db, { becario: 'bec1', tipo: 'entrada', en: t('08:00') })
+    await insertarManual({ becario: 'bec1', tipo: 'entrada', en: t('08:00') })
     await como(db, 'ing2')
-    await insertar(db, { becario: 'bec2', tipo: 'entrada', en: t('08:00') })
+    await insertarManual({ becario: 'bec2', tipo: 'entrada', en: t('08:00') })
 
     const cuantas = async (q: 'admin' | 'ing1' | 'bec1' | 'bec2') => {
       await como(db, q)

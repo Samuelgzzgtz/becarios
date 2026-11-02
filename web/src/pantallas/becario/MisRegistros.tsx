@@ -1,11 +1,12 @@
 import { useState } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { CalendarX } from 'lucide-react'
 import * as asistencias from '../../datos/asistencias'
 import { requerirUsuario } from '../../datos/sesion'
 import { parsear } from '../../lib/fechas'
 import { plural } from '../../lib/formato'
 import type { AsistenciaUi } from '../../lib/modelos'
-import { EstadoVacio, Pantalla, SegunEstado } from '../../ui/componentes'
+import { Boton, EstadoVacio, Pantalla, SegunEstado } from '../../ui/componentes'
 import { useAlReanudar, useCarga } from '../../ui/hooks'
 import { AsistenciasPorDia, FiltrosFecha, type FiltroFechas } from '../compartido/Asistencias'
 
@@ -22,12 +23,15 @@ async function cargar(filtro: FiltroFechas | null): Promise<AsistenciaUi[]> {
 }
 
 export default function MisRegistros() {
+  const navegar = useNavigate()
   const [filtro, setFiltro] = useState<FiltroFechas | null>(null)
   const { estado, datos, recargar } = useCarga(() => cargar(filtro), [filtro?.desde, filtro?.hasta], 'No se pudo cargar tu historial.')
   useAlReanudar(recargar)
 
   return (
     <Pantalla titulo="Mis registros" subtitulo={datos ? plural(datos.length, 'registro', 'registros') : 'Tu historial de entradas y salidas'}>
+      <Boton variante="secundario" onClick={() => navegar('/becario/correcciones')}>Solicitudes de corrección</Boton>
+      <Boton variante="texto" onClick={() => navegar('/becario/historial-cambios')}>Ver historial de cambios</Boton>
       <FiltrosFecha filtro={filtro} onFiltro={setFiltro} conSemanaPasada onLimpiar={() => setFiltro(null)} />
       <SegunEstado estado={estado} onReintentar={recargar}>
         {(lista) =>

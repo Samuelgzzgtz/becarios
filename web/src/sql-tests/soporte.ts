@@ -136,7 +136,10 @@ export async function sinSesion(db: PGlite) {
 export async function reiniciarAsistencias(db: PGlite) {
   await sinSesion(db)
   await db.exec(`
+    -- Teardown local del dueño: la bitácora es inmutable en uso normal.
+    alter table public.bitacora_asistencias disable trigger user;
     truncate public.asistencias, public.bitacora_asistencias, public.geocercas;
+    alter table public.bitacora_asistencias enable trigger user;
     update public.config_asistencia
       set jornada_maxima_horas = 10, atraso_maximo_minutos = 60, tolerancia_minutos = 5;
   `)

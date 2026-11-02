@@ -47,6 +47,8 @@ export default function AsistenciasEquipo() {
 
   return (
     <Pantalla titulo="Asistencias del equipo" subtitulo={datos ? plural(datos.length, 'registro', 'registros') : 'Entradas y salidas de tus becarios'}>
+      <Boton variante="secundario" onClick={() => navegar('/ingeniero/correcciones')}>Revisar solicitudes de corrección</Boton>
+      <Boton variante="texto" onClick={() => navegar('/ingeniero/historial-cambios')}>Ver historial de cambios</Boton>
       <Desplegable
         etiqueta="Becario"
         opciones={[TODO_EL_EQUIPO, ...(becarios ?? [])]}

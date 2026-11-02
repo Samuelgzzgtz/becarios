@@ -17,7 +17,6 @@ import {
   type Anomalia,
   type Asistencia,
   type AsistenciaUi,
-  type EntradaBitacora,
   type ModalidadTrabajo,
   type TipoAsistencia
 } from '../lib/modelos'
@@ -221,33 +220,6 @@ export async function siguienteTipo(becarioId: string): Promise<TipoAsistencia> 
 }
 
 // ---------------------------------------------------------------------------
-// Corrección manual (ingeniero asignado o admin; RLS de 0013). C-04.
-// ---------------------------------------------------------------------------
-
-/** Agrega un registro con fecha/hora elegida (p. ej. la salida que el becario olvidó). */
-export function agregarManual(
-  becarioId: string,
-  tipo: TipoAsistencia,
-  ocurridoEn: Date,
-  modalidad: ModalidadTrabajo,
-  verificadoPor: string
-): Promise<void> {
-  return ejecutar(
-    supabase.from('asistencias').insert({
-      becario_id: becarioId,
-      tipo,
-      ocurrido_en: ocurridoEn.toISOString(),
-      modalidad,
-      verificado_por: verificadoPor
-    } satisfies Asistencia)
-  )
-}
-
-export function eliminar(asistenciaId: string): Promise<void> {
-  return ejecutar(supabase.from('asistencias').delete().eq('id', asistenciaId))
-}
-
-// ---------------------------------------------------------------------------
 // Integridad de horas (0021): anomalías, aprobación y bitácora
 // ---------------------------------------------------------------------------
 
@@ -271,9 +243,4 @@ export async function anomalias(becarioId: string | null = null, desde: Fecha | 
 /** Deja el registro como 'aprobada': ya cuenta para las horas. Ingeniero asignado o administrador. */
 export function aprobarAsistencia(asistenciaId: string): Promise<void> {
   return ejecutar(supabase.rpc('aprobar_asistencia', { p_asistencia: asistenciaId }))
-}
-
-/** Historial de cambios de las asistencias de un becario (quién, cuándo, qué), del más reciente al más antiguo. */
-export async function bitacoraDe(becarioId: string, limite = 50): Promise<EntradaBitacora[]> {
-  return (await q<EntradaBitacora[] | null>(supabase.rpc('bitacora_asistencias_de', { p_becario: becarioId, p_limite: limite }))) ?? []
 }

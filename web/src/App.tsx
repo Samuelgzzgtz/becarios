@@ -16,6 +16,8 @@ const ReporteHoras = lazy(() => import('./pantallas/becario/ReporteHoras'))
 const MisRegistros = lazy(() => import('./pantallas/becario/MisRegistros'))
 const ReporteSiaseBecario = lazy(() => import('./pantallas/becario/ReporteSiase'))
 const MiCuenta = lazy(() => import('./pantallas/compartido/MiCuenta'))
+const Correcciones = lazy(() => import('./correcciones/Correcciones'))
+const HistorialCambios = lazy(() => import('./correcciones/Historial'))
 
 // Ingeniero
 const AsistenciasBecario = lazy(() => import('./pantallas/ingeniero/AsistenciasBecario'))
@@ -150,6 +152,8 @@ function Rutas() {
               <Route path="registrar" element={<RegistrarAsistencia />} />
               <Route path="horas" element={<ReporteHoras />} />
               <Route path="registros" element={<MisRegistros />} />
+              <Route path="correcciones" element={<Correcciones />} />
+              <Route path="historial-cambios" element={<HistorialCambios />} />
               <Route path="siase" element={<ReporteSiaseBecario />} />
               <Route path="cuenta" element={<MiCuenta />} />
             </Route>
@@ -159,6 +163,9 @@ function Rutas() {
               <Route index element={<PanelIngeniero />} />
               <Route path="becarios" element={<MisBecarios />} />
               <Route path="asistencias" element={<AsistenciasEquipo />} />
+              <Route path="correcciones" element={<Correcciones />} />
+              <Route path="historial-cambios" element={<HistorialCambios />} />
+              <Route path="becario/:id/historial-cambios" element={<HistorialCambios />} />
               <Route path="siase" element={<ReportesSiaseEquipo />} />
               <Route path="cuenta" element={<MiCuenta />} />
               <Route path="transferencias" element={<Transferencias />} />
@@ -176,6 +183,10 @@ function Rutas() {
               <Route path="ingenieros" element={<Ingenieros />} />
               <Route path="traspasos" element={<Traspasos />} />
               <Route path="mas" element={<MasAdmin />} />
+              <Route path="correcciones" element={<Correcciones />} />
+              <Route path="historial-cambios" element={<HistorialCambios />} />
+              <Route path="becario/:id/asistencias" element={<AsistenciasBecario />} />
+              <Route path="becario/:id/historial-cambios" element={<HistorialCambios />} />
               <Route path="cuenta" element={<MiCuenta conVolver />} />
               <Route path="semestres" element={<Semestres />} />
               <Route path="reporte-horas" element={<ReporteHorasGlobal />} />
@@ -184,7 +195,6 @@ function Rutas() {
               <Route path="exportar" element={<Exportar />} />
               <Route path="becario/:id/asignar" element={<AsignarIngeniero />} />
               <Route path="revisar" element={<RevisarAdmin />} />
-              <Route path="becario/:id/asistencias" element={<AsistenciasBecario />} />
             </Route>
 
             <Route path="*" element={<Navigate to="/login" replace />} />
