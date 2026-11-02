@@ -11,7 +11,16 @@ import {
   todasDe,
   actualizarPendiente
 } from '../lib/local'
-import { siguienteTipoSegun, type Asistencia, type AsistenciaUi, type ModalidadTrabajo, type TipoAsistencia } from '../lib/modelos'
+import {
+  normalizarPuntaje,
+  siguienteTipoSegun,
+  type Anomalia,
+  type Asistencia,
+  type AsistenciaUi,
+  type EntradaBitacora,
+  type ModalidadTrabajo,
+  type TipoAsistencia
+} from '../lib/modelos'
 import { ejecutar, q, supabase } from '../lib/supabase'
 import { usuarioAutenticado } from './sesion'
 
@@ -37,10 +46,21 @@ export async function registrar(
   tipo: TipoAsistencia,
   modalidad: ModalidadTrabajo,
   latitud: number | null = null,
-  longitud: number | null = null
+  longitud: number | null = null,
+  puntajeRostro: number | null = null
 ): Promise<ResultadoRegistro> {
   const ocurridoEn = new Date().toISOString()
-  const asistencia: Asistencia = { becario_id: becarioId, tipo, ocurrido_en: ocurridoEn, modalidad, latitud, longitud }
+  const puntaje = normalizarPuntaje(puntajeRostro)
+  // origen, revision y motivo_revision los calcula el servidor (0021); no se mandan.
+  const asistencia: Asistencia = {
+    becario_id: becarioId,
+    tipo,
+    ocurrido_en: ocurridoEn,
+    modalidad,
+    latitud,
+    longitud,
+    puntaje_rostro: puntaje
+  }
 
   try {
     await ejecutar(supabase.from('asistencias').insert(asistencia))
@@ -48,7 +68,7 @@ export async function registrar(
     return 'subido'
   } catch (e) {
     if (!esErrorDeRed(e)) throw new ErrorDeNegocio(mensajeAmigable(e, 'No se pudo registrar tu asistencia.'))
-    await encolar({ becarioId, tipo, ocurridoEn, modalidad, latitud, longitud })
+    await encolar({ becarioId, tipo, ocurridoEn, modalidad, latitud, longitud, puntajeRostro: puntaje })
     await cache.guardarUltimoRegistro(becarioId, { tipo, ocurrido_en: ocurridoEn })
     eventosCola.dispatchEvent(new Event('encolada'))
     return 'en_cola'
@@ -87,7 +107,8 @@ async function subirCola(): Promise<ResultadoSincronizacion> {
           ocurrido_en: p.ocurridoEn,
           modalidad: p.modalidad,
           latitud: p.latitud ?? null,
-          longitud: p.longitud ?? null
+          longitud: p.longitud ?? null,
+          puntaje_rostro: p.puntajeRostro ?? null
         } satisfies Asistencia)
       )
       if (p.id != null) await eliminarPendiente(p.id)
@@ -224,4 +245,35 @@ export function agregarManual(
 
 export function eliminar(asistenciaId: string): Promise<void> {
   return ejecutar(supabase.from('asistencias').delete().eq('id', asistenciaId))
+}
+
+// ---------------------------------------------------------------------------
+// Integridad de horas (0021): anomalías, aprobación y bitácora
+// ---------------------------------------------------------------------------
+
+/**
+ * Registros que requieren atención (turnos sin salida, jornadas largas, atrasos…).
+ * Sin [becarioId], el servidor devuelve los de todos los que quien llama puede ver.
+ * Por omisión cubre los últimos 30 días.
+ */
+export async function anomalias(becarioId: string | null = null, desde: Fecha | null = null, hasta: Fecha | null = null): Promise<Anomalia[]> {
+  const filas = await q<Anomalia[] | null>(
+    supabase.rpc('anomalias_asistencia', { p_becario: becarioId, p_desde: desde, p_hasta: hasta })
+  )
+  return (filas ?? []).map((f) => ({
+    ...f,
+    entrada_id: f.entrada_id ?? null,
+    horas: f.horas == null ? null : Number(f.horas),
+    atraso_minutos: f.atraso_minutos == null ? null : Number(f.atraso_minutos)
+  }))
+}
+
+/** Deja el registro como 'aprobada': ya cuenta para las horas. Ingeniero asignado o administrador. */
+export function aprobarAsistencia(asistenciaId: string): Promise<void> {
+  return ejecutar(supabase.rpc('aprobar_asistencia', { p_asistencia: asistenciaId }))
+}
+
+/** Historial de cambios de las asistencias de un becario (quién, cuándo, qué), del más reciente al más antiguo. */
+export async function bitacoraDe(becarioId: string, limite = 50): Promise<EntradaBitacora[]> {
+  return (await q<EntradaBitacora[] | null>(supabase.rpc('bitacora_asistencias_de', { p_becario: becarioId, p_limite: limite }))) ?? []
 }

@@ -1,27 +1,43 @@
 import { useState } from 'react'
 import { useParams } from 'react-router-dom'
-import { Building2, CalendarPlus, CalendarX, Home, LogIn, LogOut, Plus } from 'lucide-react'
+import { Building2, CalendarPlus, CalendarX, ChevronDown, ChevronUp, History, Home, LogIn, LogOut, Plus } from 'lucide-react'
 import * as asistencias from '../../datos/asistencias'
 import { usuario as obtenerUsuario } from '../../datos/repositorios'
-import { requerirUsuario } from '../../datos/sesion'
+import { requerirUsuario, usuarioEnMemoria } from '../../datos/sesion'
+import { describirBitacora } from '../../lib/bitacora'
 import { mensajeAmigable } from '../../lib/errores'
 import { aInstante, fechaHora, horaLocal24, hoy } from '../../lib/fechas'
 import type { AsistenciaUi, ModalidadTrabajo, TipoAsistencia } from '../../lib/modelos'
-import { Boton, CampoTexto, Chip, Dialogo, EstadoVacio, Pantalla, Segmentado, SegunEstado, etiquetaTipo, useVolver } from '../../ui/componentes'
+import {
+  Boton,
+  CampoTexto,
+  Chip,
+  Dialogo,
+  EstadoVacio,
+  Pantalla,
+  Segmentado,
+  SegunEstado,
+  Tarjeta,
+  etiquetaTipo,
+  useVolver
+} from '../../ui/componentes'
 import { useAvisos } from '../../ui/avisos'
 import { useAlReanudar, useCarga } from '../../ui/hooks'
+import { etiquetaAccionBitacora } from '../../ui/estadosVisuales'
 import { AsistenciasPorDia, FiltrosFecha, type FiltroFechas } from '../compartido/Asistencias'
 
 /** Historial de un becario con corrección manual (C-04): agregar la salida olvidada o borrar un registro equivocado. */
 export default function AsistenciasBecario() {
   const { id = '' } = useParams()
-  const volver = useVolver('/ingeniero/becarios')
+  const volver = useVolver(usuarioEnMemoria()?.perfil === 'administrador' ? '/admin/becarios' : '/ingeniero/becarios')
   const avisos = useAvisos()
   const [filtro, setFiltro] = useState<FiltroFechas | null>(null)
   const [tipo, setTipo] = useState<TipoAsistencia | null>(null)
   const [formulario, setFormulario] = useState(false)
   const [aEliminar, setAEliminar] = useState<AsistenciaUi | null>(null)
   const [guardando, setGuardando] = useState(false)
+  /** Sube con cada cambio para que la bitácora se vuelva a pedir. */
+  const [version, setVersion] = useState(0)
 
   const nombre = useCarga(() => obtenerUsuario(id).then((u) => u?.nombre ?? null), [id], '')
   const { estado, recargar } = useCarga(
@@ -42,6 +58,7 @@ export default function AsistenciasBecario() {
       await asistencias.agregarManual(id, t, instante, modalidad, ingeniero.id)
       avisos.exito('Registro agregado.')
       setFormulario(false)
+      setVersion((v) => v + 1)
       recargar()
     } catch (e) {
       avisos.error(mensajeAmigable(e, 'No se pudo agregar el registro.'))
@@ -56,6 +73,7 @@ export default function AsistenciasBecario() {
     try {
       await asistencias.eliminar(asistenciaId)
       avisos.exito('Registro eliminado.')
+      setVersion((v) => v + 1)
       recargar()
     } catch (e) {
       avisos.error(mensajeAmigable(e, 'No se pudo eliminar el registro.'))
@@ -97,7 +115,7 @@ export default function AsistenciasBecario() {
         <Chip texto="Entradas" activo={tipo === 'entrada'} onClick={() => setTipo('entrada')} />
         <Chip texto="Salidas" activo={tipo === 'salida'} onClick={() => setTipo('salida')} />
       </div>
-      <p className="chico texto-2">¿Olvidó registrar la salida? Agrégala con "Agregar registro". Para borrar un registro equivocado usa el ícono de basura.</p>
+      <p className="chico texto-2">¿Olvidó registrar la salida? Agrégala con "Agregar registro". Para borrar un registro equivocado usa el ícono de basura. Los registros marcados "Por revisar" se aprueban desde la lista de pendientes.</p>
       <SegunEstado estado={estado} onReintentar={recargar}>
         {(lista) =>
           lista.length === 0 ? (
@@ -107,7 +125,55 @@ export default function AsistenciasBecario() {
           )
         }
       </SegunEstado>
+      <Bitacora becarioId={id} version={version} />
     </Pantalla>
+  )
+}
+
+/** Sección plegable con los cambios hechos a las asistencias del becario (quién, cuándo y qué). Carga al abrirla. */
+function Bitacora(props: { becarioId: string; version: number }) {
+  const [abierta, setAbierta] = useState(false)
+  const { estado, recargar } = useCarga(
+    () => (abierta ? asistencias.bitacoraDe(props.becarioId) : Promise.resolve([])),
+    [props.becarioId, abierta, props.version],
+    'No se pudo cargar la bitácora de cambios.'
+  )
+  return (
+    <Tarjeta>
+      <button
+        type="button"
+        className="fila"
+        aria-expanded={abierta}
+        onClick={() => setAbierta((a) => !a)}
+        style={{ width: '100%', minHeight: 48, background: 'none', border: 'none', padding: 0, cursor: 'pointer', textAlign: 'left', color: 'inherit' }}
+      >
+        <History size={20} color="var(--primario)" aria-hidden />
+        <span className="titulo-m crece">Bitácora de cambios</span>
+        {abierta ? <ChevronUp aria-hidden /> : <ChevronDown aria-hidden />}
+      </button>
+      {abierta && (
+        <div className="columna" style={{ gap: 8, marginTop: 8 }}>
+          <SegunEstado estado={estado} onReintentar={recargar} tarjetas={2}>
+            {(lista) =>
+              lista.length === 0 ? (
+                <p className="texto-2">Todavía no hay cambios. Aquí verás quién agregó, editó, eliminó o aprobó registros.</p>
+              ) : (
+                <ul className="columna" style={{ gap: 12, listStyle: 'none', padding: 0, margin: 0 }}>
+                  {lista.map((e) => (
+                    <li key={e.id}>
+                      <p className="chico texto-2">
+                        {etiquetaAccionBitacora[e.accion] ?? 'Cambio'} · {fechaHora(e.hecho_en)}
+                      </p>
+                      <p>{describirBitacora(e)}</p>
+                    </li>
+                  ))}
+                </ul>
+              )
+            }
+          </SegunEstado>
+        </div>
+      )}
+    </Tarjeta>
   )
 }
 

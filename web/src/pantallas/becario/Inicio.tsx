@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { ChevronRight, CircleAlert, CloudUpload, FileText, LineChart, ScanFace } from 'lucide-react'
+import { ChevronRight, CircleAlert, CloudUpload, FileText, LineChart, ScanFace, TriangleAlert } from 'lucide-react'
 import * as asistencias from '../../datos/asistencias'
 import { enrolamientoPropio, estadoVentana, modalidadDeHoy, progresoDe } from '../../datos/repositorios'
 import { requerirUsuario, usuarioEnMemoria } from '../../datos/sesion'
@@ -8,7 +8,7 @@ import { prepararMotor } from '../../facial/rostro'
 import { mensajeAmigable } from '../../lib/errores'
 import { diaCompleto, diaMesLargo, fechaDeTexto, hoy } from '../../lib/fechas'
 import { plural, primerNombre, ritmoMes, ritmoSemana } from '../../lib/formato'
-import type { EstadoVentanaSiase, ModalidadTrabajo, ProgresoHoras, TipoAsistencia } from '../../lib/modelos'
+import type { Anomalia, EstadoVentanaSiase, ModalidadTrabajo, ProgresoHoras, TipoAsistencia } from '../../lib/modelos'
 import {
   AvisoBanner,
   Badge,
@@ -38,6 +38,8 @@ interface DatosInicio {
   progreso: { ok: true; datos: ProgresoHoras } | { ok: false; mensaje: string }
   hoy: { ok: true; datos: Hoy } | { ok: false; mensaje: string }
   ventana: EstadoVentanaSiase | null
+  /** Entradas sin salida (anomalias_asistencia con el propio id); vacío si no se pudo consultar. */
+  turnosAbiertos: Anomalia[]
 }
 
 async function cargar(): Promise<DatosInicio> {
@@ -46,7 +48,7 @@ async function cargar(): Promise<DatosInicio> {
   // Primero se intenta subir lo que esté en cola, para que los números ya lo incluyan.
   if ((await asistencias.pendientesSinSubir(usuario.id)) > 0) await asistencias.sincronizarPendientes().catch(() => undefined)
 
-  const [progreso, datosHoy, ventana] = await Promise.all([
+  const [progreso, datosHoy, ventana, turnosAbiertos] = await Promise.all([
     progresoDe(usuario.id).then(
       (datos) => ({ ok: true as const, datos }),
       (e) => ({ ok: false as const, mensaje: mensajeAmigable(e, 'No se pudo cargar tu progreso.') })
@@ -55,14 +57,19 @@ async function cargar(): Promise<DatosInicio> {
       ([m, proximo]) => ({ ok: true as const, datos: { modalidad: m.modalidad, configurada: m.configurada, proximo } }),
       (e) => ({ ok: false as const, mensaje: mensajeAmigable(e, 'No se pudo cargar la información de hoy.') })
     ),
-    estadoVentana().catch(() => null)
+    estadoVentana().catch(() => null),
+    asistencias.anomalias(usuario.id).then(
+      (lista) => lista.filter((a) => a.tipo === 'turno_abierto'),
+      () => [] as Anomalia[]
+    )
   ])
   return {
     pendientes: await asistencias.pendientesSinSubir(usuario.id),
     rechazadas: await asistencias.rechazadasSinSubir(usuario.id),
     progreso,
     hoy: datosHoy,
-    ventana
+    ventana,
+    turnosAbiertos
   }
 }
 
@@ -85,6 +92,16 @@ export default function InicioBecario() {
       {estado.tipo === 'error' && <EstadoError mensaje={estado.mensaje} onReintentar={recargar} />}
 
       <TarjetaHoy datos={datos?.hoy} onRegistrar={() => navegar('/becario/registrar')} onReintentar={recargar} />
+
+      {datos?.turnosAbiertos.map((t) => (
+        <AvisoBanner
+          key={t.asistencia_id}
+          titulo="Turno sin salida"
+          texto={`Tu entrada del ${diaMesLargo(t.fecha)} no tiene salida. Pide a tu ingeniero que la agregue.`}
+          tono="alerta"
+          icono={TriangleAlert}
+        />
+      ))}
 
       {datos && datos.pendientes > 0 && (
         <AvisoBanner

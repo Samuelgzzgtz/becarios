@@ -3,10 +3,11 @@ import { CheckCircle2, CircleAlert, CloudCheck, Lock, LogIn, LogOut, RefreshCw, 
 import * as asistencias from '../../datos/asistencias'
 import { enrolamientoPropio, modalidadDeHoy } from '../../datos/repositorios'
 import { requerirUsuario } from '../../datos/sesion'
-import { coincide, dimensionesCompatibles } from '../../facial/comparar'
+import { dimensionesCompatibles, similitudCoseno, UMBRAL_COINCIDENCIA } from '../../facial/comparar'
 import { NOMBRE_MODELO_ANDROID, capturarCuadro, prepararMotor, procesar } from '../../facial/rostro'
 import { ErrorDeNegocio, MENSAJE_SIN_CONEXION, esErrorDeRed, mensajeAmigable } from '../../lib/errores'
 import { fechaCorta, hoy, hora } from '../../lib/fechas'
+import { ubicacionOpcional } from '../../lib/ubicacion'
 import type { ModalidadTrabajo, TipoAsistencia } from '../../lib/modelos'
 import {
   Boton,
@@ -174,6 +175,8 @@ async function registrar(foto: HTMLCanvasElement): Promise<EstadoRegistro> {
     return { tipo: 'error', mensaje: 'Todavía no tienes biometría facial registrada. Pide a tu ingeniero que te enrole.' }
   }
 
+  // La ubicación es opcional: se pide en paralelo al reconocimiento y nunca frena ni rompe el registro.
+  const ubicacion = ubicacionOpcional()
   const resultado = await procesar(foto)
   switch (resultado.tipo) {
     case 'sin_rostro':
@@ -187,7 +190,8 @@ async function registrar(foto: HTMLCanvasElement): Promise<EstadoRegistro> {
   if (!dimensionesCompatibles(resultado.embedding, enrolamiento.embedding_vector)) {
     return { tipo: 'error', mensaje: 'Tu biometría se registró con otra versión de la app. Pide a tu ingeniero que te vuelva a enrolar.' }
   }
-  if (!coincide(resultado.embedding, enrolamiento.embedding_vector)) {
+  const similitud = similitudCoseno(resultado.embedding, enrolamiento.embedding_vector)
+  if (similitud < UMBRAL_COINCIDENCIA) {
     return {
       tipo: 'error',
       mensaje:
@@ -199,7 +203,8 @@ async function registrar(foto: HTMLCanvasElement): Promise<EstadoRegistro> {
 
   const tipo = await asistencias.siguienteTipo(usuario.id)
   const { modalidad } = await modalidadDeHoy(usuario.id)
-  const subida = await asistencias.registrar(usuario.id, tipo, modalidad)
+  const lugar = await ubicacion
+  const subida = await asistencias.registrar(usuario.id, tipo, modalidad, lugar?.latitud ?? null, lugar?.longitud ?? null, similitud)
   return { tipo: 'exito', registro: tipo, enCola: subida === 'en_cola', hora: hora(new Date()) }
 }
 

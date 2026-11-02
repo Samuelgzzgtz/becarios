@@ -8,11 +8,13 @@ import {
   ClipboardList,
   Download,
   HardHat,
+  Hourglass,
   SlidersHorizontal,
   TriangleAlert,
   UserX,
   Users
 } from 'lucide-react'
+import { anomalias } from '../../datos/asistencias'
 import { indicadores } from '../../datos/repositorios'
 import { fechaDeTexto, fechaMedia } from '../../lib/fechas'
 import { entero, plural } from '../../lib/formato'
@@ -33,7 +35,14 @@ import { useAlReanudar, useCarga } from '../../ui/hooks'
 
 export default function PanelAdmin() {
   const navegar = useNavigate()
-  const { estado, recargar } = useCarga(indicadores, [], 'No se pudieron cargar los indicadores.')
+  const { estado, recargar } = useCarga(
+    async () => {
+      const [ind, porRevisar] = await Promise.all([indicadores(), anomalias().then((l) => l.length, () => null)])
+      return { ...ind, porRevisar }
+    },
+    [],
+    'No se pudieron cargar los indicadores.'
+  )
   useAlReanudar(recargar)
 
   return (
@@ -74,6 +83,14 @@ export default function PanelAdmin() {
                   icono={ArrowLeftRight}
                   alerta={d.transferencias_pendientes > 0}
                   onClick={() => navegar('/admin/traspasos')}
+                />
+                <TarjetaIndicador
+                  valor={d.porRevisar != null ? entero(d.porRevisar) : '–'}
+                  etiqueta="Por revisar"
+                  icono={Hourglass}
+                  alerta={(d.porRevisar ?? 0) > 0}
+                  detalle="registros de asistencia"
+                  onClick={() => navegar('/admin/revisar')}
                 />
                 <TarjetaIndicador
                   valor={entero(d.siase_por_firmar)}
@@ -119,7 +136,7 @@ export default function PanelAdmin() {
               <Accesos
                 accesos={[
                   { titulo: 'Reporte de horas', detalle: 'Avance de todos los becarios', icono: Users, ruta: '/admin/reporte-horas' },
-                  { titulo: 'Configuración', detalle: 'Metas y ventana SIASE', icono: SlidersHorizontal, ruta: '/admin/configuracion' },
+                  { titulo: 'Configuración', detalle: 'Metas, ventana SIASE y reglas de asistencia', icono: SlidersHorizontal, ruta: '/admin/configuracion' },
                   { titulo: 'Exportar asistencias', detalle: 'Archivo CSV para Excel', icono: Download, ruta: '/admin/exportar' }
                 ]}
               />

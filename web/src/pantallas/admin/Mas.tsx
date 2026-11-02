@@ -1,4 +1,4 @@
-import { BarChart3, CalendarDays, CircleUser, ClipboardCheck, Download, SlidersHorizontal } from 'lucide-react'
+import { BarChart3, CalendarDays, CircleUser, ClipboardCheck, Download, Hourglass, SlidersHorizontal } from 'lucide-react'
 import { EncabezadoSeccion, Pantalla } from '../../ui/componentes'
 import { Accesos } from './Panel'
 
@@ -9,6 +9,7 @@ export default function MasAdmin() {
       <EncabezadoSeccion titulo="Seguimiento" />
       <Accesos
         accesos={[
+          { titulo: 'Registros por revisar', detalle: 'Jornadas largas, turnos sin salida y más', icono: Hourglass, ruta: '/admin/revisar' },
           { titulo: 'Firmas SIASE', detalle: 'Firma en lote los reportes mensuales', icono: ClipboardCheck, ruta: '/admin/siase' },
           { titulo: 'Reporte de horas', detalle: 'Avance por ingeniero y becario', icono: BarChart3, ruta: '/admin/reporte-horas' },
           { titulo: 'Exportar asistencias', detalle: 'Genera un CSV para Excel', icono: Download, ruta: '/admin/exportar' }
@@ -18,7 +19,7 @@ export default function MasAdmin() {
       <Accesos
         accesos={[
           { titulo: 'Gestión de semestres', detalle: 'Periodo actual, cierre y apertura', icono: CalendarDays, ruta: '/admin/semestres' },
-          { titulo: 'Configuración', detalle: 'Metas de horas y ventana SIASE', icono: SlidersHorizontal, ruta: '/admin/configuracion' }
+          { titulo: 'Configuración', detalle: 'Metas, ventana SIASE, reglas y zonas de registro', icono: SlidersHorizontal, ruta: '/admin/configuracion' }
         ]}
       />
       <EncabezadoSeccion titulo="Cuenta" />

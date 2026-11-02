@@ -6,6 +6,61 @@ export type TipoAsistencia = 'entrada' | 'salida'
 export type ModalidadTrabajo = 'presencial' | 'home_office'
 export type EstadoReporteSiase = 'pendiente' | 'subido' | 'confirmado' | 'excluido' | 'sin_reporte'
 export type EstadoTransferencia = 'pendiente' | 'aprobada' | 'rechazada'
+export type OrigenAsistencia = 'en_linea' | 'cola' | 'manual'
+export type RevisionAsistencia = 'ok' | 'por_revisar' | 'aprobada'
+export type MotivoRevision = 'atraso_cola' | 'reloj_adelantado' | 'sin_ubicacion' | 'fuera_de_zona'
+export type TipoAnomalia = 'turno_abierto' | 'jornada_larga' | 'atraso' | 'reloj_adelantado' | 'sin_ubicacion' | 'fuera_de_zona'
+
+/** Reglas de asistencia (tabla config_asistencia, 0021). */
+export interface ConfigAsistencia {
+  jornada_maxima_horas: number
+  atraso_maximo_minutos: number
+  tolerancia_minutos: number
+}
+
+/** Jornada máxima por omisión (la misma que el valor inicial en SQL) mientras no cargue la configuración. */
+export const JORNADA_MAXIMA_POR_OMISION = 10
+export const CONFIG_POR_OMISION: ConfigAsistencia = {
+  jornada_maxima_horas: JORNADA_MAXIMA_POR_OMISION,
+  atraso_maximo_minutos: 60,
+  tolerancia_minutos: 5
+}
+
+/** Zona de registro (tabla geocercas, 0021). */
+export interface Geocerca {
+  id: string
+  nombre: string
+  latitud: number
+  longitud: number
+  radio_m: number
+  activa: boolean
+}
+
+/** Fila de la RPC anomalias_asistencia() (0021). */
+export interface Anomalia {
+  tipo: TipoAnomalia
+  becario_id: string
+  becario_nombre: string
+  asistencia_id: string
+  entrada_id: string | null
+  ocurrido_en: string
+  fecha: string
+  horas: number | null
+  atraso_minutos: number | null
+  detalle: string
+}
+
+/** Fila de la RPC bitacora_asistencias_de() (0021). */
+export interface EntradaBitacora {
+  id: number
+  hecho_en: string
+  accion: 'agregar' | 'editar' | 'eliminar' | 'aprobar'
+  hecho_por: string | null
+  hecho_por_nombre: string | null
+  asistencia_id: string
+  antes: Partial<Asistencia> | null
+  despues: Partial<Asistencia> | null
+}
 
 export interface Usuario {
   id: string
@@ -29,6 +84,12 @@ export interface Asistencia {
   latitud?: number | null
   longitud?: number | null
   verificado_por?: string | null
+  /** Lo calcula el servidor (0021); el cliente nunca lo manda. */
+  origen?: OrigenAsistencia | null
+  revision?: RevisionAsistencia | null
+  motivo_revision?: MotivoRevision | null
+  /** Similitud facial 0..1 que calculó el teléfono (solo para auditoría). */
+  puntaje_rostro?: number | null
 }
 
 /** Una asistencia lista para pintar: remota, o todavía en la cola local del teléfono. */
@@ -166,34 +227,39 @@ export interface FilaExportacion {
 }
 
 /**
- * Horas por día local (Monterrey). Igual que horas_trabajadas() en SQL (0012):
- * una entrada solo se empareja con la salida inmediata siguiente si ambas son
- * del mismo día; una entrada sin salida ese día no suma (turno abierto).
+ * Horas por día local (Monterrey). Mismas reglas que horas_trabajadas() en SQL (0021):
+ * una entrada se empareja con la salida inmediata siguiente y el par suma solo si
+ *  1. ambas son del mismo día local (0012; una entrada sin salida ese día no suma),
+ *  2. ni la entrada ni la salida están 'por_revisar', y
+ *  3. dura a lo más [tope] horas, o la salida es 'aprobada' u origen 'manual'.
+ * [tope] es jornada_maxima_horas de la configuración (10 por omisión).
  */
-export function horasPorDia(asistencias: Asistencia[]): Map<Fecha, number> {
+export function horasPorDia(asistencias: Asistencia[], tope: number = JORNADA_MAXIMA_POR_OMISION): Map<Fecha, number> {
   const ordenadas = asistencias
-    .map((a) => ({ instante: parsear(a.ocurrido_en), tipo: a.tipo }))
-    .filter((a): a is { instante: Date; tipo: TipoAsistencia } => a.instante != null)
-    .sort((a, b) => a.instante.getTime() - b.instante.getTime())
+    .map((a) => ({ instante: parsear(a.ocurrido_en), a }))
+    .filter((x): x is { instante: Date; a: Asistencia } => x.instante != null)
+    .sort((x, y) => x.instante.getTime() - y.instante.getTime())
 
   const resultado = new Map<Fecha, number>()
   for (let i = 0; i < ordenadas.length - 1; i++) {
-    const actual = ordenadas[i]
-    const siguiente = ordenadas[i + 1]
-    if (actual.tipo === 'entrada' && siguiente.tipo === 'salida') {
-      const dia = fechaLocal(actual.instante)
-      if (dia === fechaLocal(siguiente.instante)) {
-        const minutos = Math.floor((siguiente.instante.getTime() - actual.instante.getTime()) / 60_000)
-        resultado.set(dia, (resultado.get(dia) ?? 0) + Math.max(0, minutos / 60))
-      }
-    }
+    const entrada = ordenadas[i]
+    const salida = ordenadas[i + 1]
+    if (entrada.a.tipo !== 'entrada' || salida.a.tipo !== 'salida') continue
+    const dia = fechaLocal(entrada.instante)
+    if (dia !== fechaLocal(salida.instante)) continue
+    if (entrada.a.revision === 'por_revisar' || salida.a.revision === 'por_revisar') continue
+    const minutos = Math.floor((salida.instante.getTime() - entrada.instante.getTime()) / 60_000)
+    const horas = Math.max(0, minutos / 60)
+    const confiable = salida.a.revision === 'aprobada' || salida.a.origen === 'manual'
+    if (horas > tope && !confiable) continue
+    resultado.set(dia, (resultado.get(dia) ?? 0) + horas)
   }
   return resultado
 }
 
-export function totalHoras(asistencias: Asistencia[]): number {
+export function totalHoras(asistencias: Asistencia[], tope: number = JORNADA_MAXIMA_POR_OMISION): number {
   let total = 0
-  for (const h of horasPorDia(asistencias).values()) total += h
+  for (const h of horasPorDia(asistencias, tope).values()) total += h
   return total
 }
 
@@ -208,4 +274,10 @@ export function siguienteTipoSegun(
   dia: Fecha = hoy()
 ): TipoAsistencia {
   return ultimoTipo === 'entrada' && ultimoInstante != null && fechaLocal(ultimoInstante) === dia ? 'salida' : 'entrada'
+}
+
+/** La columna es numeric(5,4) con CHECK 0..1: la similitud coseno puede salir negativa o con muchos decimales. */
+export function normalizarPuntaje(p: number | null | undefined): number | null {
+  if (p == null || !Number.isFinite(p)) return null
+  return Math.round(Math.min(1, Math.max(0, p)) * 10_000) / 10_000
 }
