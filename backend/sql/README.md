@@ -66,6 +66,9 @@ a `estado_local`: no hay información para distinguir una baja local histórica 
 bloqueo de Clerk. Se conserva el acceso denegado sin inferir la causa. Las cuentas
 antiguas bloqueadas solo por Ban de Clerk requieren, además de Unban, reactivación
 administrativa explícita mediante `cambiar_estado_usuario(id, 'activo')`.
+Esto también incluye las cuentas que estaban inactivas porque aún esperaban un
+perfil autorizado en Clerk: asignarles el perfil después de migrar no elimina la
+baja conservada. Revisar su autorización y reactivarlas explícitamente.
 Los nuevos Ban/Unban sin baja local siguen funcionando sin esa intervención.
 
 Las transferencias nacen pendientes y sin resolutor; su resolución usa la RPC.
