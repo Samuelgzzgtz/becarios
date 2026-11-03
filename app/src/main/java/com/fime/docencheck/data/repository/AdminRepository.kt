@@ -304,12 +304,15 @@ class AdminRepository(private val client: SupabaseClient) {
         return ExportacionCsv(contenido = "﻿" + lineas.joinToString("\r\n") + "\r\n", registros = filas.size)
     }
 
-    private fun campoCsv(valor: String): String =
-        if (valor.any { it == ',' || it == '"' || it == '\n' || it == '\r' }) {
-            "\"" + valor.replace("\"", "\"\"") + "\""
+    private fun campoCsv(valor: String): String {
+        val inicio = valor.dropWhile { it.isWhitespace() || it.code <= 31 || it.code in 127..159 }.firstOrNull()
+        val seguro = if (inicio in listOf('=', '+', '-', '@') || valor.firstOrNull() in listOf('\t', '\r', '\n')) "'$valor" else valor
+        return if (seguro.any { it == ',' || it == '"' || it == '\n' || it == '\r' }) {
+            "\"" + seguro.replace("\"", "\"\"") + "\""
         } else {
-            valor
+            seguro
         }
+    }
 
     private companion object {
         const val TAMANO_PAGINA = 1000

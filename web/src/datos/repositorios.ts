@@ -216,8 +216,8 @@ export async function subirReporte(becarioId: string, periodoId: string, mes: Fe
     throw new ErrorDeNegocio('Este reporte ya fue revisado por tu ingeniero; ya no se puede reemplazar.')
   }
 
-  const ruta = `${becarioId}/${mes}/${nombreSeguro(archivo.name)}`
-  const { error } = await supabase.storage.from(BUCKET_SIASE).upload(ruta, archivo, { upsert: true, contentType: archivo.type || undefined })
+  const ruta = `${becarioId}/${mes}/${crypto.randomUUID()}_${nombreSeguro(archivo.name)}`
+  const { error } = await supabase.storage.from(BUCKET_SIASE).upload(ruta, archivo, { upsert: false, contentType: archivo.type || undefined })
   if (error) {
     const status = Number((error as { statusCode?: string | number }).statusCode ?? (error as { status?: number }).status ?? 0)
     throw new ErrorApi('storage', { message: error.message, status })
@@ -233,9 +233,11 @@ export async function subirReporte(becarioId: string, periodoId: string, mes: Fe
   return ruta
 }
 
-/** URL temporal (10 min) para abrir el archivo (A-02). Acepta filas viejas que guarden una URL completa. */
+/** URL temporal (10 min) para abrir exclusivamente una ruta del bucket SIASE. */
 export async function urlParaVer(rutaOUrl: string): Promise<string> {
-  if (rutaOUrl.startsWith('http')) return rutaOUrl
+  if (!/^[0-9a-f-]{36}\/\d{4}-\d{2}-\d{2}\/[A-Za-z0-9_][A-Za-z0-9._-]*$/i.test(rutaOUrl)) {
+    throw new ErrorDeNegocio('La ruta del reporte no es válida. Vuelve a subir el archivo.')
+  }
   const { data, error } = await supabase.storage.from(BUCKET_SIASE).createSignedUrl(rutaOUrl, 600)
   if (error || !data) throw new ErrorApi('storage', { message: error?.message ?? 'Sin URL', status: 404 })
   return data.signedUrl
@@ -428,7 +430,10 @@ export interface ExportacionCsv {
 
 const TAMANO_PAGINA = 1000
 
-function campoCsv(valor: string): string {
+export function campoCsv(valor: string): string {
+  // Excel puede ignorar espacios y controles antes de interpretar una fórmula.
+  // oxlint-disable-next-line no-control-regex -- Neutraliza también prefijos de control enviados por el usuario.
+  if (/^[\s\u0000-\u001f\u007f-\u009f]*[=+@-]/u.test(valor) || /^[\t\r\n]/.test(valor)) valor = `'${valor}`
   return /[",\n\r]/.test(valor) ? `"${valor.replace(/"/g, '""')}"` : valor
 }
 

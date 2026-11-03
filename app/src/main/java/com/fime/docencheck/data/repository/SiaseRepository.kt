@@ -20,6 +20,7 @@ import kotlinx.serialization.json.buildJsonArray
 import kotlinx.serialization.json.buildJsonObject
 import kotlinx.serialization.json.put
 import java.time.LocalDate
+import java.util.UUID
 import kotlin.time.Duration.Companion.minutes
 
 private const val BUCKET_SIASE = "siase"
@@ -110,8 +111,8 @@ class SiaseRepository(private val client: SupabaseClient) {
             throw ErrorDeNegocio("Este reporte ya fue revisado por tu ingeniero; ya no se puede reemplazar.")
         }
 
-        val ruta = "$becarioId/$mes/${nombreSeguro(nombreArchivo)}"
-        client.storage.from(BUCKET_SIASE).upload(ruta, archivo) { upsert = true }
+        val ruta = "$becarioId/$mes/${UUID.randomUUID()}_${nombreSeguro(nombreArchivo)}"
+        client.storage.from(BUCKET_SIASE).upload(ruta, archivo) { upsert = false }
 
         if (existente == null) {
             client.postgrest.from("reportes_siase").insert(
@@ -136,12 +137,11 @@ class SiaseRepository(private val client: SupabaseClient) {
         ruta
     }
 
-    /**
-     * URL temporal para abrir el archivo (A-02). Acepta también filas viejas que
-     * todavía guarden una URL completa.
-     */
+    /** URL temporal para abrir exclusivamente una ruta del bucket SIASE. */
     suspend fun urlParaVer(rutaOUrl: String): Result<String> = intentar {
-        if (rutaOUrl.startsWith("http")) return@intentar rutaOUrl
+        if (!Regex("^[0-9a-fA-F-]{36}/[0-9]{4}-[0-9]{2}-[0-9]{2}/[A-Za-z0-9_][A-Za-z0-9._-]*$").matches(rutaOUrl)) {
+            throw ErrorDeNegocio("La ruta del reporte no es válida. Vuelve a subir el archivo.")
+        }
         client.storage.from(BUCKET_SIASE).createSignedUrl(rutaOUrl, expiresIn = 10.minutes)
     }
 

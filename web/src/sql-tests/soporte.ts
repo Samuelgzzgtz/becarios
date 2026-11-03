@@ -75,11 +75,11 @@ export function leerMigraciones(hasta?: string): { archivo: string; sql: string 
     .map((archivo) => ({ archivo, sql: readFileSync(new URL(archivo, carpetaSql), 'utf8') }))
 }
 
-/** Base nueva con el entorno simulado y las migraciones 0001–0021 en orden. */
-export async function crearBase(): Promise<PGlite> {
+/** Base nueva con el entorno simulado y las migraciones en orden hasta el límite indicado. */
+export async function crearBase(hasta?: string): Promise<PGlite> {
   const db = new PGlite({ extensions: { pgcrypto } })
   await db.exec(entorno)
-  for (const m of leerMigraciones()) {
+  for (const m of leerMigraciones(hasta)) {
     try {
       await db.exec(m.sql)
     } catch (e) {

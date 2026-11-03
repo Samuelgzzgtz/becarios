@@ -185,18 +185,18 @@ describe('(c) hora futura', () => {
   it('dentro de la tolerancia se conserva la hora tal cual', async () => {
     await como(db, 'bec1')
     const fila = await insertar(db, { becario: 'bec1', tipo: 'entrada', en: `now() + interval '3 minutes'` })
-    expect(fila.revision).toBe('ok')
+    expect(fila.revision).toBe('por_revisar')
     expect(fila.origen).toBe('en_linea')
   })
 })
 
 describe('(d) atraso de la cola sin red', () => {
-  it('30 minutos: origen cola y ok', async () => {
+  it('30 minutos: origen cola y requiere aprobacion', async () => {
     await como(db, 'bec1')
     const fila = await insertar(db, { becario: 'bec1', tipo: 'entrada', en: `now() - interval '30 minutes'` })
     expect(fila.origen).toBe('cola')
-    expect(fila.revision).toBe('ok')
-    expect(fila.motivo_revision).toBeNull()
+    expect(fila.revision).toBe('por_revisar')
+    expect(fila.motivo_revision).toBe('revision_humana')
   })
 
   it('3 horas: por_revisar / atraso_cola y no suma', async () => {
@@ -219,7 +219,7 @@ describe('(d) atraso de la cola sin red', () => {
     await db.query('select public.guardar_config_asistencia(10, 240, 5)')
     await como(db, 'bec1')
     const fila = await insertar(db, { becario: 'bec1', tipo: 'entrada', en: `now() - interval '3 hours'` })
-    expect(fila.revision).toBe('ok')
+    expect(fila.revision).toBe('por_revisar')
     expect(fila.origen).toBe('cola')
   })
 
@@ -244,8 +244,8 @@ describe('(e) el becario no falsea origen / revisión / motivo', () => {
       extra: { origen: 'manual', revision: 'aprobada', motivo_revision: 'fuera_de_zona' },
     })
     expect(fila.origen).toBe('en_linea')
-    expect(fila.revision).toBe('ok')
-    expect(fila.motivo_revision).toBeNull()
+    expect(fila.revision).toBe('por_revisar')
+    expect(fila.motivo_revision).toBe('revision_humana')
   })
 
   it('tampoco al mandar una hora vieja con revisión aprobada', async () => {
@@ -367,11 +367,11 @@ describe('(h) geocercas', () => {
     return r.rows[0].id
   }
 
-  it('sin zonas no marca nada', async () => {
+  it('sin zonas requiere revision humana', async () => {
     await como(db, 'bec1')
     const fila = await insertar(db, { becario: 'bec1', tipo: 'entrada', modalidad: 'presencial' })
-    expect(fila.revision).toBe('ok')
-    expect(fila.motivo_revision).toBeNull()
+    expect(fila.revision).toBe('por_revisar')
+    expect(fila.motivo_revision).toBe('revision_humana')
   })
 
   it('con zona: presencial sin ubicación, fuera y dentro; home_office no se evalúa', async () => {
@@ -393,14 +393,14 @@ describe('(h) geocercas', () => {
       becario: 'bec1', tipo: 'entrada', modalidad: 'presencial', latitud: 25.7255, longitud: -100.3139,
       en: `now() - interval '5 minutes'`,
     })
-    expect([dentro.revision, dentro.motivo_revision]).toEqual(['ok', null])
+    expect([dentro.revision, dentro.motivo_revision]).toEqual(['por_revisar', 'revision_humana'])
 
     await horarioSemanal(db, 'bec1', 'home_office')
     await como(db, 'bec1')
     const casa = await insertar(db, {
       becario: 'bec1', tipo: 'salida', modalidad: 'home_office', en: `now() - interval '7 minutes'`,
     })
-    expect([casa.revision, casa.motivo_revision]).toEqual(['ok', null])
+    expect([casa.revision, casa.motivo_revision]).toEqual(['por_revisar', 'revision_humana'])
   })
 
   it('una zona desactivada deja de contar; el radio se respeta (haversine)', async () => {
@@ -421,7 +421,7 @@ describe('(h) geocercas', () => {
       becario: 'bec1', tipo: 'salida', modalidad: 'presencial', latitud: FIME.lat + 0.002, longitud: FIME.lon,
       en: `now() - interval '3 minutes'`,
     })
-    expect(cerca.revision).toBe('ok')
+    expect(cerca.revision).toBe('por_revisar')
 
     await como(db, 'admin')
     await db.query(`select public.guardar_geocerca($1, 'FIME', $2, $3, 300, false)`, [id, FIME.lat, FIME.lon])
@@ -429,7 +429,7 @@ describe('(h) geocercas', () => {
     const sinZonas = await insertar(db, {
       becario: 'bec1', tipo: 'entrada', modalidad: 'presencial', en: `now() - interval '5 minutes'`,
     })
-    expect(sinZonas.revision).toBe('ok')
+    expect(sinZonas.revision).toBe('por_revisar')
   })
 
   it('el reloj adelantado tiene prioridad sobre la ubicación', async () => {
