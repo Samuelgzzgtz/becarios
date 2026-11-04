@@ -35,17 +35,21 @@ const TONOS: Record<TipoAnomalia, Tono> = {
   modalidad_distinta: 'alerta'
 }
 
-/** Se aprueba en lote: revisiones de registros, no jornadas largas (esas se confirman una por una) ni turnos sin salida. */
-const seApruebaEnLote = (a: Anomalia) => anomaliaSeAprueba(a.tipo) && a.tipo !== 'jornada_larga'
+/** Solo la revisión humana simple se aprueba en lote (igual que aprobar_asistencias); lo demás, uno por uno. */
+const seApruebaEnLote = (a: Anomalia) => a.tipo === 'revision_humana'
 
-/** Qué pasa al aprobar, dicho en claro, para la confirmación. */
-function consecuencia(a: Anomalia): string {
+/** Filas que PostgREST devuelve como máximo (max_rows); la lista llega de lo más antiguo a lo más reciente. */
+const MAXIMO_FILAS = 1000
+
+/** Qué pasa al aprobar, dicho en claro, para la confirmación. [jornadaPendiente]: el registro es parte de una jornada larga sin confirmar. */
+function consecuencia(a: Anomalia, jornadaPendiente: boolean): string {
   const quien = a.becario_nombre
   const dia = diaCompleto(a.fecha).toLowerCase()
   if (a.tipo === 'jornada_larga') {
     const h = a.horas != null ? ` de ${formatoHoras(a.horas)}` : ''
     return `Se contará la jornada${h} de ${quien} del ${dia}. Confirma que sí la trabajó completa.`
   }
+  if (jornadaPendiente) return `Se aprobará el registro de ${quien} del ${dia}. Su jornada pasa el tope y no contará hasta que la confirmes.`
   return `El registro de ${quien} del ${dia} empezará a contar para sus horas.`
 }
 
@@ -111,7 +115,9 @@ export default function Revisar(props: { rutaBecario: (becarioId: string) => str
     if (aprobando) return
     setAprobando(true)
     try {
-      await aprobarAsistencias([...ids])
+      const lista = [...ids]
+      // aprobar_asistencias acepta hasta 1000 ids por llamada.
+      for (let i = 0; i < lista.length; i += MAXIMO_FILAS) await aprobarAsistencias(lista.slice(i, i + MAXIMO_FILAS))
       avisos.exito(`${plural(ids.size, 'registro aprobado', 'registros aprobados')}.`)
       actualizar((lista) => sinAprobadas(lista, ids, false))
     } catch (e) {
@@ -137,7 +143,7 @@ export default function Revisar(props: { rutaBecario: (becarioId: string) => str
       {aprobarTodos && (
         <Dialogo
           titulo="Aprobar todos"
-          mensaje={`Se aprobarán ${plural(idsLote.size, 'registro', 'registros')} de la lista y empezarán a contar para las horas. Las jornadas largas se confirman una por una.`}
+          mensaje={`Se aprobarán ${plural(idsLote.size, 'registro', 'registros')} en revisión humana. Los demás motivos y las jornadas largas se revisan uno por uno.`}
           icono={ClipboardCheck}
           textoConfirmar="Aprobar todos"
           onConfirmar={() => {
@@ -150,7 +156,11 @@ export default function Revisar(props: { rutaBecario: (becarioId: string) => str
       {aAprobar && (
         <Dialogo
           titulo={aAprobar.tipo === 'jornada_larga' ? 'Confirmar jornada' : 'Aprobar registro'}
-          mensaje={consecuencia(aAprobar)}
+          mensaje={consecuencia(
+            aAprobar,
+            estado.tipo === 'listo' &&
+              estado.datos.some((x) => x.tipo === 'jornada_larga' && (x.asistencia_id === aAprobar.asistencia_id || x.entrada_id === aAprobar.asistencia_id))
+          )}
           icono={ClipboardCheck}
           textoConfirmar={aAprobar.tipo === 'jornada_larga' ? 'Confirmar' : 'Aprobar'}
           onConfirmar={() => {
@@ -162,6 +172,9 @@ export default function Revisar(props: { rutaBecario: (becarioId: string) => str
         />
       )}
       <p className="chico texto-2">Desde el inicio del semestre. Un registro por revisar no suma horas hasta que se aprueba o se corrige.</p>
+      {estado.tipo === 'listo' && estado.datos.length >= MAXIMO_FILAS && (
+        <p className="chico texto-2">Mostrando los primeros {entero(MAXIMO_FILAS)}, los más antiguos. Al resolverlos aparecerán los demás.</p>
+      )}
       <SegunEstado estado={estado} onReintentar={recargar}>
         {(lista) =>
           lista.length === 0 ? (

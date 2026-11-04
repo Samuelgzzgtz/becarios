@@ -129,7 +129,6 @@ describe('(a) tope de jornada', () => {
     const salida = await jornadaLarga()
     await como(db, 'ing1')
     await db.query('select public.aprobar_asistencia($1)', [salida])
-    await db.query('select public.aprobar_asistencias($1)', [[salida]])
     expect(await horas(db, 'bec1', DIA_DESDE, DIA_HASTA)).toBe(0)
     await como(db, 'ing1')
     await db.query('select public.aprobar_asistencia($1, true)', [salida])
@@ -466,13 +465,13 @@ describe('(i) anomalias_asistencia', () => {
     return r.rows
   }
 
-  it('el administrador ve a todos; ordena por fecha descendente', async () => {
+  it('el administrador ve a todos; lo más antiguo primero (0025)', async () => {
     await preparar()
     const filas = await ver('admin')
     expect(filas.map((f) => `${f.tipo}:${f.becario_id === ids.bec1 ? 'bec1' : 'bec2'}`)).toEqual([
-      'turno_abierto:bec2',
-      'jornada_larga:bec1',
       'turno_abierto:bec1',
+      'jornada_larga:bec1',
+      'turno_abierto:bec2',
     ])
   })
 
@@ -518,7 +517,7 @@ describe('(i) anomalias_asistencia', () => {
     const abierto = antes.find((f) => f.tipo === 'turno_abierto')!
     await como(db, 'ing1')
     await db.query('select public.aprobar_asistencia($1)', [larga.asistencia_id])
-    expect((await ver('ing1')).map((f) => f.tipo)).toEqual(['jornada_larga', 'turno_abierto'])
+    expect((await ver('ing1')).map((f) => f.tipo)).toEqual(['turno_abierto', 'jornada_larga'])
     await db.query('select public.aprobar_asistencia($1, true)', [larga.asistencia_id])
     await db.query('select public.aprobar_asistencia($1)', [abierto.asistencia_id])
     expect((await ver('ing1')).map((f) => f.tipo)).toEqual(['turno_abierto'])

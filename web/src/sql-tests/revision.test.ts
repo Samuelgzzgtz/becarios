@@ -6,7 +6,7 @@
  */
 import type { PGlite } from '@electric-sql/pglite'
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest'
-import { como, crearBase, ids, insertar, reiniciarAsistencias, sembrarUsuarios, sinSesion } from './soporte'
+import { como, crearBase, ids, insertar, leerMigraciones, reiniciarAsistencias, sembrarUsuarios, sinSesion } from './soporte'
 
 let db: PGlite
 
@@ -36,8 +36,11 @@ async function filas(sql: string, params: unknown[] = []) {
   return (await db.query<Record<string, unknown>>(sql, params)).rows
 }
 
-/** Turno de 2 h de hoy registrado por el propio becario: los dos quedan por revisar. */
+/** Turno de 2 h de hoy registrado por el propio becario: los dos quedan en revisión humana. */
 async function turnoPropio(becario: 'bec1' | 'bec2' = 'bec1') {
+  // Sin esto la entrada de hace 2 h sería atraso_cola (reiniciarAsistencias lo restablece).
+  await sinSesion(db)
+  await db.exec('update public.config_asistencia set atraso_maximo_minutos = 1440')
   await como(db, becario)
   const e = await insertar(db, { becario, tipo: 'entrada', en: `now() - interval '2 hours'` })
   const s = await insertar(db, { becario, tipo: 'salida' })
@@ -62,6 +65,15 @@ describe('aprobar_asistencias (lote)', () => {
     expect((await error(db.query('select public.aprobar_asistencias($1)', [propios]))).message).toMatch(/Solo el ingeniero/)
     await sinSesion(db)
     expect(await filas(`select 1 from public.asistencias where revision = 'aprobada'`)).toHaveLength(0)
+  })
+
+  it('solo aprueba juntos los de revisión humana; otro motivo rechaza el lote', async () => {
+    const turno = await turnoPropio()
+    const sinRostro = await insertar(db, { becario: 'bec1', tipo: 'entrada', en: `now() - interval '1 hour'`, puntaje: null })
+    expect(sinRostro.motivo_revision).toBe('sin_rostro')
+    await como(db, 'ing1')
+    expect((await error(db.query('select public.aprobar_asistencias($1)', [[...turno, sinRostro.id]]))).message).toMatch(/uno por uno/)
+    expect((await filas('select public.aprobar_asistencias($1) as n', [turno]))[0].n).toBe(2)
   })
 
   it('confirmar la jornada solo aplica a una salida', async () => {
@@ -134,12 +146,11 @@ describe('confianza de los disparadores', () => {
 })
 
 describe('cierre y exportación', () => {
-  it('la vista previa cuenta lo que sigue por revisar y la exportación pagina por cursor', async () => {
+  it('la exportación pagina por cursor y la vista previa cuenta también jornadas sin confirmar', async () => {
     await sinSesion(db)
     await db.exec(`update public.periodos_academicos set fecha_inicio = public.hoy_local() - 10, fecha_fin = public.hoy_local() + 10 where activo`)
     await turnoPropio()
     await como(db, 'admin')
-    expect((await filas('select registros_por_revisar from public.vista_previa_cierre()'))[0].registros_por_revisar).toBe(2)
 
     const pagina = (despues: Record<string, unknown> | null) =>
       filas(
@@ -153,6 +164,40 @@ describe('cierre y exportación', () => {
     expect(segunda).toHaveLength(1)
     expect(segunda[0].id).not.toBe(primera[0].id)
     expect(await pagina(segunda[0])).toHaveLength(0)
-    expect(primera[0]).toMatchObject({ revision: 'por_revisar', motivo_revision: 'atraso_cola', origen: 'cola' })
+    expect(primera[0]).toMatchObject({ revision: 'por_revisar', motivo_revision: 'revision_humana', origen: 'cola' })
+
+    // Jornada de 15 h de hace 3 días, aprobada pero sin confirmar: también avisa.
+    await sinSesion(db)
+    const dia = `public.inicio_dia_local(public.hoy_local() - 3)`
+    await insertar(db, { becario: 'bec1', tipo: 'entrada', en: `${dia} + interval '7 hours'` })
+    await insertar(db, { becario: 'bec1', tipo: 'salida', en: `${dia} + interval '22 hours'` })
+    await como(db, 'admin')
+    expect((await filas('select registros_por_revisar from public.vista_previa_cierre()'))[0].registros_por_revisar).toBe(3)
   })
+})
+
+describe('backfill de jornada_aprobada', () => {
+  it('confirma las salidas aprobadas sin motivo que pasan el tope, sin escribir en la bitácora', async () => {
+    const base = await crearBase('0024')
+    try {
+      await sembrarUsuarios(base)
+      const t = (h: string) => `timestamptz '2026-03-10 ${h}-06'`
+      // Sin sesión: quedan 'ok'. Larga (6-20) y corta (21-23); las dos salidas aprobadas como en 0021-0023.
+      for (const [tipo, h] of [['entrada', '06:00'], ['salida', '20:00'], ['entrada', '21:00'], ['salida', '23:00']] as const) {
+        await insertar(base, { becario: 'bec1', tipo, en: t(h) })
+      }
+      await base.exec(`update public.asistencias set revision = 'aprobada' where tipo = 'salida'`)
+      const bitacora = async () => Number((await base.query<{ n: string }>('select count(*) as n from public.bitacora_asistencias')).rows[0].n)
+      const antes = await bitacora()
+      await base.exec(leerMigraciones().find((m) => m.archivo.startsWith('0025'))!.sql)
+      const r = await base.query<{ hora: string; jornada_aprobada: boolean }>(
+        `select to_char(ocurrido_en at time zone 'America/Monterrey', 'HH24:MI') as hora, jornada_aprobada
+         from public.asistencias where tipo = 'salida' order by ocurrido_en`,
+      )
+      expect(r.rows).toEqual([{ hora: '20:00', jornada_aprobada: true }, { hora: '23:00', jornada_aprobada: false }])
+      expect(await bitacora()).toBe(antes)
+    } finally {
+      await base.close()
+    }
+  }, 120_000)
 })

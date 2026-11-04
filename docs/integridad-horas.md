@@ -101,7 +101,7 @@ returns table (
 ```
 Por defecto `p_desde` = inicio del periodo activo (o `hoy_local() - 30` sin periodo), `p_hasta = hoy_local()`.
 Desde 0025 también devuelve evidencia del registro `asistencia_id`: `puntaje_rostro`,
-`distancia_m` (metros fuera de la zona activa más cercana, 0 = dentro), `origen` y
+`distancia_m` (metros fuera de la zona activa más cercana, 0 = dentro; null en home office), `origen` y
 `subido_minutos` (`created_at - ocurrido_en`). `contar_anomalias_asistencia` da solo el total. Visibilidad: administrador ve a
 todos los becarios activos; ingeniero a los suyos; becario solo a sí mismo (si `p_becario` no
 es visible para quien llama → error). Los motivos del servidor salen solo mientras el registro
@@ -109,12 +109,12 @@ sigue `por_revisar`. `turno_abierto`: entrada sin
 salida el mismo día local y (su día ya pasó, o hoy y lleva más de `jornada_maxima_horas`).
 Aprobar la entrada no oculta el turno sin salida (0025).
 `jornada_larga`: pares que sobrepasan el tope sin `jornada_aprobada` ni salida `manual`.
-Ordenar por `fecha desc, becario_nombre`.
+Ordenar por `fecha, becario_nombre, ocurrido_en` (0025: lo más antiguo primero).
 
 ```sql
 aprobar_asistencia(p_asistencia uuid, p_jornada boolean default false) returns void
   -- ingeniero asignado o admin, nunca el propio becario; deja revision='aprobada' y, con p_jornada, jornada_aprobada
-aprobar_asistencias(p_ids uuid[]) returns integer       -- lo mismo por lote (todo o nada), sin confirmar jornadas
+aprobar_asistencias(p_ids uuid[]) returns integer       -- lote solo de revision_humana (todo o nada), sin confirmar jornadas
 bitacora_asistencias_de(p_becario uuid, p_limite int default 50)
 returns table (id bigint, hecho_en timestamptz, accion text, hecho_por uuid,
                hecho_por_nombre text, asistencia_id uuid, antes jsonb, despues jsonb)

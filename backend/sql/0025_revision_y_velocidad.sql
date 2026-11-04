@@ -20,8 +20,10 @@
 --
 -- Aditiva para la web y la app Android en producción: las RPC conservan sus
 -- parámetros (los nuevos tienen valor por omisión) y solo agregan columnas.
--- Sin backfill de jornada_aprobada: ver backend/sql/README.md.
+-- Backfill de jornada_aprobada: ver la sección 1 y backend/sql/README.md.
 begin;
+-- Si una tabla está ocupada, falla rápido en vez de encolar a la API detrás de la migración.
+set local lock_timeout = '5s';
 
 -- ---------------------------------------------------------------------------
 -- 1) Jornada larga confirmada aparte
@@ -29,6 +31,32 @@ begin;
 alter table public.asistencias add column jornada_aprobada boolean not null default false;
 comment on column public.asistencias.jornada_aprobada is
   'Salida cuya jornada pasa el tope y fue confirmada (aprobar_asistencia con p_jornada). Aprobar la revisión no la confirma.';
+
+-- Backfill: una salida aprobada sin motivo_revision estaba en 'ok' al aprobarse, así
+-- que solo pudo aprobarse desde su jornada larga; esas quedan confirmadas. Las aprobadas
+-- con un motivo (p. ej. revision_humana) son ambiguas y vuelven a pedir confirmación.
+-- Solo se marcan los pares que pasan el tope. La bitácora se pausa: no es un cambio de
+-- nadie, solo traslada una decisión ya registrada como 'aprobar'.
+alter table public.asistencias disable trigger asistencias_bitacora;
+update public.asistencias s
+set jornada_aprobada = true
+from (
+  select a.id, a.tipo, a.ocurrido_en,
+         lag(a.tipo)        over w as tipo_anterior,
+         lag(a.ocurrido_en) over w as anterior_en
+  from public.asistencias a
+  window w as (partition by a.becario_id order by a.ocurrido_en)
+) p
+where s.id = p.id
+  and p.tipo = 'salida'
+  and s.revision = 'aprobada'
+  and s.motivo_revision is null
+  and s.origen <> 'manual'
+  and p.tipo_anterior = 'entrada'
+  and (p.anterior_en at time zone 'America/Monterrey')::date = (p.ocurrido_en at time zone 'America/Monterrey')::date
+  and extract(epoch from (p.ocurrido_en - p.anterior_en)) / 3600.0
+      > coalesce((select c.jornada_maxima_horas from public.config_asistencia c limit 1), 10);
+alter table public.asistencias enable trigger asistencias_bitacora;
 
 -- Orden de exportar_asistencias (cursor por ocurrido_en, id).
 create index asistencias_ocurrido_id_idx on public.asistencias (ocurrido_en, id);
@@ -494,8 +522,9 @@ begin
 end;
 $$;
 
--- Aprueba la revisión de varios registros; no confirma jornadas largas. Los que
--- ya no existen se omiten. Devuelve cuántos cambiaron.
+-- Aprueba por lote solo la revisión humana simple (motivo revision_humana); los
+-- demás motivos y las jornadas largas se revisan uno por uno. Los que ya no existen
+-- se omiten. Devuelve cuántos cambiaron.
 create function public.aprobar_asistencias(p_ids uuid[])
 returns integer
 language plpgsql
@@ -521,6 +550,14 @@ begin
            or not (v_admin or a.becario_id in (select public.becarios_a_cargo())))
   ) then
     raise exception 'Solo el ingeniero asignado o un administrador puede aprobar estos registros.';
+  end if;
+  if exists (
+    select 1 from public.asistencias a
+    where a.id = any(p_ids)
+      and a.revision <> 'aprobada'
+      and a.motivo_revision is distinct from 'revision_humana'
+  ) then
+    raise exception 'Solo se aprueban juntos los registros en revisión humana; los demás se revisan uno por uno.';
   end if;
   update public.asistencias set revision = 'aprobada'
   where id = any(p_ids) and revision <> 'aprobada';
@@ -556,7 +593,7 @@ returns table (
   detalle        text,
   -- Evidencia del registro asistencia_id.
   puntaje_rostro numeric,
-  -- Metros fuera de la zona activa más cercana (0 = dentro); null sin ubicación o sin zonas.
+  -- Metros fuera de la zona activa más cercana (0 = dentro); null en home office, sin ubicación o sin zonas.
   distancia_m    integer,
   origen         text,
   -- Minutos entre la hora del registro y su llegada al servidor.
@@ -692,12 +729,13 @@ begin
                     a.latitud::double precision, a.longitud::double precision,
                     g.latitud::double precision, g.longitud::double precision) - g.radio_m)))::integer
           from public.geocercas g
-          where g.activa and a.latitud is not null and a.longitud is not null),
+          where g.activa and a.modalidad = 'presencial' and a.latitud is not null and a.longitud is not null),
          a.origen,
          greatest(0, floor(extract(epoch from (a.created_at - a.ocurrido_en)) / 60.0))::integer
   from filas f
   join public.asistencias a on a.id = f.asistencia_id
-  order by f.fecha desc, f.becario_nombre, f.ocurrido_en desc;
+  -- Lo más antiguo primero: si PostgREST corta en max_rows, lo que queda fuera es lo más reciente.
+  order by f.fecha, f.becario_nombre, f.ocurrido_en;
 end;
 $$;
 
@@ -816,12 +854,8 @@ begin
   end if;
   return query
     select p.id, p.nombre, p.fecha_inicio, p.fecha_fin, c.becarios_activos, c.becarios_cumplidos,
-      (select count(*)::integer
-       from public.asistencias a
-       join public.usuarios u on u.id = a.becario_id and u.perfil = 'becario' and u.estado = 'activo'
-       where a.revision = 'por_revisar'
-         and a.ocurrido_en >= public.inicio_dia_local(p.fecha_inicio)
-         and a.ocurrido_en <  public.inicio_dia_local(p.fecha_fin + 1))
+      -- Lo mismo que ve el administrador en Revisar: por revisar, jornadas sin confirmar y turnos sin salida.
+      public.contar_anomalias_asistencia(null, p.fecha_inicio, p.fecha_fin)
     from public._cumplimiento_periodo(p.fecha_inicio, p.fecha_fin) c;
 end;
 $$;

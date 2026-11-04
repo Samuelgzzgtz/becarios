@@ -87,14 +87,18 @@ parámetros (los nuevos tienen valor por omisión) y solo agregan columnas al re
 
 - `asistencias.jornada_aprobada`: el tope de jornada solo lo levanta confirmar la jornada
   larga (`aprobar_asistencia(id, p_jornada => true)`) o una salida `manual`. Aprobar la
-  revisión de la salida ya no basta. Sin backfill: no hay forma de distinguir una aprobación
-  que confirmó la jornada de una que solo aprobó la revisión humana. Las jornadas largas ya
-  aprobadas dejan de sumar y vuelven a "Por revisar" para confirmarlas. La web anterior no
-  manda `p_jornada`: hasta desplegar la nueva, esas jornadas no se pueden confirmar.
-- `aprobar_asistencias(ids)` aprueba por lote con el mismo permiso que `aprobar_asistencia`.
+  revisión de la salida ya no basta. Backfill: una salida aprobada sin `motivo_revision` (no
+  manual) que cierra una jornada sobre el tope solo pudo aprobarse desde su jornada larga, y
+  queda confirmada (sin filas en la bitácora). Las aprobadas con motivo (`revision_humana`)
+  son ambiguas: dejan de sumar y vuelven a "Por revisar" para confirmarlas. La web anterior
+  no manda `p_jornada`: hasta desplegar la nueva, esas jornadas no se pueden confirmar.
+- `aprobar_asistencias(ids)` aprueba por lote, con el mismo permiso que `aprobar_asistencia`,
+  solo registros en `revision_humana`; con otro motivo rechaza todo el lote.
 - `anomalias_asistencia` devuelve evidencia, carga desde el inicio del periodo activo y
-  mantiene el turno sin salida aunque la entrada esté aprobada. `vista_previa_cierre`
-  cuenta lo que sigue `por_revisar`.
+  mantiene el turno sin salida aunque la entrada esté aprobada; ordena de lo más antiguo a lo
+  más reciente (si PostgREST corta en `max_rows`, quedan fuera los recientes).
+  `vista_previa_cierre.registros_por_revisar` usa `contar_anomalias_asistencia` del periodo.
+- La migración usa `lock_timeout` de 5 s: si falla por bloqueo, reintentar.
 - El cliente puede mandar el `id` de la asistencia: un reintento con el mismo id falla con
   23505 y la web lo trata como ya subido.
 - Disparadores de asistencias y reportes: confían solo en llamadas sin JWT o con
