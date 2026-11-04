@@ -1,5 +1,5 @@
 import { FaceDetector, FilesetResolver } from '@mediapipe/tasks-vision'
-import { Tensor, loadAndCompile, loadLiteRt, type CompiledModel } from '@litertjs/core'
+import { Tensor, loadAndCompile, loadLiteRt, supportsFeature, type CompiledModel } from '@litertjs/core'
 
 /*
  * Versión web del pipeline facial de Android (FaceEmbeddingExtractor + FaceEmbeddingModel):
@@ -36,6 +36,25 @@ interface Motor {
 
 let motor: Promise<Motor> | null = null
 
+const MEDIAPIPE = '/vendor/mediapipe'
+const LITERT = '/vendor/litert/'
+const MODELO_DETECTOR = '/models/blaze_face_short_range.tflite'
+const MODELO_ROSTRO = '/models/mobilefacenet.tflite'
+
+/**
+ * Baja los archivos del motor sin compilarlo, para que el service worker los
+ * guarde y "Registrar asistencia" funcione sin red. Pide la misma variante de
+ * WASM que elegirán MediaPipe y LiteRT (loadLiteRt usa la de SIMD relajado si
+ * el navegador lo soporta y si no la compatible).
+ */
+export async function precargarArchivos(): Promise<void> {
+  const vision = await FilesetResolver.forVisionTasks(MEDIAPIPE)
+  const litert = `${LITERT}${(await supportsFeature('relaxedSimd')) ? 'litert_wasm_internal' : 'litert_wasm_compat_internal'}`
+  for (const url of [vision.wasmLoaderPath, vision.wasmBinaryPath, `${litert}.js`, `${litert}.wasm`, MODELO_DETECTOR, MODELO_ROSTRO]) {
+    await fetch(url).then((r) => r.arrayBuffer())
+  }
+}
+
 /** Carga detector y modelo una sola vez (varios MB; quedan en caché del service worker). */
 export function prepararMotor(): Promise<Motor> {
   motor ??= crearMotor().catch((e) => {
@@ -47,14 +66,14 @@ export function prepararMotor(): Promise<Motor> {
 
 async function crearMotor(): Promise<Motor> {
   // En secuencia, no en paralelo: inicializar los dos módulos WASM a la vez deja la página colgada.
-  const archivos = await FilesetResolver.forVisionTasks('/vendor/mediapipe')
+  const archivos = await FilesetResolver.forVisionTasks(MEDIAPIPE)
   const detector = await FaceDetector.createFromOptions(archivos, {
-    baseOptions: { modelAssetPath: '/models/blaze_face_short_range.tflite', delegate: 'CPU' },
+    baseOptions: { modelAssetPath: MODELO_DETECTOR, delegate: 'CPU' },
     runningMode: 'IMAGE',
     minDetectionConfidence: 0.6
   })
-  await loadLiteRt('/vendor/litert/')
-  const modelo = await loadAndCompile('/models/mobilefacenet.tflite', { accelerator: 'wasm' })
+  await loadLiteRt(LITERT)
+  const modelo = await loadAndCompile(MODELO_ROSTRO, { accelerator: 'wasm' })
   const forma = modelo.getInputDetails()[0]?.shape
   const lote = forma && forma.length === 4 ? Math.max(1, forma[0]) : 1
   return { detector, modelo, lote }

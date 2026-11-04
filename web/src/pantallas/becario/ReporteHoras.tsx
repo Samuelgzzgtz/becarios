@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { TrendingDown, TrendingUp, Trophy } from 'lucide-react'
 import { historialEntreFechas } from '../../datos/asistencias'
-import { jornadaMaximaHoras, progresoDe, semanaConRespaldo } from '../../datos/repositorios'
+import { horasPorAprobar, jornadaMaximaHoras, progresoDe, semanaConRespaldo, type HorasPorAprobar } from '../../datos/repositorios'
 import { requerirUsuario } from '../../datos/sesion'
 import { diaSemana, hoy, inicialDia, lunesDe, mesActual, mesLargo, nombreDia, numeroDia, sumarDias, type Fecha } from '../../lib/fechas'
 import { faltan, horas, numeroHoras, ritmoMes, ritmoSemana, vaAlRitmo } from '../../lib/formato'
@@ -30,7 +30,10 @@ interface DiaReporte {
 
 async function cargar() {
   const usuario = await requerirUsuario()
-  const progreso = await progresoDe(usuario.id)
+  const [progreso, porAprobar] = await Promise.all([
+    progresoDe(usuario.id),
+    horasPorAprobar(usuario.id).catch((): HorasPorAprobar => ({ horas_semana: 0, horas_mes: 0, horas_semestre: 0 }))
+  ])
   const lunes = lunesDe()
   const tope = await jornadaMaximaHoras()
   const [porDia, modalidades] = await Promise.all([
@@ -51,7 +54,7 @@ async function cargar() {
       esFuturo: fecha > h
     }
   })
-  return { progreso, semana }
+  return { progreso, porAprobar, semana }
 }
 
 export default function ReporteHoras() {
@@ -62,25 +65,25 @@ export default function ReporteHoras() {
   return (
     <Pantalla titulo="Mi reporte de horas" subtitulo="Tu avance contra las metas">
       <SegunEstado estado={estado} onReintentar={recargar}>
-        {({ progreso: p, semana }) => (
+        {({ progreso: p, porAprobar, semana }) => (
           <>
             <Segmentado opciones={['Semana', 'Mes', 'Semestre']} seleccionado={periodo} onSeleccionar={setPeriodo} etiqueta="Periodo" />
             {periodo === 0 && (
               <>
                 <CuadriculaSemana dias={semana} />
-                <TarjetaTotal titulo="Total de la semana" horasHechas={p.horas_semana} meta={p.meta_semanal} ritmo={ritmoSemana()} />
+                <TarjetaTotal titulo="Total de la semana" horasHechas={p.horas_semana} porAprobar={porAprobar.horas_semana} meta={p.meta_semanal} ritmo={ritmoSemana()} />
                 <TarjetaMeta titulo="Meta semanal" horasHechas={p.horas_semana} meta={p.meta_semanal} />
               </>
             )}
             {periodo === 1 && (
               <>
-                <TarjetaTotal titulo={`Total de ${mesLargo(mesActual())}`} horasHechas={p.horas_mes} meta={p.meta_mensual} ritmo={ritmoMes()} />
+                <TarjetaTotal titulo={`Total de ${mesLargo(mesActual())}`} horasHechas={p.horas_mes} porAprobar={porAprobar.horas_mes} meta={p.meta_mensual} ritmo={ritmoMes()} />
                 <TarjetaMeta titulo="Meta mensual" horasHechas={p.horas_mes} meta={p.meta_mensual} />
               </>
             )}
             {periodo === 2 && (
               <>
-                <TarjetaTotal titulo="Total del semestre" horasHechas={p.horas_semestre} meta={p.meta_semestral} ritmo={null} />
+                <TarjetaTotal titulo="Total del semestre" horasHechas={p.horas_semestre} porAprobar={porAprobar.horas_semestre} meta={p.meta_semestral} ritmo={null} />
                 <TarjetaMeta titulo="Meta semestral" horasHechas={p.horas_semestre} meta={p.meta_semestral} />
               </>
             )}
@@ -122,7 +125,7 @@ function CuadriculaSemana({ dias }: { dias: DiaReporte[] }) {
   )
 }
 
-function TarjetaTotal(props: { titulo: string; horasHechas: number; meta: number | null; ritmo: number | null }) {
+function TarjetaTotal(props: { titulo: string; horasHechas: number; porAprobar: number; meta: number | null; ritmo: number | null }) {
   const { meta, ritmo } = props
   const progreso = meta != null && meta > 0 ? props.horasHechas / meta : 0
   const alRitmo = vaAlRitmo(progreso, ritmo)
@@ -134,6 +137,7 @@ function TarjetaTotal(props: { titulo: string; horasHechas: number; meta: number
         <span className="numero-g">{numeroHoras(props.horasHechas)}</span>
         <span className="titulo-m texto-2"> {meta != null && meta > 0 ? `/ ${horas(meta)}` : 'h'}</span>
       </p>
+      {props.porAprobar >= 0.05 && <p className="chico texto-2">{horas(props.porAprobar)} por aprobar</p>}
       {meta != null && meta > 0 && (
         <>
           <div style={{ marginTop: 12 }}>

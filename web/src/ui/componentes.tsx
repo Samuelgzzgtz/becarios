@@ -640,9 +640,14 @@ export const iconoModalidad = (m: ModalidadTrabajo | null | undefined): Icono =>
 /** Ícono para "sin configurar" (distinto de "no aplica"). */
 export const IconoSinConfigurar = CircleHelp
 
-/** Abre una URL que se obtiene después de un await sin que el navegador la bloquee como ventana emergente. */
+/**
+ * Abre una URL que se obtiene después de un await sin que el navegador la bloquee como ventana emergente.
+ * La pestaña nueva no conserva referencia a la app (equivale a noopener: un archivo abierto no puede
+ * redirigirla).
+ */
 export async function abrirUrl(obtener: () => Promise<string>): Promise<void> {
   const ventana = window.open('', '_blank')
+  if (ventana) ventana.opener = null
   try {
     const url = await obtener()
     if (ventana) ventana.location.href = url

@@ -120,17 +120,25 @@ describe('campos protegidos de usuarios', () => {
     expect((await error(db.query(`update public.usuarios set email = 'otro@x.test' where id = $1`, [ids.bec1]))).message).toMatch(/desde Clerk/)
   })
 
-  it('la sincronización de Clerk (service_role) sí actualiza correo y nombre', async () => {
+  it('la sincronización de Clerk actualiza el correo; el nombre solo si era el provisional', async () => {
+    const sincronizar = (nombre: string, version: number) =>
+      db.query(
+        `select public.sincronizar_usuario_clerk($1, 'nuevo.bec1@fime.test', $2, 'becario', null, null, false, null, $3, true)`,
+        [sub.bec1, nombre, version],
+      )
     await db.exec('reset role')
     await db.exec('set role service_role')
-    await db.query(
-      `select public.sincronizar_usuario_clerk($1, 'nuevo.bec1@fime.test', 'Beto Nuevo', 'becario', null, null, false, null, 100, true)`,
-      [sub.bec1],
-    )
+    await sincronizar('Beto Nuevo', 100)
     await sinSesion(db)
+    // El usuario puede editar su nombre en Clerk: no reemplaza el de la app.
     expect(await filas(`select email, nombre from public.usuarios where id = $1`, [ids.bec1])).toEqual([
-      { email: 'nuevo.bec1@fime.test', nombre: 'Beto Nuevo' },
+      { email: 'nuevo.bec1@fime.test', nombre: 'Beto Becario' },
     ])
+    await db.query(`update public.usuarios set nombre = 'nuevo.bec1' where id = $1`, [ids.bec1])
+    await db.exec('set role service_role')
+    await sincronizar('Beto Nuevo', 200)
+    await sinSesion(db)
+    expect(await filas(`select nombre from public.usuarios where id = $1`, [ids.bec1])).toEqual([{ nombre: 'Beto Nuevo' }])
   })
 })
 
@@ -202,7 +210,7 @@ describe('reportes SIASE', () => {
   it('el bucket limita tamaño y tipo de archivo', async () => {
     await sinSesion(db)
     expect(await filas(`select file_size_limit, allowed_mime_types from storage.buckets where id = 'siase'`)).toEqual([
-      { file_size_limit: 10485760, allowed_mime_types: ['application/pdf', 'image/*'] },
+      { file_size_limit: 10485760, allowed_mime_types: ['application/pdf', 'image/png', 'image/jpeg'] },
     ])
   })
 

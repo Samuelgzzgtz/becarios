@@ -2,6 +2,7 @@ import { useRef, useState } from 'react'
 import { CalendarDays, ExternalLink, FileUp, History, Info, Paperclip } from 'lucide-react'
 import {
   TAMANO_MAXIMO_REPORTE,
+  TIPOS_REPORTE,
   estadoVentana,
   historialSiaseDe,
   periodoActivo,
@@ -136,7 +137,7 @@ export default function ReporteSiaseBecario() {
               <input
                 ref={selector}
                 type="file"
-                accept="application/pdf,image/*"
+                accept={TIPOS_REPORTE.join(',')}
                 hidden
                 onChange={(e) => {
                   void alElegir(e.target.files?.[0])

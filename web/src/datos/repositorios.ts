@@ -33,6 +33,17 @@ export function progresoDe(becarioId: string): Promise<ProgresoHoras> {
   return q(supabase.rpc('progreso_horas', { p_becario: becarioId }).single<ProgresoHoras>())
 }
 
+/** Horas que sumarán cuando se aprueben los registros por revisar (0025), en las mismas ventanas que progresoDe. */
+export interface HorasPorAprobar {
+  horas_semana: number
+  horas_mes: number
+  horas_semestre: number
+}
+
+export function horasPorAprobar(becarioId: string): Promise<HorasPorAprobar> {
+  return q(supabase.rpc('horas_por_aprobar', { p_becario: becarioId }).single<HorasPorAprobar>())
+}
+
 /** Progreso de todo el equipo visible para quien llama (ingeniero: sus becarios; admin: todos), en UNA llamada (M-09). */
 export async function progresoEquipo(): Promise<ProgresoBecario[]> {
   return (await q<ProgresoBecario[] | null>(supabase.rpc('progreso_equipo'))) ?? []
@@ -157,6 +168,8 @@ const BUCKET_SIASE = 'siase'
 
 /** Tamaño máximo de archivo (M-12). */
 export const TAMANO_MAXIMO_REPORTE = 10 * 1024 * 1024
+/** Los mismos tipos que acepta el bucket (0025): nada que el navegador pueda ejecutar, como SVG. */
+export const TIPOS_REPORTE = ['application/pdf', 'image/png', 'image/jpeg']
 
 /** Un reporte que espera firma, con el nombre del becario (A-03). */
 export interface ReportePorFirmar {
@@ -210,6 +223,7 @@ function nombreSeguro(nombre: string): string {
 export async function subirReporte(becarioId: string, periodoId: string, mes: Fecha, archivo: File): Promise<string> {
   if (archivo.size > TAMANO_MAXIMO_REPORTE) throw new ErrorDeNegocio('El archivo pesa más de 10 MB. Reduce su tamaño e intenta de nuevo.')
   if (archivo.size === 0) throw new ErrorDeNegocio('El archivo elegido está vacío.')
+  if (!TIPOS_REPORTE.includes(archivo.type)) throw new ErrorDeNegocio('Sube el reporte en PDF, PNG o JPG.')
 
   const existente = await reporteDelMes(becarioId, mes)
   if (existente && !permiteSubir(existente.estado)) {
@@ -333,6 +347,8 @@ export interface VistaPreviaCierre {
   fecha_fin: string
   becarios_activos: number
   becarios_cumplidos: number
+  /** Asistencias del periodo que siguen por revisar y no suman (0025). */
+  registros_por_revisar?: number
 }
 
 export interface ResultadoCierre {
@@ -440,25 +456,35 @@ export function campoCsv(valor: string): string {
 /**
  * CSV compatible con Excel (A-16): páginas de 1000 hasta traer todo, campos
  * escapados (RFC 4180), BOM UTF-8 para los acentos, incluye becarios inactivos y
- * fecha/hora ya en hora de Monterrey. [desde] y [hasta] son inclusivas.
+ * fecha/hora ya en hora de Monterrey. [desde] y [hasta] son inclusivas. Cada página
+ * sigue a la última fila de la anterior (ocurrido_en, id), no a un offset (0025).
  */
 export async function exportarAsistenciasCsv(desde: Fecha, hasta: Fecha): Promise<ExportacionCsv> {
   if (!esFechaValida(desde) || !esFechaValida(hasta)) throw new ErrorDeNegocio('Las fechas deben tener el formato aaaa-mm-dd.')
   if (hasta < desde) throw new ErrorDeNegocio('La fecha final no puede ser anterior a la inicial.')
 
   const filas: FilaExportacion[] = []
-  for (let offset = 0; ; offset += TAMANO_PAGINA) {
+  for (;;) {
+    const ultima = filas.at(-1)
     const pagina =
       (await q<FilaExportacion[] | null>(
-        supabase.rpc('exportar_asistencias', { p_desde: desde, p_hasta: hasta, p_offset: offset, p_limite: TAMANO_PAGINA })
+        supabase.rpc('exportar_asistencias', {
+          p_desde: desde,
+          p_hasta: hasta,
+          p_limite: TAMANO_PAGINA,
+          p_despues_en: ultima?.ocurrido_en ?? null,
+          p_despues_id: ultima?.id ?? null
+        })
       )) ?? []
     filas.push(...pagina)
     if (pagina.length < TAMANO_PAGINA) break
   }
 
   const lineas = [
-    ['matricula', 'nombre', 'tipo', 'modalidad', 'fecha', 'hora'].map(campoCsv).join(','),
-    ...filas.map((f) => [f.matricula, f.nombre, f.tipo, f.modalidad, f.fecha, f.hora].map(campoCsv).join(','))
+    ['matricula', 'nombre', 'tipo', 'modalidad', 'fecha', 'hora', 'revision', 'motivo_revision', 'origen'].map(campoCsv).join(','),
+    ...filas.map((f) =>
+      [f.matricula, f.nombre, f.tipo, f.modalidad, f.fecha, f.hora, f.revision, f.motivo_revision ?? '', f.origen].map(campoCsv).join(',')
+    )
   ]
   return { contenido: '﻿' + lineas.join('\r\n') + '\r\n', registros: filas.length }
 }

@@ -12,10 +12,10 @@ import {
 } from './modelos'
 import { validarReglas, validarZona } from './validacion'
 
-/* Mismas reglas que horas_trabajadas() de la migración 0021 (docs/integridad-horas.md). */
+/* Mismas reglas que horas_trabajadas() de la migración 0025 (docs/integridad-horas.md). */
 
 const local = (fecha: string, hora: string) => aInstante(fecha, hora).toISOString()
-const reg = (tipo: TipoAsistencia, fecha: string, hora: string, extra: { revision?: RevisionAsistencia; origen?: OrigenAsistencia } = {}): Asistencia => ({
+const reg = (tipo: TipoAsistencia, fecha: string, hora: string, extra: { revision?: RevisionAsistencia; origen?: OrigenAsistencia; jornada_aprobada?: boolean } = {}): Asistencia => ({
   becario_id: 'b',
   tipo,
   ocurrido_en: local(fecha, hora),
@@ -43,8 +43,9 @@ describe('horasPorDia con las reglas de integridad (0021)', () => {
     expect(totalHoras(par, 12)).toBe(0)
   })
 
-  it('una salida aprobada suma aunque pase el tope', () => {
-    const h = horasPorDia([reg('entrada', dia, '06:00'), reg('salida', dia, '20:00', { revision: 'aprobada' })])
+  it('aprobar la revisión de la salida no levanta el tope; confirmar la jornada sí', () => {
+    expect(horasPorDia([reg('entrada', dia, '06:00'), reg('salida', dia, '20:00', { revision: 'aprobada' })]).size).toBe(0)
+    const h = horasPorDia([reg('entrada', dia, '06:00'), reg('salida', dia, '20:00', { revision: 'aprobada', jornada_aprobada: true })])
     expect(h.get(dia)).toBeCloseTo(14)
   })
 

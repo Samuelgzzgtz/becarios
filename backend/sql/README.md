@@ -26,6 +26,8 @@ en "Warnings que se dejaron a propósito" más abajo.
 | `0021_integridad_horas.sql` | Integridad de horas: origen/revisión calculados por el servidor, tope de jornada, geocercas opcionales, bitácora de cambios y RPC de revisión (ver `docs/integridad-horas.md`) |
 | `0022_correcciones_asistencias.sql` | Solicitudes de corrección, corrección con motivo y auditoría inmutable |
 | `0023_seguridad.sql` | Modalidad y rostro revisados por el servidor, sin alta desde `auth.users`, campos protegidos de `usuarios`, firma SIASE solo por RPC, ventana y límites en Storage, correo verificado al enlazar con Clerk |
+| `0024_contencion_auditoria.sql` | Todo autorregistro requiere revisión humana; baja local independiente de Clerk |
+| `0025_revision_y_velocidad.sql` | Jornada larga confirmada aparte, aprobación por lote, evidencia y pendientes del periodo, ids del cliente, RLS más barata (ver abajo) |
 
 Se aplican **en orden**. (`0006` ya no incluye el bloque de `pg_cron` comentado que
 trae el archivo en disco.) **0012–0016 se aplicaron al proyecto `rcvpowylehewvsxquhip`
@@ -77,6 +79,33 @@ un objeto nuevo sin upsert; la API ya no puede modificar objetos. Esto puede dej
 archivos huérfanos si la firma gana una carrera contra el reemplazo. No se borran
 objetos ni se reescriben reportes históricos. Las URLs externas ya no se abren y un
 reporte histórico con ruta inválida debe reemplazarse antes de firmarlo.
+
+## Revisión y velocidad (0025)
+
+Se puede aplicar antes de desplegar la web nueva: es aditiva y las RPC conservan sus
+parámetros (los nuevos tienen valor por omisión) y solo agregan columnas al resultado.
+
+- `asistencias.jornada_aprobada`: el tope de jornada solo lo levanta confirmar la jornada
+  larga (`aprobar_asistencia(id, p_jornada => true)`) o una salida `manual`. Aprobar la
+  revisión de la salida ya no basta. Backfill: una salida aprobada sin `motivo_revision` (no
+  manual) que cierra una jornada sobre el tope solo pudo aprobarse desde su jornada larga, y
+  queda confirmada (sin filas en la bitácora). Las aprobadas con motivo (`revision_humana`)
+  son ambiguas: dejan de sumar y vuelven a "Por revisar" para confirmarlas. La web anterior
+  no manda `p_jornada`: hasta desplegar la nueva, esas jornadas no se pueden confirmar.
+- `aprobar_asistencias(ids)` aprueba por lote, con el mismo permiso que `aprobar_asistencia`,
+  solo registros en `revision_humana`; con otro motivo rechaza todo el lote.
+- `anomalias_asistencia` devuelve evidencia, carga desde el inicio del periodo activo y
+  mantiene el turno sin salida aunque la entrada esté aprobada; ordena de lo más antiguo a lo
+  más reciente (si PostgREST corta en `max_rows`, quedan fuera los recientes).
+  `vista_previa_cierre.registros_por_revisar` usa `contar_anomalias_asistencia` del periodo.
+- La migración usa `lock_timeout` de 5 s: si falla por bloqueo, reintentar.
+- El cliente puede mandar el `id` de la asistencia: un reintento con el mismo id falla con
+  23505 y la web lo trata como ya subido.
+- Disparadores de asistencias y reportes: confían solo en llamadas sin JWT o con
+  `service_role`.
+- `sincronizar_usuario_clerk` no reemplaza el nombre de una cuenta existente salvo el
+  provisional (parte local del correo o id de Clerk). El nombre se cambia en la app.
+- El bucket `siase` acepta solo PDF, PNG y JPEG.
 
 ## Seguridad (0023)
 

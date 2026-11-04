@@ -83,12 +83,12 @@ async function jornadaLarga(becario: 'bec1' | 'bec2' = 'bec1', d = dia) {
 
 describe('migración', () => {
   it('es segura de correr dos veces y deja la configuración inicial', async () => {
+    // Solo vale antes de 0022 (ver su encabezado): se prueba sobre una base hasta 0021.
     const sql = leerMigraciones().find((m) => m.archivo.startsWith('0021'))!.sql
-    await sinSesion(db)
-    await db.exec('begin')
+    const base = await crearBase('0021')
     try {
-      await db.exec(sql)
-      const cfg = await db.query('select * from public.config_asistencia')
+      await base.exec(sql)
+      const cfg = await base.query('select * from public.config_asistencia')
       expect(cfg.rows).toHaveLength(1)
       expect(cfg.rows[0]).toMatchObject({
         jornada_maxima_horas: '10.0',
@@ -96,9 +96,9 @@ describe('migración', () => {
         tolerancia_minutos: 5,
       })
     } finally {
-      await db.exec('rollback')
+      await base.close()
     }
-  })
+  }, 120_000)
 
   it('el disparador del servidor se ordena antes del anti-duplicado', async () => {
     const r = await db.query<{ tgname: string }>(
@@ -125,10 +125,13 @@ describe('(a) tope de jornada', () => {
     expect(await horas(db, 'bec1', DIA_DESDE, DIA_HASTA)).toBe(0)
   })
 
-  it('con la salida aprobada suma ~15.98 h', async () => {
+  it('aprobar la revisión de la salida no la suma; confirmar la jornada sí (~15.98 h)', async () => {
     const salida = await jornadaLarga()
     await como(db, 'ing1')
     await db.query('select public.aprobar_asistencia($1)', [salida])
+    expect(await horas(db, 'bec1', DIA_DESDE, DIA_HASTA)).toBe(0)
+    await como(db, 'ing1')
+    await db.query('select public.aprobar_asistencia($1, true)', [salida])
     expect(await horas(db, 'bec1', DIA_DESDE, DIA_HASTA)).toBeCloseTo(15.98, 2)
   })
 
@@ -462,13 +465,13 @@ describe('(i) anomalias_asistencia', () => {
     return r.rows
   }
 
-  it('el administrador ve a todos; ordena por fecha descendente', async () => {
+  it('el administrador ve a todos; lo más antiguo primero (0025)', async () => {
     await preparar()
     const filas = await ver('admin')
     expect(filas.map((f) => `${f.tipo}:${f.becario_id === ids.bec1 ? 'bec1' : 'bec2'}`)).toEqual([
-      'turno_abierto:bec2',
-      'jornada_larga:bec1',
       'turno_abierto:bec1',
+      'jornada_larga:bec1',
+      'turno_abierto:bec2',
     ])
   })
 
@@ -507,15 +510,17 @@ describe('(i) anomalias_asistencia', () => {
     expect(abierto.fecha).toBeTruthy()
   })
 
-  it('excluye lo aprobado', async () => {
+  it('la jornada larga sale al confirmarla; el turno sin salida sigue aunque se apruebe la entrada', async () => {
     await preparar()
     const antes = await ver('ing1')
     const larga = antes.find((f) => f.tipo === 'jornada_larga')!
     const abierto = antes.find((f) => f.tipo === 'turno_abierto')!
     await como(db, 'ing1')
     await db.query('select public.aprobar_asistencia($1)', [larga.asistencia_id])
+    expect((await ver('ing1')).map((f) => f.tipo)).toEqual(['turno_abierto', 'jornada_larga'])
+    await db.query('select public.aprobar_asistencia($1, true)', [larga.asistencia_id])
     await db.query('select public.aprobar_asistencia($1)', [abierto.asistencia_id])
-    expect(await ver('ing1')).toEqual([])
+    expect((await ver('ing1')).map((f) => f.tipo)).toEqual(['turno_abierto'])
   })
 
   it('lista los registros por revisar con su tipo (atraso, reloj, ubicación)', async () => {
@@ -567,7 +572,7 @@ describe('(j) aprobar_asistencia', () => {
     expect(await horas(db, 'bec1', DIA_DESDE, DIA_HASTA)).toBe(0)
 
     await como(db, 'ing1')
-    await db.query('select public.aprobar_asistencia($1)', [salida])
+    await db.query('select public.aprobar_asistencia($1, true)', [salida])
     expect(await horas(db, 'bec1', DIA_DESDE, DIA_HASTA)).toBeCloseTo(15.98, 2)
   })
 

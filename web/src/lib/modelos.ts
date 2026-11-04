@@ -57,6 +57,11 @@ export interface Anomalia {
   horas: number | null
   atraso_minutos: number | null
   detalle: string
+  /** Evidencia del registro (0025): similitud facial, metros fuera de la zona más cercana (0 = dentro), origen y minutos hasta llegar al servidor. */
+  puntaje_rostro: number | null
+  distancia_m: number | null
+  origen: OrigenAsistencia | null
+  subido_minutos: number | null
 }
 
 export interface Usuario {
@@ -87,6 +92,8 @@ export interface Asistencia {
   motivo_revision?: MotivoRevision | null
   /** Similitud facial 0..1 que calculó el teléfono (solo para auditoría). */
   puntaje_rostro?: number | null
+  /** Salida cuya jornada larga se confirmó aparte (0025); aprobar la revisión no basta. */
+  jornada_aprobada?: boolean | null
 }
 
 /** Una asistencia lista para pintar: remota, o todavía en la cola local del teléfono. */
@@ -221,14 +228,18 @@ export interface FilaExportacion {
   modalidad: string
   fecha: string
   hora: string
+  ocurrido_en: string
+  revision: string
+  motivo_revision: string | null
+  origen: string
 }
 
 /**
- * Horas por día local (Monterrey). Mismas reglas que horas_trabajadas() en SQL (0021):
+ * Horas por día local (Monterrey). Mismas reglas que horas_trabajadas() en SQL (0025):
  * una entrada se empareja con la salida inmediata siguiente y el par suma solo si
  *  1. ambas son del mismo día local (0012; una entrada sin salida ese día no suma),
  *  2. ni la entrada ni la salida están 'por_revisar', y
- *  3. dura a lo más [tope] horas, o la salida es 'aprobada' u origen 'manual'.
+ *  3. dura a lo más [tope] horas, o la salida tiene la jornada confirmada u origen 'manual'.
  * [tope] es jornada_maxima_horas de la configuración (10 por omisión).
  */
 export function horasPorDia(asistencias: Asistencia[], tope: number = JORNADA_MAXIMA_POR_OMISION): Map<Fecha, number> {
@@ -245,9 +256,9 @@ export function horasPorDia(asistencias: Asistencia[], tope: number = JORNADA_MA
     const dia = fechaLocal(entrada.instante)
     if (dia !== fechaLocal(salida.instante)) continue
     if (entrada.a.revision === 'por_revisar' || salida.a.revision === 'por_revisar') continue
-    const minutos = Math.floor((salida.instante.getTime() - entrada.instante.getTime()) / 60_000)
-    const horas = Math.max(0, minutos / 60)
-    const confiable = salida.a.revision === 'aprobada' || salida.a.origen === 'manual'
+    // Segundos exactos, igual que el servidor (sin truncar a minutos).
+    const horas = Math.max(0, (salida.instante.getTime() - entrada.instante.getTime()) / 3_600_000)
+    const confiable = salida.a.jornada_aprobada === true || salida.a.origen === 'manual'
     if (horas > tope && !confiable) continue
     resultado.set(dia, (resultado.get(dia) ?? 0) + horas)
   }

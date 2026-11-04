@@ -14,7 +14,10 @@ import type { ConfigAsistencia, DiaHorario, EnrolamientoFacial, ModalidadTrabajo
  */
 
 export interface AsistenciaPendiente {
+  /** Llave local de IndexedDB. */
   id?: number
+  /** Id de la asistencia, generado al registrar (0025): reintentar no duplica. Los encolados antes no lo traen. */
+  asistenciaId?: string
   becarioId: string
   tipo: TipoAsistencia
   ocurridoEn: string

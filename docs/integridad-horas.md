@@ -55,13 +55,16 @@ Trigger `BEFORE INSERT` (se ejecuta antes de `asistencias_validar`): ignora y re
   - hora futura más allá de la tolerancia: `ocurrido_en := now()`, `por_revisar` / `reloj_adelantado`.
   - sin `puntaje_rostro` → `sin_rostro`; modalidad distinta a la del horario → `modalidad_distinta` (0023, solo si aún `ok`).
   - geocerca (solo si hay zonas activas, modalidad `presencial` y aún `ok`): sin latitud/longitud → `sin_ubicacion`; más lejos que el radio de todas las zonas (haversine) → `fuera_de_zona`.
-- Sin usuario (service role, jobs): no toca nada.
+- Sin JWT (dueño, jobs) o con `service_role`: no toca nada. Un JWT `anon`/`authenticated` sin usuario de Clerk se rechaza (0025).
+- Ignora `jornada_aprobada` del cliente (0025).
 
 ### `horas_trabajadas(becario, desde, hasta)` (misma firma)
 
 Suma entrada → salida inmediata siguiente **si** (1) el mismo día local, (2) ni la entrada
 ni la salida están `por_revisar`, y (3) duración ≤ `jornada_maxima_horas`, **o** la salida
-es `aprobada` o `manual`. `progreso_horas`, `progreso_equipo`, el cierre de periodo y
+tiene `jornada_aprobada` o es `manual` (0025: aprobar solo la revisión de la salida ya no
+levanta el tope). `horas_por_aprobar(becario)` suma con las mismas reglas los pares que
+siguen `por_revisar`, en las ventanas de `progreso_horas`. `progreso_horas`, `progreso_equipo`, el cierre de periodo y
 `_cumplimiento_periodo` la usan, así que no cambian. Revisar que ninguna otra función
 repita el emparejamiento por su cuenta.
 
@@ -96,15 +99,22 @@ returns table (
   detalle        text         -- frase corta en español
 )
 ```
-Por defecto `p_desde = hoy_local() - 30`, `p_hasta = hoy_local()`. Visibilidad: administrador ve a
+Por defecto `p_desde` = inicio del periodo activo (o `hoy_local() - 30` sin periodo), `p_hasta = hoy_local()`.
+Desde 0025 también devuelve evidencia del registro `asistencia_id`: `puntaje_rostro`,
+`distancia_m` (metros fuera de la zona activa más cercana, 0 = dentro; null en home office), `origen` y
+`subido_minutos` (`created_at - ocurrido_en`). `contar_anomalias_asistencia` da solo el total. Visibilidad: administrador ve a
 todos los becarios activos; ingeniero a los suyos; becario solo a sí mismo (si `p_becario` no
-es visible para quien llama → error). Excluye filas `aprobada`. `turno_abierto`: entrada sin
+es visible para quien llama → error). Los motivos del servidor salen solo mientras el registro
+sigue `por_revisar`. `turno_abierto`: entrada sin
 salida el mismo día local y (su día ya pasó, o hoy y lleva más de `jornada_maxima_horas`).
-`jornada_larga`: pares que sobrepasan el tope sin salida `aprobada`/`manual`.
-Ordenar por `fecha desc, becario_nombre`.
+Aprobar la entrada no oculta el turno sin salida (0025).
+`jornada_larga`: pares que sobrepasan el tope sin `jornada_aprobada` ni salida `manual`.
+Ordenar por `fecha, becario_nombre, ocurrido_en` (0025: lo más antiguo primero).
 
 ```sql
-aprobar_asistencia(p_asistencia uuid) returns void      -- ingeniero asignado o admin; deja revision='aprobada'
+aprobar_asistencia(p_asistencia uuid, p_jornada boolean default false) returns void
+  -- ingeniero asignado o admin, nunca el propio becario; deja revision='aprobada' y, con p_jornada, jornada_aprobada
+aprobar_asistencias(p_ids uuid[]) returns integer       -- lote solo de revision_humana (todo o nada), sin confirmar jornadas
 bitacora_asistencias_de(p_becario uuid, p_limite int default 50)
 returns table (id bigint, hecho_en timestamptz, accion text, hecho_por uuid,
                hecho_por_nombre text, asistencia_id uuid, antes jsonb, despues jsonb)
@@ -115,9 +125,10 @@ eliminar_geocerca(p_id uuid) returns void                -- admin
 Errores con `raise exception` en español claro, sin tecnicismos.
 
 Precisiones de implementación: la bitácora registra `aprobar` solo si el único cambio fue
-`revision → 'aprobada'`; cualquier otra edición es `editar`. `anomalias_asistencia` solo
+`revision → 'aprobada'` o `jornada_aprobada → true`; cualquier otra edición es `editar`. `anomalias_asistencia` solo
 considera becarios activos y, para `jornada_larga`, `ocurrido_en` es la hora de la salida.
-El resumen `exportar_asistencias` no incluye aún las columnas nuevas.
+`exportar_asistencias` incluye `revision`, `motivo_revision` y `origen` y acepta un cursor
+opcional (`p_despues_en`, `p_despues_id`) además de `p_offset` (0025).
 
 ## App (`web/src`)
 

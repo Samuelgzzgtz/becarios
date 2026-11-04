@@ -14,7 +14,7 @@ import {
   UserX,
   Users
 } from 'lucide-react'
-import { anomalias } from '../../datos/asistencias'
+import { contarAnomalias } from '../../datos/asistencias'
 import { indicadores } from '../../datos/repositorios'
 import { fechaDeTexto, fechaMedia } from '../../lib/fechas'
 import { entero, plural } from '../../lib/formato'
@@ -37,7 +37,7 @@ export default function PanelAdmin() {
   const navegar = useNavigate()
   const { estado, recargar } = useCarga(
     async () => {
-      const [ind, porRevisar] = await Promise.all([indicadores(), anomalias().then((l) => l.length, () => null)])
+      const [ind, porRevisar] = await Promise.all([indicadores(), contarAnomalias().catch(() => null)])
       return { ...ind, porRevisar }
     },
     [],

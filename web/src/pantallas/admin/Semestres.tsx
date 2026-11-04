@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { CalendarCheck, CalendarDays, CircleAlert, Lock, Tag, TriangleAlert } from 'lucide-react'
 import { abrirPeriodo, cerrarSemestre, periodoActivo, progresoEquipo, vistaPreviaCierre, type ResultadoCierre } from '../../datos/repositorios'
 import { mensajeAmigable } from '../../lib/errores'
@@ -12,6 +13,7 @@ const TIPOS = ['AD', 'EJ']
 
 export default function Semestres() {
   const volver = useVolver('/admin/mas')
+  const navegar = useNavigate()
   const avisos = useAvisos()
   const { estado, datos, recargar, actualizar } = useCarga(
     async () => {
@@ -92,6 +94,7 @@ export default function Semestres() {
   }
 
   const vista = datos?.vista ?? null
+  const porRevisar = vista?.registros_por_revisar ?? 0
 
   return (
     <Pantalla
@@ -114,7 +117,7 @@ export default function Semestres() {
       {confirmando && periodo && (
         <Dialogo
           titulo={`Cerrar "${periodo.nombre}"`}
-          mensaje={`Se cerrará "${periodo.nombre}"${vista ? ` con ${plural(vista.becarios_activos, 'becario activo', 'becarios activos')}; ${vista.becarios_cumplidos} cumplieron su meta semestral` : ''}. Se abrirá "${nombre.trim()}". Las horas del periodo actual dejarán de contar en el progreso. Esta acción no se puede deshacer.`}
+          mensaje={`Se cerrará "${periodo.nombre}"${vista ? ` con ${plural(vista.becarios_activos, 'becario activo', 'becarios activos')}; ${vista.becarios_cumplidos} cumplieron su meta semestral` : ''}${porRevisar > 0 ? `; ${plural(porRevisar, 'registro sigue', 'registros siguen')} por revisar sin sumar horas` : ''}. Se abrirá "${nombre.trim()}". Las horas del periodo actual dejarán de contar en el progreso. Esta acción no se puede deshacer.`}
           textoConfirmar="Cerrar periodo"
           destructivo
           confirmarHabilitado={confirmacionValida}
@@ -184,6 +187,17 @@ export default function Semestres() {
                   </p>
                 )}
               </Tarjeta>
+
+              {porRevisar > 0 && (
+                <AvisoBanner
+                  titulo={`${plural(porRevisar, 'registro sigue', 'registros siguen')} por revisar`}
+                  texto="No suman horas en este periodo hasta que se aprueben. Revísalos antes de cerrar."
+                  tono="alerta"
+                  icono={TriangleAlert}
+                  textoAccion="Revisar"
+                  onAccion={() => navegar('/admin/revisar')}
+                />
+              )}
 
               {vista && (
                 <Tarjeta>
