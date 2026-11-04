@@ -50,8 +50,11 @@ export async function registrar(
 ): Promise<ResultadoRegistro> {
   const ocurridoEn = new Date().toISOString()
   const puntaje = normalizarPuntaje(puntajeRostro)
+  // Mismo id en cada reintento: si el primer envío sí llegó, el servidor responde 23505 y no se duplica.
+  const asistenciaId = crypto.randomUUID()
   // origen, revision y motivo_revision los calcula el servidor (0021); no se mandan.
   const asistencia: Asistencia = {
+    id: asistenciaId,
     becario_id: becarioId,
     tipo,
     ocurrido_en: ocurridoEn,
@@ -67,7 +70,7 @@ export async function registrar(
     return 'subido'
   } catch (e) {
     if (!esErrorDeRed(e)) throw new ErrorDeNegocio(mensajeAmigable(e, 'No se pudo registrar tu asistencia.'))
-    await encolar({ becarioId, tipo, ocurridoEn, modalidad, latitud, longitud, puntajeRostro: puntaje })
+    await encolar({ asistenciaId, becarioId, tipo, ocurridoEn, modalidad, latitud, longitud, puntajeRostro: puntaje })
     await cache.guardarUltimoRegistro(becarioId, { tipo, ocurrido_en: ocurridoEn })
     eventosCola.dispatchEvent(new Event('encolada'))
     return 'en_cola'
@@ -101,6 +104,8 @@ async function subirCola(): Promise<ResultadoSincronizacion> {
     try {
       await ejecutar(
         supabase.from('asistencias').insert({
+          // Sin id (encolado por una versión anterior), lo genera el servidor.
+          ...(p.asistenciaId ? { id: p.asistenciaId } : {}),
           becario_id: p.becarioId,
           tipo: p.tipo,
           ocurrido_en: p.ocurridoEn,
@@ -226,21 +231,39 @@ export async function siguienteTipo(becarioId: string): Promise<TipoAsistencia> 
 /**
  * Registros que requieren atención (turnos sin salida, jornadas largas, atrasos…).
  * Sin [becarioId], el servidor devuelve los de todos los que quien llama puede ver.
- * Por omisión cubre los últimos 30 días.
+ * Por omisión cubre desde el inicio del periodo activo (0025).
  */
 export async function anomalias(becarioId: string | null = null, desde: Fecha | null = null, hasta: Fecha | null = null): Promise<Anomalia[]> {
   const filas = await q<Anomalia[] | null>(
     supabase.rpc('anomalias_asistencia', { p_becario: becarioId, p_desde: desde, p_hasta: hasta })
   )
+  const numero = (v: unknown) => (v == null ? null : Number(v))
   return (filas ?? []).map((f) => ({
     ...f,
     entrada_id: f.entrada_id ?? null,
-    horas: f.horas == null ? null : Number(f.horas),
-    atraso_minutos: f.atraso_minutos == null ? null : Number(f.atraso_minutos)
+    horas: numero(f.horas),
+    atraso_minutos: numero(f.atraso_minutos),
+    puntaje_rostro: numero(f.puntaje_rostro),
+    distancia_m: numero(f.distancia_m),
+    origen: f.origen ?? null,
+    subido_minutos: numero(f.subido_minutos)
   }))
 }
 
-/** Deja el registro como 'aprobada': ya cuenta para las horas. Ingeniero asignado o administrador. */
-export function aprobarAsistencia(asistenciaId: string): Promise<void> {
-  return ejecutar(supabase.rpc('aprobar_asistencia', { p_asistencia: asistenciaId }))
+/** Cuántos registros hay por revisar, sin traer la lista (paneles). */
+export async function contarAnomalias(): Promise<number> {
+  return Number(await q<number>(supabase.rpc('contar_anomalias_asistencia')))
+}
+
+/**
+ * Aprueba la revisión del registro. Con [jornada] además confirma la jornada larga
+ * que cierra esa salida; sin eso no pasa el tope (0025). Ingeniero asignado o administrador.
+ */
+export function aprobarAsistencia(asistenciaId: string, jornada = false): Promise<void> {
+  return ejecutar(supabase.rpc('aprobar_asistencia', { p_asistencia: asistenciaId, p_jornada: jornada }))
+}
+
+/** Aprueba la revisión de varios registros de una vez (no confirma jornadas largas). */
+export function aprobarAsistencias(asistenciaIds: string[]): Promise<number> {
+  return q(supabase.rpc('aprobar_asistencias', { p_ids: asistenciaIds }))
 }

@@ -1,6 +1,6 @@
 import { useNavigate } from 'react-router-dom'
 import { ArrowLeftRight, CalendarCheck, ChevronRight, FileText, History, Hourglass, TrendingDown, Users } from 'lucide-react'
-import { anomalias, historialEquipo } from '../../datos/asistencias'
+import { contarAnomalias, historialEquipo } from '../../datos/asistencias'
 import { estadoVentana, progresoEquipo } from '../../datos/repositorios'
 import { requerirUsuario, usuarioEnMemoria } from '../../datos/sesion'
 import { diaCompleto, fechaHora, fechaLocal, hoy, sumarDias } from '../../lib/fechas'
@@ -36,7 +36,7 @@ async function cargar() {
       hoy()
     ).catch(() => null),
     // Si falla, solo se oculta el número (–): no se rompe el panel.
-    anomalias().then((l) => l.length, () => null)
+    contarAnomalias().catch(() => null)
   ])
   const nombres = new Map(equipo.map((b) => [b.becario_id, b.nombre]))
   return {

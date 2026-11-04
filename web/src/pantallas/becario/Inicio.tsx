@@ -2,12 +2,11 @@ import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { ChevronRight, CircleAlert, CloudUpload, FileText, LineChart, ScanFace, TriangleAlert } from 'lucide-react'
 import * as asistencias from '../../datos/asistencias'
-import { enrolamientoPropio, estadoVentana, modalidadDeHoy, progresoDe } from '../../datos/repositorios'
+import { enrolamientoPropio, estadoVentana, horasPorAprobar, modalidadDeHoy, progresoDe } from '../../datos/repositorios'
 import { requerirUsuario, usuarioEnMemoria } from '../../datos/sesion'
-import { prepararMotor } from '../../facial/rostro'
 import { mensajeAmigable } from '../../lib/errores'
-import { diaCompleto, diaMesLargo, fechaDeTexto, hoy } from '../../lib/fechas'
-import { plural, primerNombre, ritmoMes, ritmoSemana } from '../../lib/formato'
+import { diaCompleto, diaMesLargo, fechaDeTexto, hoy, sumarDias } from '../../lib/fechas'
+import { horas, plural, primerNombre, ritmoMes, ritmoSemana } from '../../lib/formato'
 import type { Anomalia, EstadoVentanaSiase, ModalidadTrabajo, ProgresoHoras, TipoAsistencia } from '../../lib/modelos'
 import {
   AvisoBanner,
@@ -40,6 +39,8 @@ interface DatosInicio {
   ventana: EstadoVentanaSiase | null
   /** Entradas sin salida (anomalias_asistencia con el propio id); vacío si no se pudo consultar. */
   turnosAbiertos: Anomalia[]
+  /** Horas del semestre que sumarán cuando se aprueben; 0 si no se pudo consultar. */
+  porAprobar: number
 }
 
 async function cargar(): Promise<DatosInicio> {
@@ -48,7 +49,7 @@ async function cargar(): Promise<DatosInicio> {
   // Primero se intenta subir lo que esté en cola, para que los números ya lo incluyan.
   if ((await asistencias.pendientesSinSubir(usuario.id)) > 0) await asistencias.sincronizarPendientes().catch(() => undefined)
 
-  const [progreso, datosHoy, ventana, turnosAbiertos] = await Promise.all([
+  const [progreso, datosHoy, ventana, turnosAbiertos, porAprobar] = await Promise.all([
     progresoDe(usuario.id).then(
       (datos) => ({ ok: true as const, datos }),
       (e) => ({ ok: false as const, mensaje: mensajeAmigable(e, 'No se pudo cargar tu progreso.') })
@@ -58,10 +59,11 @@ async function cargar(): Promise<DatosInicio> {
       (e) => ({ ok: false as const, mensaje: mensajeAmigable(e, 'No se pudo cargar la información de hoy.') })
     ),
     estadoVentana().catch(() => null),
-    asistencias.anomalias(usuario.id).then(
+    asistencias.anomalias(usuario.id, sumarDias(hoy(), -30)).then(
       (lista) => lista.filter((a) => a.tipo === 'turno_abierto'),
       () => [] as Anomalia[]
-    )
+    ),
+    horasPorAprobar(usuario.id).then((h) => h.horas_semestre, () => 0)
   ])
   return {
     pendientes: await asistencias.pendientesSinSubir(usuario.id),
@@ -69,7 +71,8 @@ async function cargar(): Promise<DatosInicio> {
     progreso,
     hoy: datosHoy,
     ventana,
-    turnosAbiertos
+    turnosAbiertos,
+    porAprobar
   }
 }
 
@@ -79,10 +82,11 @@ export default function InicioBecario() {
   useAlReanudar(recargar)
   const [nombre] = useState(() => usuarioEnMemoria()?.nombre ?? '')
 
-  // Baja (y deja en caché) el reconocimiento facial mientras hay red, para poder registrar sin conexión después.
+  // Deja en caché los archivos del reconocimiento facial mientras hay red, para poder registrar sin
+  // conexión después. Solo los descarga: el motor se compila al abrir "Registrar asistencia".
   useEffect(() => {
     const t = window.setTimeout(() => {
-      if (navigator.onLine) void prepararMotor().catch(() => undefined)
+      if (navigator.onLine) void import('../../facial/rostro').then((m) => m.precargarArchivos()).catch(() => undefined)
     }, 2500)
     return () => window.clearTimeout(t)
   }, [])
@@ -145,6 +149,7 @@ export default function InicioBecario() {
             <FilaProgreso etiqueta="Semana" horas={datos.progreso.datos.horas_semana} meta={datos.progreso.datos.meta_semanal} ritmoEsperado={ritmoSemana()} />
             <FilaProgreso etiqueta="Mes" horas={datos.progreso.datos.horas_mes} meta={datos.progreso.datos.meta_mensual} ritmoEsperado={ritmoMes()} />
             <FilaProgreso etiqueta="Semestre" horas={datos.progreso.datos.horas_semestre} meta={datos.progreso.datos.meta_semestral} />
+            {datos.porAprobar >= 0.05 && <p className="chico texto-2">{horas(datos.porAprobar)} por aprobar</p>}
             <p className="chico texto-2">La marca en la barra indica dónde deberías ir a estas alturas.</p>
           </>
         ) : (

@@ -14,6 +14,8 @@ const cacheIa = `docencheck-ia-mediapipe${version('@mediapipe/tasks-vision')}-li
  * sin red (igual que la cola offline de la app Android, auditoría C-02).
  */
 export default defineConfig({
+  // La app borra las cachés de IA con otro nombre (main.tsx).
+  define: { 'import.meta.env.VITE_CACHE_IA': JSON.stringify(cacheIa) },
   plugins: [
     react(),
     VitePWA({

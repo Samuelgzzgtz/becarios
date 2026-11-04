@@ -57,9 +57,12 @@ export function esErrorDeRed(e: unknown): boolean {
   return false
 }
 
-/** El trigger de asistencias rechazó un registro por duplicado (ver migración 0013). */
+/**
+ * El registro ya estaba en el servidor: el trigger lo rechazó por duplicado
+ * (migración 0013) o ya existe su id generado en el teléfono (23505, 0025).
+ */
 export function esAsistenciaDuplicada(e: unknown): boolean {
-  return e instanceof ErrorApi && e.origen === 'postgrest' && e.hint === 'asistencia_duplicada'
+  return e instanceof ErrorApi && e.origen === 'postgrest' && (e.hint === 'asistencia_duplicada' || e.code === '23505')
 }
 
 /** Sesión inválida o vencida: el registro es válido, pero hay que volver a iniciar sesión. */
