@@ -4,7 +4,7 @@ import { SignIn, useAuth } from '@clerk/react'
 import { CircleAlert, LogOut, RefreshCw, UserLock } from 'lucide-react'
 import { cerrarSesion, refrescar, sesionActiva } from '../datos/sesion'
 import { ErrorDeNegocio, mensajeAmigable } from '../lib/errores'
-import { AvisoBanner, Boton, IconoCircular, LogoDC, Tarjeta } from '../ui/componentes'
+import { AvisoBanner, Boton, IconoCircular, Logo, Tarjeta } from '../ui/componentes'
 import { PantallaCompleta, rutaInicial } from '../ui/navegacion'
 
 /**
@@ -20,7 +20,7 @@ export default function Login() {
   const [reintentando, setReintentando] = useState(false)
 
   useEffect(() => {
-    document.title = 'Iniciar sesión · DocenCheck'
+    document.title = 'Iniciar sesión · Pasalista'
   }, [])
 
   async function verificar(forzar = false) {
@@ -53,8 +53,8 @@ export default function Login() {
   return (
     <div style={{ minHeight: '100dvh', background: 'var(--fondo)' }}>
       <header className="marca">
-        <LogoDC tamano={88} />
-        <h1 style={{ fontSize: '1.9rem', marginTop: 16 }}>DocenCheck</h1>
+        <Logo tamano={88} />
+        <h1 style={{ fontSize: '1.9rem', marginTop: 16 }}>Pasalista</h1>
         <p style={{ color: 'var(--sobre-header-2)' }}>Control de becarios · FIME UANL</p>
       </header>
 
@@ -64,7 +64,7 @@ export default function Login() {
             <div className="columna" style={{ alignItems: 'center', textAlign: 'center', gap: 12, padding: 8 }}>
               <IconoCircular icono={UserLock} tono="alerta" tamano={56} />
               <h2 className="titulo-m">Todavía no tienes acceso</h2>
-              <p className="texto-2">{error ?? 'Tu cuenta aún no tiene acceso a DocenCheck.'}</p>
+              <p className="texto-2">{error ?? 'Tu cuenta aún no tiene acceso a Pasalista.'}</p>
               <Boton
                 ancho
                 icono={RefreshCw}

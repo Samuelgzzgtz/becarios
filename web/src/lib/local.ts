@@ -41,6 +41,7 @@ interface Esquema extends DBSchema {
 let db: Promise<IDBPDatabase<Esquema>> | null = null
 
 function abrir(): Promise<IDBPDatabase<Esquema>> {
+  // Nombre anterior de la app; cambiarlo perdería los registros guardados sin conexión.
   db ??= openDB<Esquema>('docencheck', 1, {
     upgrade(base) {
       const pendientes = base.createObjectStore('pendientes', { keyPath: 'id', autoIncrement: true })

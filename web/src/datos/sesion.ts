@@ -112,7 +112,7 @@ export function usuarioAutenticado(): Promise<Usuario | null> {
 /** Hay sesión de Clerk, pero la coordinación aún no le da acceso (sin perfil, o pendiente de sincronizar). */
 export class CuentaSinAcceso extends ErrorDeNegocio {
   constructor() {
-    super('Tu cuenta todavía no tiene acceso a DocenCheck. Pide a la coordinación que te lo asigne y vuelve a intentar.')
+    super('Tu cuenta todavía no tiene acceso a Pasalista. Pide a la coordinación que te lo asigne y vuelve a intentar.')
     this.name = 'CuentaSinAcceso'
   }
 }

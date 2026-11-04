@@ -13,7 +13,7 @@ async function entregarArchivo(nombre: string, contenido: string) {
   const archivo = new File([contenido], nombre, { type: 'text/csv' })
   if (navigator.canShare?.({ files: [archivo] })) {
     try {
-      await navigator.share({ files: [archivo], title: 'Asistencias DocenCheck' })
+      await navigator.share({ files: [archivo], title: 'Asistencias Pasalista' })
       return
     } catch (e) {
       if (e instanceof DOMException && e.name === 'AbortError') return

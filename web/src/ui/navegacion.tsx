@@ -17,7 +17,7 @@ import {
 } from 'lucide-react'
 import { usuarioAutenticado, usuarioEnMemoria } from '../datos/sesion'
 import type { Perfil, Usuario } from '../lib/modelos'
-import type { Icono } from './componentes'
+import { Logo, type Icono } from './componentes'
 import { useEnLinea } from './hooks'
 
 interface Destino {
@@ -123,10 +123,8 @@ export function Protegida({ perfil }: { perfil: Perfil }) {
 export function PantallaCompleta({ texto, children }: { texto: string; children?: ReactNode }) {
   return (
     <div className="splash" role="status">
-      <span className="logo-dc" style={{ width: 96, height: 96, fontSize: 34 }}>
-        DC
-      </span>
-      <p style={{ fontSize: '1.6rem', fontWeight: 700 }}>DocenCheck</p>
+      <Logo tamano={96} />
+      <p style={{ fontSize: '1.6rem', fontWeight: 700 }}>Pasalista</p>
       <span className="giro grande" aria-hidden />
       <p style={{ opacity: 0.85 }}>{texto}</p>
       {children}

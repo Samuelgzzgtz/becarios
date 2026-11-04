@@ -1,5 +1,5 @@
 /*
- * Sistema de diseño de DocenCheck (docs/guia-frontend-docencheck.md), mismos
+ * Sistema de diseño de Pasalista (docs/guia-frontend-docencheck.md), mismos
  * tokens que ui/theme/Color.kt de la app Android: header verde degradado,
  * tarjetas blancas, badges tonales y barra de navegación inferior.
  */
@@ -1083,13 +1083,8 @@ a {
   gap: 4px;
 }
 
-.logo-dc {
-  border-radius: 999px;
-  background: linear-gradient(135deg, #154a2e, #2e8b57);
-  color: #fff;
-  display: grid;
-  place-items: center;
-  font-weight: 700;
+.logo {
+  border-radius: 24%;
   box-shadow: 0 0 0 6px rgba(255, 255, 255, 0.12);
 }
 
