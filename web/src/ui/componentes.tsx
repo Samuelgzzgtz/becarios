@@ -199,7 +199,7 @@ export function Avatar(props: { nombre: string; tamano?: number }) {
 }
 
 export function Logo({ tamano = 80 }: { tamano?: number }) {
-  return <img className="logo" src="/logo.svg" width={tamano} height={tamano} alt="Pasalista" />
+  return <img className="logo" src="/logo.svg" width={tamano} height={tamano} alt="" />
 }
 
 export function AvisoBanner(props: {
