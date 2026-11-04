@@ -103,13 +103,17 @@ export default function Revisar(props: { rutaBecario: (becarioId: string) => str
     try {
       await aprobarAsistencia(a.asistencia_id, jornada)
       avisos.exito(jornada ? 'Jornada confirmada.' : 'Registro aprobado.')
-      actualizar((lista) => sinAprobadas(lista, new Set([a.asistencia_id]), jornada))
+      if (enTope) recargar()
+      else actualizar((lista) => sinAprobadas(lista, new Set([a.asistencia_id]), jornada))
     } catch (e) {
       avisos.error(mensajeAmigable(e, 'No se pudo aprobar el registro.'))
     } finally {
       setAprobando(false)
     }
   }
+
+  // En el tope de filas, quitar las aprobadas escondería las que faltan: mejor volver a pedir la lista.
+  const enTope = estado.tipo === 'listo' && estado.datos.length >= MAXIMO_FILAS
 
   async function aprobarLote(ids: Set<string>) {
     if (aprobando) return
@@ -119,9 +123,12 @@ export default function Revisar(props: { rutaBecario: (becarioId: string) => str
       // aprobar_asistencias acepta hasta 1000 ids por llamada.
       for (let i = 0; i < lista.length; i += MAXIMO_FILAS) await aprobarAsistencias(lista.slice(i, i + MAXIMO_FILAS))
       avisos.exito(`${plural(ids.size, 'registro aprobado', 'registros aprobados')}.`)
-      actualizar((lista) => sinAprobadas(lista, ids, false))
+      if (enTope) recargar()
+      else actualizar((lista) => sinAprobadas(lista, ids, false))
     } catch (e) {
       avisos.error(mensajeAmigable(e, 'No se pudieron aprobar los registros.'))
+      // Un tramo anterior pudo quedar aprobado.
+      recargar()
     } finally {
       setAprobando(false)
     }
