@@ -23,7 +23,7 @@ export function useCamara(frontal: boolean): { video: RefObject<HTMLVideoElement
     setError(null)
 
     if (!navigator.mediaDevices?.getUserMedia) {
-      setError('Este navegador no permite usar la cámara. Abre DocenCheck en Chrome o Safari actualizados.')
+      setError('Este navegador no permite usar la cámara. Abre Pasalista en Chrome o Safari actualizados.')
       return
     }
     navigator.mediaDevices

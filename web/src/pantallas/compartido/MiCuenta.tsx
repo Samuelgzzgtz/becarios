@@ -199,7 +199,7 @@ export default function MiCuenta({ conVolver = false }: { conVolver?: boolean })
         Cerrar sesión
       </Boton>
       <p className="chico texto-2" style={{ textAlign: 'center' }}>
-        DocenCheck · FIME UANL
+        Pasalista · FIME UANL
       </p>
     </Pantalla>
   )

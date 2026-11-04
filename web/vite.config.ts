@@ -21,8 +21,8 @@ export default defineConfig({
       injectRegister: 'auto',
       includeAssets: ['favicon.ico', 'apple-touch-icon-180x180.png', 'logo.svg'],
       manifest: {
-        name: 'DocenCheck · Control de becarios FIME',
-        short_name: 'DocenCheck',
+        name: 'Pasalista · Control de becarios FIME',
+        short_name: 'Pasalista',
         description: 'Control de asistencia con reconocimiento facial para becarios FIME UANL.',
         lang: 'es-MX',
         start_url: '/',

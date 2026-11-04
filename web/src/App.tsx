@@ -93,7 +93,7 @@ function PuenteClerk() {
 const CLERK_PUBLISHABLE_KEY = import.meta.env.VITE_CLERK_PUBLISHABLE_KEY as string | undefined
 if (!CLERK_PUBLISHABLE_KEY) throw new Error('Falta VITE_CLERK_PUBLISHABLE_KEY (ver web/.env.example).')
 
-/** Colores de DocenCheck para las pantallas de Clerk (login, perfil). */
+/** Colores de Pasalista para las pantallas de Clerk (login, perfil). */
 const APARIENCIA = {
   variables: {
     colorPrimary: '#1E7145',

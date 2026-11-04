@@ -92,7 +92,7 @@ export default function RegistrarAsistencia() {
       {camara.error ? (
         <PanelErrorCamara
           mensaje={camara.error}
-          explicacion="DocenCheck compara tu rostro con el enrolamiento. El registro requiere aprobación humana."
+          explicacion="Pasalista compara tu rostro con el enrolamiento. El registro requiere aprobación humana."
           onReintentar={camara.reintentar}
           onVolver={volver}
         />

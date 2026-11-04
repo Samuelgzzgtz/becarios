@@ -54,7 +54,7 @@ export function Pantalla(props: {
   sinRelleno?: boolean
 }) {
   useEffect(() => {
-    document.title = `${props.titulo} · DocenCheck`
+    document.title = `${props.titulo} · Pasalista`
   }, [props.titulo])
 
   return (
@@ -198,12 +198,8 @@ export function Avatar(props: { nombre: string; tamano?: number }) {
   )
 }
 
-export function LogoDC({ tamano = 80 }: { tamano?: number }) {
-  return (
-    <span className="logo-dc" style={{ width: tamano, height: tamano, fontSize: tamano * 0.36 }} role="img" aria-label="DocenCheck">
-      DC
-    </span>
-  )
+export function Logo({ tamano = 80 }: { tamano?: number }) {
+  return <img className="logo" src="/logo.svg" width={tamano} height={tamano} alt="Pasalista" />
 }
 
 export function AvisoBanner(props: {

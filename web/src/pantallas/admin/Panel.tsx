@@ -48,7 +48,7 @@ export default function PanelAdmin() {
   return (
     <Pantalla
       titulo="Coordinación de becarios"
-      subtitulo="DocenCheck · FIME"
+      subtitulo="Pasalista · FIME"
       etiqueta="Administrador"
       accionHeader={<BotonIcono icono={CircleUser} etiqueta="Mi cuenta" onClick={() => navegar('/admin/cuenta')} />}
     >
