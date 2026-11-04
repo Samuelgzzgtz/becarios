@@ -83,7 +83,7 @@ export default function RegistrarAsistencia() {
   const textoGuia = {
     listo: 'Centra tu rostro en el óvalo',
     procesando: 'Verificando tu rostro…',
-    exito: 'Identidad verificada',
+    exito: 'Coincidencia facial',
     error: 'No se pudo verificar'
   }[estado.tipo]
 
@@ -92,7 +92,7 @@ export default function RegistrarAsistencia() {
       {camara.error ? (
         <PanelErrorCamara
           mensaje={camara.error}
-          explicacion="DocenCheck usa la cámara frontal para confirmar que eres tú quien registra la asistencia."
+          explicacion="DocenCheck compara tu rostro con el enrolamiento. El registro requiere aprobación humana."
           onReintentar={camara.reintentar}
           onVolver={volver}
         />
@@ -120,7 +120,7 @@ export default function RegistrarAsistencia() {
                 icono={estado.enCola ? CloudCheck : CheckCircle2}
                 tono={estado.enCola ? 'info' : 'exito'}
                 titulo={estado.enCola ? `${etiquetaTipo(estado.registro)} guardada en el teléfono` : `${etiquetaTipo(estado.registro)} registrada a las ${estado.hora}`}
-                mensaje={estado.enCola ? 'No hay conexión. Se subirá sola en cuanto vuelva la red.' : 'Listo, ya quedó en tu historial.'}
+                mensaje={estado.enCola ? 'Se subirá cuando vuelva la red y requerirá aprobación humana.' : 'Pendiente de aprobación por tu ingeniero. Aún no suma horas.'}
               >
                 <Boton ancho onClick={volver}>
                   Listo

@@ -18,6 +18,7 @@ const ICONOS: Record<TipoAnomalia, ComponentType<LucideProps>> = {
   reloj_adelantado: Watch,
   sin_ubicacion: MapPinOff,
   fuera_de_zona: MapPin,
+  revision_humana: ClipboardCheck,
   sin_rostro: ScanFace,
   modalidad_distinta: CalendarX
 }
@@ -29,6 +30,7 @@ const TONOS: Record<TipoAnomalia, Tono> = {
   reloj_adelantado: 'alerta',
   sin_ubicacion: 'info',
   fuera_de_zona: 'alerta',
+  revision_humana: 'info',
   sin_rostro: 'alerta',
   modalidad_distinta: 'alerta'
 }

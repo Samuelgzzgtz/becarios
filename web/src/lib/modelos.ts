@@ -8,7 +8,7 @@ export type EstadoReporteSiase = 'pendiente' | 'subido' | 'confirmado' | 'exclui
 export type EstadoTransferencia = 'pendiente' | 'aprobada' | 'rechazada'
 export type OrigenAsistencia = 'en_linea' | 'cola' | 'manual'
 export type RevisionAsistencia = 'ok' | 'por_revisar' | 'aprobada'
-export type MotivoRevision = 'atraso_cola' | 'reloj_adelantado' | 'sin_ubicacion' | 'fuera_de_zona' | 'sin_rostro' | 'modalidad_distinta'
+export type MotivoRevision = 'atraso_cola' | 'reloj_adelantado' | 'sin_ubicacion' | 'fuera_de_zona' | 'revision_humana' | 'sin_rostro' | 'modalidad_distinta'
 export type TipoAnomalia =
   | 'turno_abierto'
   | 'jornada_larga'
@@ -16,6 +16,7 @@ export type TipoAnomalia =
   | 'reloj_adelantado'
   | 'sin_ubicacion'
   | 'fuera_de_zona'
+  | 'revision_humana'
   | 'sin_rostro'
   | 'modalidad_distinta'
 

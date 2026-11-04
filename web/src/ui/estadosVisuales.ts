@@ -66,6 +66,7 @@ export const explicacionMotivo: Record<MotivoRevision, string> = {
   reloj_adelantado: 'La hora del teléfono iba adelantada; se ajustó a la del servidor.',
   sin_ubicacion: 'No se pudo confirmar la ubicación al registrar.',
   fuera_de_zona: 'Se registró fuera de las zonas permitidas.',
+  revision_humana: 'Autorregistro pendiente de revisión humana; la coincidencia facial del cliente no acredita identidad.',
   sin_rostro: 'Se registró sin verificación facial.',
   modalidad_distinta: 'La modalidad no coincide con el horario de ese día.'
 }
@@ -80,6 +81,7 @@ export const etiquetaAnomalia: Record<TipoAnomalia, string> = {
   reloj_adelantado: 'Reloj adelantado',
   sin_ubicacion: 'Sin ubicación',
   fuera_de_zona: 'Fuera de zona',
+  revision_humana: 'Revisión humana',
   sin_rostro: 'Sin verificación facial',
   modalidad_distinta: 'Modalidad distinta'
 }

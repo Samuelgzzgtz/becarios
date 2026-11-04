@@ -47,7 +47,7 @@ describe('modalidad y rostro en el registro del becario', () => {
     const casa = await insertar(db, { becario: 'bec1', tipo: 'entrada', modalidad: 'home_office' })
     expect([casa.revision, casa.motivo_revision]).toEqual(['por_revisar', 'modalidad_distinta'])
     const oficina = await insertar(db, { becario: 'bec1', tipo: 'salida', modalidad: 'presencial', en: `now() - interval '2 minutes'` })
-    expect([oficina.revision, oficina.motivo_revision]).toEqual(['ok', null])
+    expect([oficina.revision, oficina.motivo_revision]).toEqual(['por_revisar', 'revision_humana'])
   })
 
   it('con horario home_office, presencial queda por revisar y se libra de la geocerca', async () => {
@@ -56,7 +56,7 @@ describe('modalidad y rostro en el registro del becario', () => {
     const presencial = await insertar(db, { becario: 'bec1', tipo: 'entrada', modalidad: 'presencial' })
     expect([presencial.revision, presencial.motivo_revision]).toEqual(['por_revisar', 'modalidad_distinta'])
     const casa = await insertar(db, { becario: 'bec1', tipo: 'salida', modalidad: 'home_office', en: `now() - interval '2 minutes'` })
-    expect([casa.revision, casa.motivo_revision]).toEqual(['ok', null])
+    expect([casa.revision, casa.motivo_revision]).toEqual(['por_revisar', 'revision_humana'])
   })
 
   it('anomalias_asistencia los lista con su detalle', async () => {
@@ -176,11 +176,12 @@ describe('reportes SIASE', () => {
 
   it('el ingeniero y el admin no firman ni desconfirman por la API; la RPC sí firma', async () => {
     await como(db, 'bec1')
+    await db.query(`insert into storage.objects (bucket_id, name) values ('siase', $1)`, [`${ids.bec1}/${mes}/ruta.pdf`])
     const [rep] = await filas(
       `insert into public.reportes_siase (becario_id, periodo_id, mes, archivo_url, estado)
-       select $1, p.id, $2::date, 'ruta.pdf', 'subido' from public.periodos_academicos p where p.activo
+       select $1, p.id, $2::date, $3, 'subido' from public.periodos_academicos p where p.activo
        returning id`,
-      [ids.bec1, mes],
+      [ids.bec1, mes, `${ids.bec1}/${mes}/ruta.pdf`],
     )
 
     await como(db, 'ing1')

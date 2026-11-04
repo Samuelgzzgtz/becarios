@@ -97,7 +97,7 @@ fun TarjetaAsistencia(
                     )
                     Spacer(Modifier.width(Espacio.xs))
                     Text(
-                        if (a.verificado_por != null) "Registro manual" else "Verificación facial",
+                        if (a.verificado_por != null) "Registro manual" else "Autorregistro",
                         style = MaterialTheme.typography.bodySmall,
                         color = c.textoSecundario
                     )

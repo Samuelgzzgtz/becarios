@@ -109,7 +109,7 @@ fun RegistrarAsistenciaScreen(onListo: () -> Unit) {
     val textoGuia = when (estado) {
         is EstadoRegistro.ListoParaCapturar -> "Centra tu rostro en el óvalo"
         is EstadoRegistro.Procesando -> "Verificando tu rostro…"
-        is EstadoRegistro.Exito -> "Identidad verificada"
+        is EstadoRegistro.Exito -> "Coincidencia facial"
         is EstadoRegistro.Error -> "No se pudo verificar"
     }
 
@@ -121,7 +121,7 @@ fun RegistrarAsistenciaScreen(onListo: () -> Unit) {
         if (!permiso.concedido) {
             PanelPermisoCamara(
                 bloqueado = permiso.bloqueado,
-                explicacion = "DocenCheck usa la cámara frontal para confirmar que eres tú quien registra la asistencia.",
+                explicacion = "DocenCheck compara tu rostro con el enrolamiento. El registro requiere aprobación humana.",
                 onSolicitar = permiso.solicitar,
                 onVolver = onListo,
                 modifier = Modifier.padding(padding)
@@ -190,7 +190,7 @@ fun RegistrarAsistenciaScreen(onListo: () -> Unit) {
                             tono = if (actual.enCola) TonoEstado.INFO else TonoEstado.EXITO,
                             titulo = if (actual.enCola) "${actual.tipo.etiqueta()} guardada en el teléfono"
                             else "${actual.tipo.etiqueta()} registrada a las ${FechaUi.hora(Instant.now())}",
-                            mensaje = if (actual.enCola) "No hay conexión. Se subirá sola en cuanto vuelva la red." else "Listo, ya quedó en tu historial.",
+                            mensaje = if (actual.enCola) "Se subirá cuando vuelva la red y requerirá aprobación humana." else "Pendiente de aprobación por tu ingeniero. Aún no suma horas.",
                             textoPrincipal = "Listo",
                             onPrincipal = onListo
                         )

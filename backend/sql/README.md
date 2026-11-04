@@ -53,6 +53,31 @@ y auditoría de cada alta, modificación y eliminación. Las correcciones direct
 requieren `corregir_asistencia` y un motivo. La web anterior no puede corregir registros
 una vez aplicada esta migración; coordinar el despliegue de backend y frontend.
 
+## Contención de auditoría (0024)
+
+Aplicar después de 0023 con los clientes web y Android actualizados. Todo autorregistro
+requiere aprobación humana y no suma horas hasta aprobarlo. `puntaje_rostro` expresa
+una coincidencia calculada por el cliente; no prueba identidad ni captura nueva.
+Se conservan los motivos específicos y se usa `revision_humana` en los demás casos.
+
+La baja por `cambiar_estado_usuario` se conserva en `estado_local`, independiente de
+Ban/Unban de Clerk. Al aplicar 0024 se copia todo estado previo distinto de `activo`
+a `estado_local`: no hay información para distinguir una baja local histórica de un
+bloqueo de Clerk. Se conserva el acceso denegado sin inferir la causa. Las cuentas
+antiguas bloqueadas solo por Ban de Clerk requieren, además de Unban, reactivación
+administrativa explícita mediante `cambiar_estado_usuario(id, 'activo')`.
+Esto también incluye las cuentas que estaban inactivas porque aún esperaban un
+perfil autorizado en Clerk: asignarles el perfil después de migrar no elimina la
+baja conservada. Revisar su autorización y reactivarlas explícitamente.
+Los nuevos Ban/Unban sin baja local siguen funcionando sin esa intervención.
+
+Las transferencias nacen pendientes y sin resolutor; su resolución usa la RPC.
+SIASE exige una ruta del becario y mes con objeto existente. Cada reemplazo crea
+un objeto nuevo sin upsert; la API ya no puede modificar objetos. Esto puede dejar
+archivos huérfanos si la firma gana una carrera contra el reemplazo. No se borran
+objetos ni se reescriben reportes históricos. Las URLs externas ya no se abren y un
+reporte histórico con ruta inválida debe reemplazarse antes de firmarlo.
+
 ## Seguridad (0023)
 
 - El becario que registra su asistencia queda `por_revisar` si no manda `puntaje_rostro`
