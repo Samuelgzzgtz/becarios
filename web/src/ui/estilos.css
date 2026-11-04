@@ -45,6 +45,17 @@
   color-scheme: light;
   font-family: Inter, Roboto, system-ui, -apple-system, 'Segoe UI', sans-serif;
   -webkit-text-size-adjust: 100%;
+
+  /* Tokens de movimiento (transitions.dev). */
+  --duration-quick: 150ms;
+  --duration-fast: 250ms;
+  --ease-smooth-out: cubic-bezier(0.22, 1, 0.36, 1);
+  --distance-base: 8px;
+  --scale-large: 0.96;
+  --toast-open: 350ms;
+  --toast-distance: 16px;
+  --toast-blur: 2px;
+  --toast-scale: 0.97;
 }
 
 @media (prefers-color-scheme: dark) {
@@ -251,6 +262,15 @@ a {
   flex-direction: column;
   gap: 12px;
   flex: 1;
+  /* Al cambiar de pantalla el contenido sube un poco; el encabezado y la barra se quedan quietos. */
+  animation: entrar var(--duration-fast) var(--ease-smooth-out);
+}
+
+@keyframes entrar {
+  from {
+    opacity: 0;
+    transform: translateY(var(--distance-base));
+  }
 }
 
 .contenido.con-fab {
@@ -315,7 +335,7 @@ a {
   border-radius: 999px;
   display: grid;
   place-items: center;
-  transition: background-color 0.2s;
+  transition: background-color var(--duration-quick) var(--ease-smooth-out);
 }
 
 .nav-inferior a.activo {
@@ -539,7 +559,7 @@ a {
   justify-content: center;
   gap: 8px;
   cursor: pointer;
-  transition: background-color 0.15s, opacity 0.15s;
+  transition: background-color var(--duration-quick) var(--ease-smooth-out), opacity var(--duration-quick) var(--ease-smooth-out);
   text-decoration: none;
 }
 
@@ -859,7 +879,7 @@ a {
   place-items: center;
   z-index: 50;
   padding: 24px;
-  animation: aparecer 0.15s ease;
+  animation: aparecer var(--duration-fast) var(--ease-smooth-out);
 }
 
 .dialogo {
@@ -874,6 +894,14 @@ a {
   display: flex;
   flex-direction: column;
   gap: 12px;
+  animation: dialogo-abrir var(--duration-fast) var(--ease-smooth-out);
+}
+
+@keyframes dialogo-abrir {
+  from {
+    opacity: 0;
+    transform: scale(var(--scale-large));
+  }
 }
 
 .dialogo h2 {
@@ -916,7 +944,7 @@ a {
   gap: 10px;
   align-items: center;
   font-weight: 500;
-  animation: subir 0.2s ease;
+  animation: subir var(--toast-open) var(--ease-smooth-out);
 }
 
 @keyframes aparecer {
@@ -928,7 +956,8 @@ a {
 @keyframes subir {
   from {
     opacity: 0;
-    transform: translateY(12px);
+    transform: translateY(var(--toast-distance)) scale(var(--toast-scale));
+    filter: blur(var(--toast-blur));
   }
 }
 
@@ -1057,7 +1086,7 @@ a {
   height: 10px;
   border-radius: 999px;
   background: var(--pista);
-  transition: background-color 0.2s;
+  transition: background-color var(--duration-quick) var(--ease-smooth-out);
 }
 
 .puntos span.lleno {
@@ -1229,4 +1258,14 @@ a {
 
 .instalar .banner {
   box-shadow: 0 6px 20px rgba(0, 0, 0, 0.18);
+}
+
+/* El giro de carga se queda: indica que algo sigue en proceso. */
+@media (prefers-reduced-motion: reduce) {
+  *:not(.giro),
+  *::before,
+  *::after {
+    transition: none !important;
+    animation: none !important;
+  }
 }
