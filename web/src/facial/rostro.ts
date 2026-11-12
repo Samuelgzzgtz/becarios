@@ -108,13 +108,41 @@ export async function procesar(foto: HTMLCanvasElement): Promise<ResultadoDetecc
     const [salida] = await modelo.run([tensor])
     try {
       const datos = salida.toTypedArray() as Float32Array
-      return { tipo: 'rostro', embedding: Float32Array.from(datos.subarray(0, DIMENSION_SALIDA)) }
+      return { tipo: 'rostro', embedding: normalizar(Float32Array.from(datos.subarray(0, DIMENSION_SALIDA))) }
     } finally {
       salida.delete()
     }
   } finally {
     tensor.delete()
   }
+}
+
+/**
+ * Giros con los que se prueba cada cuadro al registrar. Con la cabeza ladeada el
+ * embedding cambia mucho; los puntos de los ojos de MediaPipe tienen hasta 10° de
+ * error, así que en vez de enderezar se prueban tres giros y se toma el mejor.
+ * Con retratos públicos (web/README.md): ladeada 10–18° dejó de fallar y la
+ * similitud máxima entre personas distintas pasó de 0.41 a 0.43 (umbral 0.55).
+ */
+const GIROS = [0, -12, 12]
+
+/** Procesa el cuadro derecho y girado (ver GIROS); el enrolamiento usa solo el derecho. */
+export function procesarConGiros(foto: HTMLCanvasElement): Promise<ResultadoDeteccion[]> {
+  return GIROS.reduce<Promise<ResultadoDeteccion[]>>(
+    async (anteriores, grados) => [...(await anteriores), await procesar(grados ? girar(foto, grados) : foto)],
+    Promise.resolve([])
+  )
+}
+
+function girar(foto: HTMLCanvasElement, grados: number): HTMLCanvasElement {
+  const lienzo = document.createElement('canvas')
+  lienzo.width = foto.width
+  lienzo.height = foto.height
+  const ctx = lienzo.getContext('2d')!
+  ctx.translate(foto.width / 2, foto.height / 2)
+  ctx.rotate((grados * Math.PI) / 180)
+  ctx.drawImage(foto, -foto.width / 2, -foto.height / 2)
+  return lienzo
 }
 
 /** Recorta el rostro, lo escala a 112×112 y normaliza a [-1, 1] (convención de MobileFaceNet). */
@@ -160,10 +188,8 @@ function prepararEntrada(
   return salida
 }
 
-/** Promedio de los embeddings de las fotos de enrolamiento. */
-export function promediar(embeddings: Float32Array[]): number[] {
-  const dimension = embeddings[0].length
-  const promedio = new Array<number>(dimension).fill(0)
-  for (const e of embeddings) for (let i = 0; i < dimension; i++) promedio[i] += e[i]
-  return promedio.map((v) => v / embeddings.length)
+/** Vector de norma 1: así cada foto pesa igual al promediar. La similitud coseno no cambia. */
+function normalizar(v: Float32Array): Float32Array {
+  const norma = Math.hypot(...v)
+  return norma > 0 ? v.map((x) => x / norma) : v
 }

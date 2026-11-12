@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { coincide, similitudCoseno } from '../facial/comparar'
+import { coincide, promediar, similitudCoseno, verificar, type Deteccion } from '../facial/comparar'
 import { ErrorDeNegocio, MENSAJE_SIN_CONEXION, mensajeAmigable } from './errores'
 import { aInstante, diaSemana, fechaLocal, inicioDia, lunesDe, mesLargo, parsear, sumarMeses } from './fechas'
 import { enRiesgo, horasPorDia, permiteSubir, siguienteTipoSegun, type Asistencia, type ProgresoBecario, type TipoAsistencia } from './modelos'
@@ -95,5 +95,41 @@ describe('comparación facial', () => {
     expect(similitudCoseno([1, 2, 3], [1, 2, 3])).toBeCloseTo(1)
     expect(coincide([1, 0], [0, 1])).toBe(false)
     expect(similitudCoseno([1, 2], [1, 2, 3])).toBe(0)
+  })
+
+  it('promedia por componente', () => {
+    expect(promediar([[1, 0], [0, 1]])).toEqual([0.5, 0.5])
+  })
+
+  describe('verificar con varios cuadros', () => {
+    const guardado = [1, 0]
+    const sinPausa = () => Promise.resolve()
+    /** Un cuadro por llamada, con una sola variante (sin giros). */
+    const secuencia = (...r: Deteccion[]) => {
+      let i = 0
+      return () => Promise.resolve([r[Math.min(i++, r.length - 1)]])
+    }
+
+    it('un cuadro malo no rechaza si el siguiente coincide', async () => {
+      const analizar = secuencia({ tipo: 'sin_rostro' }, { tipo: 'rostro', embedding: [0, 1] }, { tipo: 'rostro', embedding: [1, 0.1] })
+      expect(await verificar(analizar, guardado, 3, sinPausa)).toMatchObject({ tipo: 'coincide' })
+    })
+
+    it('sin coincidencia devuelve la mejor similitud', async () => {
+      const analizar = secuencia({ tipo: 'rostro', embedding: [0, 1] }, { tipo: 'rostro', embedding: [1, 2] })
+      const r = await verificar(analizar, guardado, 2, sinPausa)
+      expect(r.tipo).toBe('no_coincide')
+      expect(r.tipo === 'no_coincide' && r.similitud).toBeCloseTo(similitudCoseno([1, 2], guardado))
+    })
+
+    it('basta con que una variante girada del cuadro coincida', async () => {
+      const analizar = () => Promise.resolve<Deteccion[]>([{ tipo: 'rostro', embedding: [0, 1] }, { tipo: 'rostro', embedding: [1, 0.2] }])
+      expect(await verificar(analizar, guardado, 1, sinPausa)).toMatchObject({ tipo: 'coincide' })
+    })
+
+    it('sin rostro en ningún cuadro devuelve el último motivo; otra dimensión corta de inmediato', async () => {
+      expect(await verificar(secuencia({ tipo: 'sin_rostro' }, { tipo: 'demasiado_pequeno' }), guardado, 2, sinPausa)).toEqual({ tipo: 'demasiado_pequeno' })
+      expect(await verificar(secuencia({ tipo: 'rostro', embedding: [1, 0, 0] }), guardado, 3, sinPausa)).toEqual({ tipo: 'incompatible' })
+    })
   })
 })
