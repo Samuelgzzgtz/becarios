@@ -126,12 +126,21 @@ export async function procesar(foto: HTMLCanvasElement): Promise<ResultadoDetecc
  */
 const GIROS = [0, -12, 12]
 
-/** Procesa el cuadro derecho y girado (ver GIROS); el enrolamiento usa solo el derecho. */
-export function procesarConGiros(foto: HTMLCanvasElement): Promise<ResultadoDeteccion[]> {
-  return GIROS.reduce<Promise<ResultadoDeteccion[]>>(
-    async (anteriores, grados) => [...(await anteriores), await procesar(grados ? girar(foto, grados) : foto)],
-    Promise.resolve([])
-  )
+/**
+ * Variantes del cuadro (ver GIROS) sin procesar: verificar() solo procesa la
+ * siguiente si la anterior no coincidió. El enrolamiento usa solo el derecho.
+ */
+export function variantesConGiros(foto: HTMLCanvasElement): (() => Promise<ResultadoDeteccion>)[] {
+  return GIROS.map((grados) => async () => {
+    if (!grados) return procesar(foto)
+    const girada = girar(foto, grados)
+    try {
+      return await procesar(girada)
+    } finally {
+      // iOS limita la memoria total de los canvas: se libera sin esperar al recolector.
+      girada.width = girada.height = 0
+    }
+  })
 }
 
 function girar(foto: HTMLCanvasElement, grados: number): HTMLCanvasElement {

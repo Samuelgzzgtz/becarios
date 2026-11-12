@@ -55,7 +55,8 @@ Contrato completo en `docs/integridad-horas.md`. Lo esencial para quien toque el
 ## Solicitudes e historial de asistencias (0022)
 
 `0022_correcciones_asistencias.sql` se aplica después de 0021 junto con la web actualizada.
-Agrega solicitudes del becario, aprobación o rechazo por su ingeniero o administrador,
+Agrega solicitudes del becario, aprobación o rechazo por su ingeniero o administrador
+(desde 0026 solo por su ingeniero asignado),
 y auditoría de cada alta, modificación y eliminación. Las correcciones directas ahora
 requieren `corregir_asistencia` y un motivo. La web anterior no puede corregir registros
 una vez aplicada esta migración; coordinar el despliegue de backend y frontend.

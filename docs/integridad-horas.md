@@ -48,7 +48,7 @@ Helpers existentes: `es_admin()`, `es_ingeniero_de(becario)`, `usuario_activo()`
 Trigger `BEFORE INSERT` (se ejecuta antes de `asistencias_validar`): ignora y recalcula
 `origen`, `revision` y `motivo_revision` aunque el cliente los mande.
 
-- Inserta otra persona que no es el becario (el ingeniero asignado, con `corregir_asistencia`): `origen='manual'`, `revision='ok'`.
+- Inserta otra persona que no es el becario (el ingeniero asignado, con `corregir_asistencia` o al aprobar una solicitud de agregar): `origen='manual'`, `revision='ok'`.
 - Inserta el propio becario: atraso = `now() - ocurrido_en`.
   - atraso entre `-tolerancia` y `+tolerancia`: `en_linea`, `ok`.
   - atraso mayor que la tolerancia: `origen='cola'`; si pasa `atraso_maximo_minutos` → `por_revisar` / `atraso_cola`.

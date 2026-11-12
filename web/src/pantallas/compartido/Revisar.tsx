@@ -86,12 +86,14 @@ function porBecario(lista: Anomalia[]): { id: string; nombre: string; items: Ano
  * La usan el ingeniero (sus becarios) y el administrador (todos): el servidor decide qué se ve.
  * [rutaBecario] lleva a las asistencias del becario, donde se agrega la salida o se corrige.
  * [soloLectura]: el administrador solo mira; aprueba el ingeniero asignado (0026).
+ * [rutaAsignar]: ruta para asignarle ingeniero a un becario que no tiene uno activo (nadie puede aprobarle); null si sí tiene.
  */
 export default function Revisar(props: {
   rutaBecario: (becarioId: string) => string
   rutaVolver: string
   onNavegar: (ruta: string) => void
   soloLectura?: boolean
+  rutaAsignar?: (becarioId: string) => string | null
 }) {
   const volver = useVolver(props.rutaVolver)
   const avisos = useAvisos()
@@ -197,13 +199,23 @@ export default function Revisar(props: {
             <EstadoVacio titulo="Todo en orden" mensaje="No hay registros por revisar en este semestre." icono={CheckCircle2} />
           ) : (
             <>
-              {porBecario(lista).map((g) => (
+              {porBecario(lista).map((g) => {
+                const asignar = props.rutaAsignar?.(g.id)
+                return (
                 <section key={g.id} className="columna" style={{ gap: 8 }} aria-label={`Registros de ${g.nombre}`}>
                   <div className="fila" style={{ paddingTop: 8 }}>
                     <Avatar nombre={g.nombre} tamano={36} />
                     <h3 className="titulo-s crece recortar">{g.nombre}</h3>
                     <span className="chico texto-2">{plural(g.items.length, 'pendiente', 'pendientes')}</span>
                   </div>
+                  {asignar && (
+                    <div className="fila" style={{ flexWrap: 'wrap' }}>
+                      <Badge texto="Sin ingeniero activo: nadie puede aprobar" tono="alerta" icono={TriangleAlert} />
+                      <Boton chico variante="secundario" onClick={() => props.onNavegar(asignar)}>
+                        Asignar ingeniero
+                      </Boton>
+                    </div>
+                  )}
                   {g.items.map((a) => (
                     <FilaAnomalia
                       key={`${a.tipo}-${a.asistencia_id}`}
@@ -214,7 +226,8 @@ export default function Revisar(props: {
                     />
                   ))}
                 </section>
-              ))}
+                )
+              })}
             </>
           )
         }

@@ -44,29 +44,35 @@ export const MARGEN_CASI = 0.1
 /** Lo mínimo de rostro.ts que necesita verificar (sin cargar MediaPipe). */
 export type Deteccion = { tipo: 'rostro'; embedding: ArrayLike<number> } | { tipo: 'sin_rostro' | 'varios_rostros' | 'demasiado_pequeno' }
 
-export type Verificacion =
-  | { tipo: 'coincide' | 'no_coincide'; similitud: number }
-  | { tipo: 'sin_rostro' | 'varios_rostros' | 'demasiado_pequeno' | 'incompatible' }
+type Fallo = Exclude<Deteccion['tipo'], 'rostro'>
+
+export type Verificacion = { tipo: 'coincide' | 'no_coincide'; similitud: number } | { tipo: Fallo | 'incompatible' }
+
+/** Qué motivo se le muestra al becario cuando ningún cuadro tuvo un rostro útil: el más específico. */
+const PRIORIDAD: Record<Fallo, number> = { sin_rostro: 0, demasiado_pequeno: 1, varios_rostros: 2 }
 
 /**
  * Analiza hasta [intentos] cuadros seguidos y se queda con el mejor: un parpadeo o
- * una foto movida ya no rechazan al becario. [analizar] toma un cuadro nuevo y
- * devuelve sus variantes (rostro.ts: derecho y girado). Para en cuanto una coincide.
+ * una foto movida ya no rechazan al becario. [cuadro] toma un cuadro nuevo y da sus
+ * variantes (rostro.ts: derecho y girado) sin procesarlas todavía: solo se procesa
+ * la siguiente si la anterior no coincidió. Un cuadro sin rostro útil (ninguno,
+ * muy chico o más de uno) se descarta entero, sin probar giros.
  */
 export async function verificar(
-  analizar: () => Promise<Deteccion[]>,
+  cuadro: () => (() => Promise<Deteccion>)[],
   guardado: ArrayLike<number>,
   intentos = 3,
   pausa: () => Promise<void> = () => new Promise((r) => setTimeout(r, 250))
 ): Promise<Verificacion> {
   let mejor: number | null = null
-  let fallo: Verificacion = { tipo: 'sin_rostro' }
+  let fallo: Fallo | null = null
   for (let i = 0; i < intentos; i++) {
     if (i > 0) await pausa()
-    for (const r of await analizar()) {
+    for (const variante of cuadro()) {
+      const r = await variante()
       if (r.tipo !== 'rostro') {
-        fallo = { tipo: r.tipo }
-        continue
+        if (fallo == null || PRIORIDAD[r.tipo] > PRIORIDAD[fallo]) fallo = r.tipo
+        break
       }
       if (!dimensionesCompatibles(r.embedding, guardado)) return { tipo: 'incompatible' }
       const s = similitudCoseno(r.embedding, guardado)
@@ -74,5 +80,5 @@ export async function verificar(
       mejor = Math.max(mejor ?? s, s)
     }
   }
-  return mejor != null ? { tipo: 'no_coincide', similitud: mejor } : fallo
+  return mejor != null ? { tipo: 'no_coincide', similitud: mejor } : { tipo: fallo ?? 'sin_rostro' }
 }

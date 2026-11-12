@@ -157,10 +157,10 @@ begin
     'motivo', 'El motivo tiene límite de longitud');
   perform pg_temp.falla(k_ing2, format(
     'select public.corregir_asistencia(%L, ''modificar'', %L, null, null, ''home_office'', ''Error'')', v_bec, v_entrada),
-    'No puedes corregir', 'Un ingeniero no asignado no corrige');
+    'Solo el ingeniero asignado', 'Un ingeniero no asignado no corrige');
   perform pg_temp.falla(k_bec, format(
     'select public.corregir_asistencia(%L, ''modificar'', %L, null, null, ''home_office'', ''Error'')', v_bec, v_entrada),
-    'No puedes corregir', 'El becario no se corrige directo');
+    'Solo el ingeniero asignado', 'El becario no se corrige directo');
   perform pg_temp.falla(k_ing, format(
     'select public.corregir_asistencia(%L, ''modificar'', %L, null, null, ''home_office'', ''Error'')', v_bec, v_ajena),
     'no existe', 'No se corrige un registro de otro becario por su id');
@@ -255,9 +255,9 @@ begin
 
   -- ------------------------------------------------------------------ resolver
   perform pg_temp.falla(k_bec, format('select public.resolver_correccion_asistencia(%L, true, ''ok'')', v_sol),
-    'no puedes resolverla', 'El becario no resuelve');
+    'solo su ingeniero asignado', 'El becario no resuelve');
   perform pg_temp.falla(k_ing2, format('select public.resolver_correccion_asistencia(%L, true, ''ok'')', v_sol),
-    'no puedes resolverla', 'Un ingeniero no asignado no resuelve');
+    'solo su ingeniero asignado', 'Un ingeniero no asignado no resuelve');
   perform pg_temp.falla(k_ing, format('select public.resolver_correccion_asistencia(%L, true, '' '')', v_sol),
     'respuesta', 'Resolver exige respuesta');
 
@@ -282,7 +282,7 @@ begin
   -- Idempotencia secuencial: la segunda resolución no vuelve a aplicar nada.
   perform pg_temp.falla(k_ing, format('select public.resolver_correccion_asistencia(%L, true, ''Otra vez'')', v_sol),
     'solicitud_resuelta', 'No se aprueba dos veces');
-  perform pg_temp.falla(k_admin, format('select public.resolver_correccion_asistencia(%L, false, ''Tarde'')', v_sol),
+  perform pg_temp.falla(k_ing, format('select public.resolver_correccion_asistencia(%L, false, ''Tarde'')', v_sol),
     'solicitud_resuelta', 'No se rechaza una aprobada');
   perform pg_temp.exige(
     (select count(*) = v_auditoria + 1 from public.bitacora_asistencias where asistencia_id = v_entrada),
@@ -314,24 +314,29 @@ begin
     'select public.solicitar_correccion_asistencia(''modificar'', %L, p_modalidad => ''home_office'', p_motivo => ''Fue en casa'')', v_otra),
     'El becario solicita modificar otro registro');
   select id into v_sol2 from public.solicitudes_correccion where asistencia_id = v_otra and estado = 'pendiente';
-  perform pg_temp.funciona(k_admin, format(
+  perform pg_temp.falla(k_admin, format(
     'select public.corregir_asistencia(%L, ''eliminar'', %L, null, null, null, ''Registro inválido'')', v_bec, v_otra),
-    'El admin elimina con motivo');
+    'Solo el ingeniero asignado', 'El admin ya no corrige (0026)');
+  perform pg_temp.funciona(k_ing, format(
+    'select public.corregir_asistencia(%L, ''eliminar'', %L, null, null, null, ''Registro inválido'')', v_bec, v_otra),
+    'El ingeniero elimina con motivo');
   perform pg_temp.exige(
     exists (select 1 from public.bitacora_asistencias
-            where asistencia_id = v_otra and accion = 'eliminar' and hecho_por = v_admin
+            where asistencia_id = v_otra and accion = 'eliminar' and hecho_por = v_ing
               and motivo = 'Registro inválido' and antes is not null and despues is null),
     'El borrado queda auditado y la auditoría sobrevive a la asistencia');
-  perform pg_temp.falla(k_admin, format('select public.resolver_correccion_asistencia(%L, true, ''Ok'')', v_sol2),
+  perform pg_temp.falla(k_ing, format('select public.resolver_correccion_asistencia(%L, true, ''Ok'')', v_sol2),
     'solicitud_obsoleta', 'Aprobar sobre un registro borrado se rechaza');
 
-  -- Aprobar un agregar (admin).
+  -- Aprobar un agregar: el admin ya no resuelve (0026); el ingeniero sí.
   select id into v_sol2 from public.solicitudes_correccion where becario_id = v_bec and accion = 'agregar' and estado = 'pendiente';
-  perform pg_temp.funciona(k_admin, format('select public.resolver_correccion_asistencia(%L, true, ''Confirmado'')', v_sol2),
-    'El admin aprueba agregar');
+  perform pg_temp.falla(k_admin, format('select public.resolver_correccion_asistencia(%L, true, ''Confirmado'')', v_sol2),
+    'solo su ingeniero asignado', 'El admin ya no resuelve solicitudes (0026)');
+  perform pg_temp.funciona(k_ing, format('select public.resolver_correccion_asistencia(%L, true, ''Confirmado'')', v_sol2),
+    'El ingeniero aprueba agregar');
   perform pg_temp.exige(
     exists (select 1 from public.asistencias
-            where becario_id = v_bec and ocurrido_en = t0 + interval '1 day 9 hours' and verificado_por = v_admin),
+            where becario_id = v_bec and ocurrido_en = t0 + interval '1 day 9 hours' and verificado_por = v_ing),
     'Aprobar agregar crea el registro verificado por quien aprobó');
 
   -- Un formulario abierto antes de otra corrección no puede sobrescribirla.
@@ -342,7 +347,7 @@ begin
   perform pg_temp.funciona(k_ing, format(
     'select public.corregir_asistencia(%L, ''modificar'', %L, null, null, ''home_office'', ''Modalidad real'')', v_bec, v_conflicto),
     'El primer supervisor corrige la modalidad');
-  perform pg_temp.falla(k_admin, format(
+  perform pg_temp.falla(k_ing, format(
     'select public.corregir_asistencia(%L, ''modificar'', %L, ''salida'', null, ''presencial'', ''Formulario viejo'', %L::jsonb)', v_bec, v_conflicto, v_snapshot),
     'solicitud_obsoleta', 'Una corrección directa detecta el formulario viejo');
   perform pg_temp.falla(k_bec, format(
@@ -366,8 +371,10 @@ begin
     'select public.solicitar_correccion_asistencia(''modificar'', %L, p_modalidad => ''home_office'', p_motivo => ''Trabajé desde casa'')', v_conflicto),
     'Se solicita una corrección de modalidad');
   select id into v_sol2 from public.solicitudes_correccion where asistencia_id=v_conflicto and estado='pendiente';
-  perform pg_temp.funciona(k_admin, format('select public.aprobar_asistencia(%L)',v_conflicto),
-    'Otro supervisor revisa la marcación');
+  perform pg_temp.falla(k_admin, format('select public.aprobar_asistencia(%L)',v_conflicto),
+    'Solo el ingeniero asignado', 'El admin ya no aprueba (0026)');
+  perform pg_temp.funciona(k_ing, format('select public.aprobar_asistencia(%L)',v_conflicto),
+    'El ingeniero revisa la marcación');
   perform pg_temp.funciona(k_ing, format('select public.resolver_correccion_asistencia(%L,true,''Modalidad confirmada'')',v_sol2),
     'Revisar no vuelve obsoleta una corrección cuyos datos siguen iguales');
   perform pg_temp.exige((select modalidad='home_office' from public.asistencias where id=v_conflicto),
@@ -386,7 +393,7 @@ begin
   update public.ingenieros_becarios set activo = false where ingeniero_id = v_ing;
   perform pg_temp.falla(k_ing, format(
     'select public.corregir_asistencia(%L, ''modificar'', %L, null, null, ''presencial'', ''x'')', v_bec, v_entrada),
-    'No puedes corregir', 'Un ingeniero desasignado ya no corrige');
+    'Solo el ingeniero asignado', 'Un ingeniero desasignado ya no corrige');
 
   -- ------------------------------------------------------------------ cascada de usuario
   perform set_config('request.jwt.claims', '', true);

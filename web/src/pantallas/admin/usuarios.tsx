@@ -42,6 +42,16 @@ export function AvisoCuentasClerk({ perfil }: { perfil: 'becario' | 'ingeniero' 
  * activo), para filtrar becarios por ingeniero y contar becarios por ingeniero.
  * Si falla, las listas siguen funcionando sin esa información.
  */
+/**
+ * Becarios sin ingeniero activo: desde 0026 nadie puede aprobar sus registros ni
+ * resolver sus solicitudes hasta que el administrador les asigne uno.
+ */
+export async function becariosSinIngenieroActivo(): Promise<Set<string>> {
+  const [activos, equipo] = await Promise.all([listar('ingeniero'), progresoEquipo()])
+  const ids = new Set(activos.map((i) => i.id))
+  return new Set(equipo.filter((b) => !b.ingeniero_id || !ids.has(b.ingeniero_id)).map((b) => b.becario_id))
+}
+
 export function useAsignaciones() {
   const carga = useCarga(
     async () => {

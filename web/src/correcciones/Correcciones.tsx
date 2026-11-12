@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { requerirUsuario } from '../datos/sesion'
+import { becariosSinIngenieroActivo } from '../pantallas/admin/usuarios'
 import { fechaHora } from '../lib/fechas'
 import { mensajeAmigable } from '../lib/errores'
 import { Boton, CampoTexto, Dialogo, Pantalla, SegunEstado } from '../ui/componentes'
@@ -24,7 +25,9 @@ export default function Correcciones() {
     const usuario = await requerirUsuario()
     const resultado = await solicitudes(pagina, soloPendientes, usuario.perfil === 'becario' ? usuario.id : undefined)
     const nombres = await nombresDe(resultado.filas.flatMap(s => [s.becario_id, ...(s.resuelto_por ? [s.resuelto_por] : [])]))
-    return { usuario, ...resultado, nombres }
+    // Solo el administrador: solicitudes que nadie puede resolver hasta asignar ingeniero (0026).
+    const sinIngeniero = usuario.perfil === 'administrador' ? await becariosSinIngenieroActivo().catch(() => new Set<string>()) : new Set<string>()
+    return { usuario, ...resultado, nombres, sinIngeniero }
   }, [pagina, soloPendientes], 'No se pudieron cargar las solicitudes de corrección.')
   useAlReanudar(carga.recargar)
 
@@ -61,6 +64,10 @@ export default function Correcciones() {
           {s.accion !== 'eliminar' && <p>Propuesta: {s.tipo === 'entrada' ? 'Entrada' : 'Salida'} · {fechaHora(s.ocurrido_en)} · {s.modalidad === 'home_office' ? 'Home office' : 'Presencial'}</p>}
           <p>Motivo: {s.motivo}</p>
           {s.respuesta && <p>Respuesta: {s.respuesta} · {datos.nombres.get(s.resuelto_por ?? '') ?? 'Responsable'} · {fechaHora(s.resuelto_en)}</p>}
+          {s.estado === 'pendiente' && datos.sinIngeniero.has(s.becario_id) && <div className="fila">
+            <p className="crece">Sin ingeniero activo: nadie puede resolverla.</p>
+            <Boton variante="secundario" onClick={() => navegar(`/admin/becario/${s.becario_id}/asignar`)}>Asignar ingeniero</Boton>
+          </div>}
           {datos.usuario.perfil === 'ingeniero' && s.estado === 'pendiente' && <div className="fila">
             <Boton deshabilitado={ocupado} onClick={() => { setRespuesta(''); setResolucion({ solicitud: s, aprobar: true }) }}>Aprobar</Boton>
             <Boton variante="secundario" deshabilitado={ocupado} onClick={() => { setRespuesta(''); setResolucion({ solicitud: s, aprobar: false }) }}>Rechazar</Boton>
