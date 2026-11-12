@@ -1,6 +1,6 @@
 # DocenCheck Web (PWA)
 
-Versión web de DocenCheck que reemplaza a la app Android nativa (`../app`). Se
+Versión web de DocenCheck que reemplaza a la app Android nativa (retirada del repo). Se
 instala en el celular como una app (icono en la pantalla de inicio, pantalla
 completa, funciona sin red para registrar asistencia) en **Android y iPhone**,
 sin pasar por Play Store ni App Store.

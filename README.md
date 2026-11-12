@@ -6,7 +6,7 @@ Este repositorio consolida las tres propuestas del avance de Proyecto Integrador
 
 - **Propuesta 1** — Migración de Supabase Cloud a Supabase self-hosted en un VPS propio (Hostinger + Docker + Nginx).
 - **Propuesta 2** — Nueva versión de la app enfocada en Servicio Social, con pantallas rediseñadas para los tres perfiles.
-- **Propuesta 3** — Integración de APIs (CameraX, ML Kit, TensorFlow Lite, WorkManager, entre otras).
+- **Propuesta 3** — Integración de APIs (CameraX, ML Kit, TensorFlow Lite, WorkManager, entre otras). Se hizo en la app Android, que ya no se usa y se retiró del repo; su código sigue en el historial de git (antes del commit que la quita).
 
 ## Stack
 
@@ -24,7 +24,6 @@ Este repositorio consolida las tres propuestas del avance de Proyecto Integrador
 ```
 becarios/
 ├── web/               # Webapp/PWA (React + TypeScript) — la app actual
-├── app/               # App Android anterior (Kotlin + Jetpack Compose), reemplazada por web/
 ├── backend/
 │   ├── supabase/      # Config y docker-compose de Supabase self-hosted
 │   └── sql/           # Migraciones y esquema de la base de datos
@@ -45,12 +44,6 @@ Ver `docs/plan-construccion-becarios.md` para el plan completo por fases (base d
 
 Funciona en Android y iPhone desde el navegador y se instala con "Agregar a pantalla de inicio".
 Desarrollo, despliegue en Vercel e instalación: `web/README.md`.
-
-## Compilar la app Android anterior
-
-1. Copia `local.properties.example` a `local.properties` y llena `sdk.dir`, `SUPABASE_URL` y `SUPABASE_PUBLISHABLE_KEY`.
-2. Usa JDK 17 y corre `./gradlew assembleDebug testDebugUnitTest` (en Windows, `gradlew.bat`).
-3. El APK queda en `app/build/outputs/apk/debug/`.
 
 ## Equipo
 
