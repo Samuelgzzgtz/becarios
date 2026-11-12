@@ -18,6 +18,8 @@ export default function AsistenciasBecario() {
   const navegar = useNavigate()
   const ubicacion = useLocation()
   const base = ubicacion.pathname.startsWith('/admin') ? '/admin' : '/ingeniero'
+  // El administrador solo consulta: corrige el ingeniero asignado (0026).
+  const corrige = base === '/ingeniero'
   const volver = useVolver(`${base}/becarios`)
   const avisos = useAvisos()
   const [filtro, setFiltro] = useState<FiltroFechas | null>(null)
@@ -43,11 +45,11 @@ export default function AsistenciasBecario() {
   }
 
   return <Pantalla titulo="Asistencias" subtitulo={nombre.datos ?? 'Becario'} onVolver={volver}>
-    <Boton variante="secundario" onClick={() => { setAEliminar(undefined); setFormulario(true) }}>Corregir asistencia</Boton>
+    {corrige && <Boton variante="secundario" onClick={() => { setAEliminar(undefined); setFormulario(true) }}>Corregir asistencia</Boton>}
     <Boton variante="texto" onClick={() => navegar(`${base}/becario/${id}/historial-cambios`)}>Ver historial de cambios</Boton>
     {formulario && <FormularioCorreccion key={aEliminar?.id ?? id} becarioId={id} ocupado={ocupado} manual registroAEliminar={aEliminar} onGuardar={guardar} onCancelar={() => setFormulario(false)} />}
     <FiltrosFecha filtro={filtro} onFiltro={setFiltro} conSemanaPasada onLimpiar={() => setFiltro(null)} />
     <div className="chips"><Chip texto="Todos" activo={tipo == null} onClick={() => setTipo(null)} /><Chip texto="Entradas" activo={tipo === 'entrada'} onClick={() => setTipo('entrada')} /><Chip texto="Salidas" activo={tipo === 'salida'} onClick={() => setTipo('salida')} /></div>
-    <SegunEstado estado={carga.estado} onReintentar={carga.recargar}>{lista => lista.length ? <AsistenciasPorDia lista={lista} onEliminar={item => { if (!ocupado) { setAEliminar(item.asistencia); setFormulario(true) } }} /> : <EstadoVacio titulo="Sin asistencias en este rango" mensaje="Prueba con otras fechas." icono={CalendarX} />}</SegunEstado>
+    <SegunEstado estado={carga.estado} onReintentar={carga.recargar}>{lista => lista.length ? <AsistenciasPorDia lista={lista} onEliminar={corrige ? item => { if (!ocupado) { setAEliminar(item.asistencia); setFormulario(true) } } : undefined} /> : <EstadoVacio titulo="Sin asistencias en este rango" mensaje="Prueba con otras fechas." icono={CalendarX} />}</SegunEstado>
   </Pantalla>
 }

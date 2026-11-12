@@ -30,7 +30,7 @@ export default function Correcciones() {
 
   function enviar(p: PropuestaCorreccion) {
     void ejecutar(async () => {
-      try { await solicitar(p); setFormulario(null); setPagina(0); carga.recargar(); avisos.exito('Solicitud enviada. Tu ingeniero o un administrador la revisará.') }
+      try { await solicitar(p); setFormulario(null); setPagina(0); carga.recargar(); avisos.exito('Solicitud enviada. Tu ingeniero la revisará.') }
       catch (e) { avisos.error(mensajeAmigable(e, 'No se pudo enviar la solicitud.')) }
     })
   }
@@ -61,7 +61,7 @@ export default function Correcciones() {
           {s.accion !== 'eliminar' && <p>Propuesta: {s.tipo === 'entrada' ? 'Entrada' : 'Salida'} · {fechaHora(s.ocurrido_en)} · {s.modalidad === 'home_office' ? 'Home office' : 'Presencial'}</p>}
           <p>Motivo: {s.motivo}</p>
           {s.respuesta && <p>Respuesta: {s.respuesta} · {datos.nombres.get(s.resuelto_por ?? '') ?? 'Responsable'} · {fechaHora(s.resuelto_en)}</p>}
-          {datos.usuario.perfil !== 'becario' && s.estado === 'pendiente' && <div className="fila">
+          {datos.usuario.perfil === 'ingeniero' && s.estado === 'pendiente' && <div className="fila">
             <Boton deshabilitado={ocupado} onClick={() => { setRespuesta(''); setResolucion({ solicitud: s, aprobar: true }) }}>Aprobar</Boton>
             <Boton variante="secundario" deshabilitado={ocupado} onClick={() => { setRespuesta(''); setResolucion({ solicitud: s, aprobar: false }) }}>Rechazar</Boton>
           </div>}

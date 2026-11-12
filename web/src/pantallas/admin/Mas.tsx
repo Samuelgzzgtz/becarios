@@ -10,7 +10,7 @@ export default function MasAdmin() {
       <Accesos
         accesos={[
           { titulo: 'Registros por revisar', detalle: 'Jornadas largas, turnos sin salida y más', icono: Hourglass, ruta: '/admin/revisar' },
-          { titulo: 'Correcciones de asistencia', detalle: 'Revisar solicitudes de los becarios', icono: ClipboardPen, ruta: '/admin/correcciones' },
+          { titulo: 'Correcciones de asistencia', detalle: 'Solicitudes de los becarios', icono: ClipboardPen, ruta: '/admin/correcciones' },
           { titulo: 'Historial de cambios', detalle: 'Responsables y motivos de cada cambio', icono: History, ruta: '/admin/historial-cambios' },
           { titulo: 'Firmas SIASE', detalle: 'Firma en lote los reportes mensuales', icono: ClipboardCheck, ruta: '/admin/siase' },
           { titulo: 'Reporte de horas', detalle: 'Avance por ingeniero y becario', icono: BarChart3, ruta: '/admin/reporte-horas' },
