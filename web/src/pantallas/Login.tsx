@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { SignIn, useAuth } from '@clerk/react'
 import { CircleAlert, LogOut, RefreshCw, UserLock } from 'lucide-react'
-import { cerrarSesion, refrescar, sesionActiva } from '../datos/sesion'
+import { cerrarSesion, pasoSinPerfil, refrescar, sesionActiva } from '../datos/sesion'
 import { ErrorDeNegocio, mensajeAmigable } from '../lib/errores'
 import { AvisoBanner, Boton, IconoCircular, Logo, Tarjeta } from '../ui/componentes'
 import { PantallaCompleta, rutaInicial } from '../ui/navegacion'
@@ -12,12 +12,16 @@ import { PantallaCompleta, rutaInicial } from '../ui/navegacion'
  * Tras entrar, el perfil de usuarios decide a qué panel va (becario, ingeniero o
  * administración). Si la cuenta aún no tiene acceso, se explica en vez de entrar.
  */
+const SIN_VERIFICAR = 'No se pudo verificar tu sesión. Vuelve a intentar.'
+
 export default function Login() {
   const navegar = useNavigate()
-  const { isLoaded, isSignedIn } = useAuth()
+  const { isLoaded, isSignedIn, userId } = useAuth()
   const [estado, setEstado] = useState<'verificando' | 'formulario' | 'sin_acceso'>('verificando')
   const [error, setError] = useState<string | null>(null)
   const [reintentando, setReintentando] = useState(false)
+  /** Reintentos automáticos con sesión de Clerk y sin perfil todavía (ver pasoSinPerfil). */
+  const [intento, setIntento] = useState(0)
 
   useEffect(() => {
     document.title = 'Iniciar sesión · Pasalista'
@@ -27,8 +31,15 @@ export default function Login() {
     setError(null)
     try {
       const u = forzar ? await refrescar().then(() => sesionActiva()) : await sesionActiva()
-      if (u) navegar(rutaInicial(u.perfil), { replace: true })
-      else setEstado('formulario')
+      if (u) return navegar(rutaInicial(u.perfil), { replace: true })
+      const paso = pasoSinPerfil(!!isSignedIn, forzar ? 0 : intento)
+      if (paso === 'reintentar') {
+        setEstado('verificando')
+        window.setTimeout(() => setIntento((n) => n + 1), 400)
+      } else if (paso === 'sin_verificar') {
+        setError(SIN_VERIFICAR)
+        setEstado('sin_acceso')
+      } else setEstado('formulario')
     } catch (e) {
       // Sin perfil asignado o dada de baja en Clerk: se explica. Sin red u otro
       // error: el formulario con el motivo (A-11).
@@ -44,9 +55,11 @@ export default function Login() {
       if (!navigator.onLine) void verificar()
       return
     }
+    // Con sesión, el splash en vez del formulario que Clerk ya ocultó.
+    if (isSignedIn) setEstado('verificando')
     void verificar()
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isLoaded, isSignedIn])
+  }, [isLoaded, isSignedIn, userId, intento])
 
   if (estado === 'verificando') return <PantallaCompleta texto="Verificando tu sesión…" />
 
@@ -63,7 +76,7 @@ export default function Login() {
           <Tarjeta>
             <div className="columna" style={{ alignItems: 'center', textAlign: 'center', gap: 12, padding: 8 }}>
               <IconoCircular icono={UserLock} tono="alerta" tamano={56} />
-              <h2 className="titulo-m">Todavía no tienes acceso</h2>
+              <h2 className="titulo-m">{error === SIN_VERIFICAR ? 'No se pudo entrar' : 'Todavía no tienes acceso'}</h2>
               <p className="texto-2">{error ?? 'Tu cuenta aún no tiene acceso a Pasalista.'}</p>
               <Boton
                 ancho
@@ -71,11 +84,12 @@ export default function Login() {
                 cargando={reintentando}
                 onClick={async () => {
                   setReintentando(true)
+                  setIntento(0)
                   await verificar(true)
                   setReintentando(false)
                 }}
               >
-                Ya me dieron acceso
+                {error === SIN_VERIFICAR ? 'Volver a intentar' : 'Ya me dieron acceso'}
               </Boton>
               <Boton
                 ancho

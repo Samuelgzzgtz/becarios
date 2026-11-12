@@ -144,6 +144,21 @@ export async function sesionActiva(): Promise<Usuario | null> {
   return u
 }
 
+/** Reintentos (cada 400 ms) cuando Clerk ya tiene sesión pero el perfil aún no se pudo leer. */
+export const REINTENTOS_LOGIN = 5
+
+/**
+ * Qué hace el login cuando la verificación no devolvió perfil. Justo después de
+ * escribir la contraseña Clerk ya oculta su formulario, pero el resto de la app
+ * tarda un instante en ver la sesión: mostrar el formulario ahí dejaba la
+ * pantalla vacía hasta recargar. Con sesión se reintenta y, si no se logra, se
+ * explica en vez de quedarse en blanco.
+ */
+export function pasoSinPerfil(conSesionClerk: boolean, intento: number): 'formulario' | 'reintentar' | 'sin_verificar' {
+  if (!conSesionClerk) return 'formulario'
+  return intento < REINTENTOS_LOGIN ? 'reintentar' : 'sin_verificar'
+}
+
 /** Cierra la sesión de Clerk y borra la copia local del perfil. */
 export async function cerrarSesion(): Promise<void> {
   usuarioActual = null
