@@ -623,5 +623,5 @@ Fecha: 2026-10-20 · Alcance de esta pasada: lógica, datos, backend, sesión, n
 | B-08 | Corregido | Se pide confirmación al cerrar sesión cuando hay registros sin subir. |
 | B-09 | Corregido | Las fechas se parsean a `Instant` antes de comparar. |
 | B-10 | No aplica | Hallazgo especulativo: requiere calibrar con fotos reales tomadas con la cámara frontal. |
-| B-11 | Corregido / Pendiente (backend) | Validación de formato de correo. UI: teclado de correo, contraseña visible/oculta, botón "Generar contraseña segura" y errores por campo. **Pendiente:** obligar a cambiar la contraseña en el primer acceso (requiere flujo de backend). |
+| B-11 | Corregido | Validación de formato de correo. UI: teclado de correo, contraseña visible/oculta, botón "Generar contraseña segura" y errores por campo. Obligar a cambiar la contraseña en el primer acceso **ya no aplica**: desde el login con Clerk (0018) el administrador no crea contraseñas; cada persona entra con su propia cuenta. |
 | B-12 | Corregido | Cada ruta revisa el perfil (`protegida(...)`) y, tras la muerte del proceso, recarga la sesión antes de decidir. Con otro perfil o sin sesión, vuelve al login. |

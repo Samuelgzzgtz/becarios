@@ -15,7 +15,8 @@ Este repositorio consolida las tres propuestas del avance de Proyecto Integrador
 | Frontend | **Webapp instalable (PWA)**: React + TypeScript, en Vercel — ver `web/README.md` |
 | Reconocimiento facial | Cámara del navegador + MediaPipe + el mismo modelo TFLite (LiteRT.js), todo en el teléfono |
 | Persistencia local | IndexedDB (cola de asistencias sin red) |
-| Backend / API | Supabase self-hosted (Postgres + GoTrue Auth + PostgREST + Kong + Storage + Studio) |
+| Login | Clerk (Supabase Third-Party Auth) |
+| Backend / API | Supabase (Postgres + PostgREST + Storage + Edge Functions); hoy en Supabase Cloud, self-hosted pendiente |
 | Infraestructura | VPS Hostinger + Docker + Nginx (reverse proxy) |
 
 ## Estructura del repo
@@ -34,7 +35,9 @@ Ver `docs/plan-construccion-becarios.md` para el plan completo por fases (base d
 
 ## Estado actual
 
-- **Backend:** Supabase Cloud (proyecto `rcvpowylehewvsxquhip`) con las migraciones `backend/sql/0001`–`0017` aplicadas. La migración a self-hosted (Fase 1) sigue pendiente.
+- **Backend:** Supabase Cloud (proyecto `rcvpowylehewvsxquhip`) con login de Clerk. Las migraciones van de `backend/sql/0001` a `0026` y se aplican en orden (`backend/sql/README.md`). La migración a self-hosted (Fase 1) sigue pendiente.
+- **Revisión:** todo registro hecho por el becario queda por revisar hasta que lo aprueba su ingeniero asignado; el administrador solo consulta (`docs/integridad-horas.md`).
+- **CI:** `.github/workflows/ci.yml` corre lint, pruebas (incluidas las migraciones sobre PGlite) y build en cada PR.
 - **App:** pantallas de los tres perfiles completas, con el rediseño UX/UI descrito en `docs/sistema-diseno.md`.
 - **Auditoría:** `docs/auditoria-ux.md` lista los 55 hallazgos de UX y lógica, y en "Estado de corrección" dice cuáles ya se corrigieron.
 

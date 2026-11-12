@@ -15,7 +15,7 @@ contrato entre la base (`backend/sql/0021_integridad_horas.sql`) y la app (`web/
 
 - La regla del mismo día local (0012) se conserva: una salida después de la medianoche
   deja el turno abierto y no suma; se corrige con "Agregar registro".
-- Los registros que **agrega un ingeniero o administrador** (`origen = 'manual'`) son de
+- Los registros que **agrega el ingeniero asignado** (`origen = 'manual'`) son de
   confianza y suman aunque pasen el tope; quedan en la bitácora.
 - La hora del cliente solo se reescribe cuando es futura. Dentro de la tolerancia, o con
   atraso, se conserva tal cual (así un reintento de la cola sigue siendo un duplicado exacto
@@ -42,13 +42,13 @@ Helpers existentes: `es_admin()`, `es_ingeniero_de(becario)`, `usuario_activo()`
 | --- | --- | --- |
 | `origen` | text, `'en_linea' \| 'cola' \| 'manual'`, default `'en_linea'` | Lo calcula el servidor; el cliente no lo decide |
 | `revision` | text, `'ok' \| 'por_revisar' \| 'aprobada'`, default `'ok'` | Idem |
-| `motivo_revision` | text null | `'atraso_cola' \| 'reloj_adelantado' \| 'sin_ubicacion' \| 'fuera_de_zona' \| 'sin_rostro' \| 'modalidad_distinta'` (los dos últimos desde 0023) |
+| `motivo_revision` | text null | `'atraso_cola' \| 'reloj_adelantado' \| 'sin_ubicacion' \| 'fuera_de_zona' \| 'sin_rostro' \| 'modalidad_distinta' \| 'revision_humana'` (`sin_rostro` y `modalidad_distinta` desde 0023; `revision_humana` desde 0024: todo autorregistro sin otro motivo, porque la coincidencia facial se calcula en el teléfono) |
 | `puntaje_rostro` | numeric(5,4) null, 0 a 1 | Lo manda el cliente |
 
 Trigger `BEFORE INSERT` (se ejecuta antes de `asistencias_validar`): ignora y recalcula
 `origen`, `revision` y `motivo_revision` aunque el cliente los mande.
 
-- Inserta otra persona que no es el becario (ingeniero/administrador): `origen='manual'`, `revision='ok'`.
+- Inserta otra persona que no es el becario (el ingeniero asignado, con `corregir_asistencia`): `origen='manual'`, `revision='ok'`.
 - Inserta el propio becario: atraso = `now() - ocurrido_en`.
   - atraso entre `-tolerancia` y `+tolerancia`: `en_linea`, `ok`.
   - atraso mayor que la tolerancia: `origen='cola'`; si pasa `atraso_maximo_minutos` → `por_revisar` / `atraso_cola`.
@@ -113,7 +113,7 @@ Ordenar por `fecha, becario_nombre, ocurrido_en` (0025: lo más antiguo primero)
 
 ```sql
 aprobar_asistencia(p_asistencia uuid, p_jornada boolean default false) returns void
-  -- ingeniero asignado o admin, nunca el propio becario; deja revision='aprobada' y, con p_jornada, jornada_aprobada
+  -- solo el ingeniero asignado (0026), nunca el propio becario; deja revision='aprobada' y, con p_jornada, jornada_aprobada
 aprobar_asistencias(p_ids uuid[]) returns integer       -- lote solo de revision_humana (todo o nada), sin confirmar jornadas
 bitacora_asistencias_de(p_becario uuid, p_limite int default 50)
 returns table (id bigint, hecho_en timestamptz, accion text, hecho_por uuid,
@@ -148,7 +148,8 @@ opcional (`p_despues_en`, `p_despues_id`) además de `p_offset` (0025).
   de anomalías y acciones **Aprobar** (jornada larga, atraso, reloj, ubicación) o **Agregar
   salida / corregir** (lleva a las asistencias del becario). En las asistencias del becario:
   etiquetas de revisión y la bitácora de cambios.
-- Administrador: la misma lista en `/admin/revisar` (todos los becarios); en Configuración,
+- Administrador: la misma lista en `/admin/revisar` (todos los becarios), solo para consulta
+  desde 0026; en Configuración,
   tarjeta "Reglas de asistencia" (tres valores) y "Zonas de registro" (alta con "usar mi
   ubicación actual", activar/desactivar y quitar).
 
