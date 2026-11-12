@@ -23,10 +23,12 @@ export default function Correcciones() {
   const [respuesta, setRespuesta] = useState('')
   const carga = useCarga(async () => {
     const usuario = await requerirUsuario()
-    const resultado = await solicitudes(pagina, soloPendientes, usuario.perfil === 'becario' ? usuario.id : undefined)
-    const nombres = await nombresDe(resultado.filas.flatMap(s => [s.becario_id, ...(s.resuelto_por ? [s.resuelto_por] : [])]))
     // Solo el administrador: solicitudes que nadie puede resolver hasta asignar ingeniero (0026).
-    const sinIngeniero = usuario.perfil === 'administrador' ? await becariosSinIngenieroActivo().catch(() => new Set<string>()) : new Set<string>()
+    const [resultado, sinIngeniero] = await Promise.all([
+      solicitudes(pagina, soloPendientes, usuario.perfil === 'becario' ? usuario.id : undefined),
+      usuario.perfil === 'administrador' ? becariosSinIngenieroActivo().catch(() => new Set<string>()) : new Set<string>()
+    ])
+    const nombres = await nombresDe(resultado.filas.flatMap(s => [s.becario_id, ...(s.resuelto_por ? [s.resuelto_por] : [])]))
     return { usuario, ...resultado, nombres, sinIngeniero }
   }, [pagina, soloPendientes], 'No se pudieron cargar las solicitudes de corrección.')
   useAlReanudar(carga.recargar)

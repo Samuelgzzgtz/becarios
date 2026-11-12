@@ -55,8 +55,8 @@ const PRIORIDAD: Record<Fallo, number> = { sin_rostro: 0, demasiado_pequeno: 1, 
  * Analiza hasta [intentos] cuadros seguidos y se queda con el mejor: un parpadeo o
  * una foto movida ya no rechazan al becario. [cuadro] toma un cuadro nuevo y da sus
  * variantes (rostro.ts: derecho y girado) sin procesarlas todavía: solo se procesa
- * la siguiente si la anterior no coincidió. Un cuadro sin rostro útil (ninguno,
- * muy chico o más de uno) se descarta entero, sin probar giros.
+ * la siguiente si la anterior no coincidió. Un cuadro con el rostro muy chico o con
+ * más de uno se descarta entero, sin probar giros.
  */
 export async function verificar(
   cuadro: () => (() => Promise<Deteccion>)[],
@@ -72,6 +72,9 @@ export async function verificar(
       const r = await variante()
       if (r.tipo !== 'rostro') {
         if (fallo == null || PRIORIDAD[r.tipo] > PRIORIDAD[fallo]) fallo = r.tipo
+        // Sin rostro puede ser la cabeza ladeada: se prueba el giro. Muy chico o con
+        // otra persona en la foto, girar no lo arregla.
+        if (r.tipo === 'sin_rostro') continue
         break
       }
       if (!dimensionesCompatibles(r.embedding, guardado)) return { tipo: 'incompatible' }

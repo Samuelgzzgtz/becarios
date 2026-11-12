@@ -546,7 +546,7 @@ describe('(i) anomalias_asistencia', () => {
 })
 
 describe('(j) aprobar_asistencia', () => {
-  it('solo el ingeniero asignado o el administrador; cambia el conteo de horas', async () => {
+  it('solo el ingeniero asignado; cambia el conteo de horas', async () => {
     const salida = await jornadaLarga()
     expect(await horas(db, 'bec1', DIA_DESDE, DIA_HASTA)).toBe(0)
 

@@ -1,4 +1,4 @@
--- Ejecutar después de 0022 como dueño de las tablas (postgres). Todo se revierte,
+-- Ejecutar después de 0026 como dueño de las tablas (postgres). Todo se revierte,
 -- incluso si una aserción falla.
 begin;
 

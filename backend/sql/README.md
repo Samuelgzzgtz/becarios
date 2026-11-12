@@ -140,7 +140,7 @@ toque el backend:
 - **Zona horaria.** La base sigue en `TimeZone = UTC` (no se cambió a nivel base para
   no afectar otros timestamps). Las funciones de negocio convierten explícitamente con
   `hoy_local()` / `inicio_dia_local(fecha)` (`America/Monterrey`). La app usa la misma
-  zona (`core/util/FechaUi.kt`), nunca `ZoneId.systemDefault()`.
+  zona (`web/src/lib/fechas.ts`), nunca la del teléfono.
 - **Horas.** `horas_trabajadas` empareja entrada→salida solo si ambas caen el mismo día
   local. Una entrada sin salida ese día no suma (antes sumaba 24 h con la salida del día
   siguiente).

@@ -4,7 +4,7 @@ import { ErrorDeNegocio, MENSAJE_SIN_CONEXION, mensajeAmigable } from './errores
 import { aInstante, diaSemana, fechaLocal, inicioDia, lunesDe, mesLargo, parsear, sumarMeses } from './fechas'
 import { enRiesgo, horasPorDia, permiteSubir, siguienteTipoSegun, type Asistencia, type ProgresoBecario, type TipoAsistencia } from './modelos'
 
-/* Mismos casos que app/src/test/.../LogicaNegocioTest.kt de la versión Android. */
+/* Mismos casos que LogicaNegocioTest.kt de la app Android retirada (está en el historial de git). */
 
 const local = (fecha: string, hora: string) => aInstante(fecha, hora).toISOString()
 const registro = (tipo: TipoAsistencia, iso: string): Asistencia => ({ becario_id: 'b', tipo, ocurrido_en: iso, modalidad: 'presencial' })
@@ -129,6 +129,8 @@ describe('comparación facial', () => {
       expect(await verificar(() => [marca('derecho', coincide), marca('giro', coincide)], guardado, 1, sinPausa)).toMatchObject({ tipo: 'coincide' })
       expect(procesadas).toEqual(['derecho'])
       expect(await verificar(() => [variante({ tipo: 'rostro', embedding: [0, 1] }), variante(coincide)], guardado, 1, sinPausa)).toMatchObject({ tipo: 'coincide' })
+      // Con la cabeza ladeada el detector puede no ver el rostro derecho, pero sí girado.
+      expect(await verificar(() => [variante({ tipo: 'sin_rostro' }), variante(coincide)], guardado, 1, sinPausa)).toMatchObject({ tipo: 'coincide' })
     })
 
     it('un cuadro con varios rostros se descarta sin probar giros y es el motivo que se muestra', async () => {

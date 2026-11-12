@@ -69,7 +69,16 @@ export default function RegistrarAsistencia() {
     try {
       const video = camara.video.current
       if (!video) throw new ErrorDeNegocio('La cámara no está lista. Espera un segundo e intenta de nuevo.')
-      const nuevo = await registrar(() => variantesConGiros(capturarCuadro(video)))
+      // Cada cuadro es un canvas a resolución completa: se libera al tomar el siguiente y al terminar (iOS).
+      let cuadro: HTMLCanvasElement | null = null
+      const liberar = () => {
+        if (cuadro) cuadro.width = cuadro.height = 0
+      }
+      const nuevo = await registrar(() => {
+        liberar()
+        cuadro = capturarCuadro(video)
+        return variantesConGiros(cuadro)
+      }).finally(liberar)
       setEstado(nuevo)
       if (nuevo.tipo === 'exito') void cargarInfo()
     } catch (e) {
