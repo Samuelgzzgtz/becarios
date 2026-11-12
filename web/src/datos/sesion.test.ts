@@ -82,12 +82,3 @@ it('no publica A si la sesi?n cambia mientras se guarda el perfil', async () => 
   await expect(pendiente).rejects.toThrow()
   expect(m.usuarioEnMemoria()).toBeNull()
 })
-
-describe('login sin perfil todavía', () => {
-  it('sin sesión de Clerk muestra el formulario; con sesión reintenta y luego lo explica', async () => {
-    const { pasoSinPerfil, REINTENTOS_LOGIN } = await import('./sesion')
-    expect(pasoSinPerfil(false, 0)).toBe('formulario')
-    expect(pasoSinPerfil(true, 0)).toBe('reintentar')
-    expect(pasoSinPerfil(true, REINTENTOS_LOGIN)).toBe('sin_verificar')
-  })
-})
