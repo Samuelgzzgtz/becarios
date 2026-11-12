@@ -292,13 +292,7 @@ describe('(f) alta manual por el ingeniero', () => {
   it('un ingeniero que no es el asignado no puede agregar', async () => {
     await como(db, 'ing2')
     const e = await error(insertarManual({ becario: 'bec1', tipo: 'entrada', en: t('08:00') }))
-    expect(e.message).toMatch(/No puedes corregir/)
-  })
-
-  it('el administrador también agrega como manual', async () => {
-    await como(db, 'admin')
-    const fila = await insertarManual({ becario: 'bec2', tipo: 'entrada', en: t('09:00') })
-    expect(fila.origen).toBe('manual')
+    expect(e.message).toMatch(/Solo el ingeniero asignado/)
   })
 
   it('también conserva las marcaciones propias del becario en la bitácora', async () => {
@@ -552,7 +546,7 @@ describe('(i) anomalias_asistencia', () => {
 })
 
 describe('(j) aprobar_asistencia', () => {
-  it('solo el ingeniero asignado o el administrador; cambia el conteo de horas', async () => {
+  it('solo el ingeniero asignado; cambia el conteo de horas', async () => {
     const salida = await jornadaLarga()
     expect(await horas(db, 'bec1', DIA_DESDE, DIA_HASTA)).toBe(0)
 
@@ -576,9 +570,9 @@ describe('(j) aprobar_asistencia', () => {
     expect(await horas(db, 'bec1', DIA_DESDE, DIA_HASTA)).toBeCloseTo(15.98, 2)
   })
 
-  it('el administrador puede aprobar y aprobar dos veces no duplica la bitácora', async () => {
+  it('aprobar dos veces no duplica la bitácora', async () => {
     const salida = await jornadaLarga()
-    await como(db, 'admin')
+    await como(db, 'ing1')
     await db.query('select public.aprobar_asistencia($1)', [salida])
     await db.query('select public.aprobar_asistencia($1)', [salida])
     expect((await bitacora()).map((x) => x.accion)).toEqual(['agregar', 'agregar', 'aprobar'])

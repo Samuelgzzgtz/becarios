@@ -369,6 +369,12 @@ export function listarPorPerfil(perfil: Perfil, incluirInactivos = false): Promi
   return q(consulta.order('nombre'))
 }
 
+/** Becario → ingeniero de las asignaciones vigentes (el administrador ve todas por RLS). */
+export async function asignacionesVigentes(): Promise<Map<string, string>> {
+  const filas = await q(supabase.from('ingenieros_becarios').select('becario_id, ingeniero_id').eq('activo', true).returns<{ becario_id: string; ingeniero_id: string }[]>())
+  return new Map(filas.map((f) => [f.becario_id, f.ingeniero_id]))
+}
+
 /** El ingeniero vigente de un becario (A-10). */
 export async function ingenieroAsignadoDe(becarioId: string): Promise<string | null> {
   const fila = await q(

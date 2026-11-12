@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { CalendarPlus, CalendarX, CheckCircle2, ClipboardCheck, Clock, MapPinOff, MapPin, ScanFace, TriangleAlert, Watch, type LucideProps } from 'lucide-react'
+import { CalendarDays, CalendarPlus, CalendarX, CheckCircle2, ClipboardCheck, Clock, MapPinOff, MapPin, ScanFace, TriangleAlert, Watch, type LucideProps } from 'lucide-react'
 import type { ComponentType } from 'react'
 import { anomalias, aprobarAsistencia, aprobarAsistencias } from '../../datos/asistencias'
 import { mensajeAmigable } from '../../lib/errores'
@@ -85,8 +85,16 @@ function porBecario(lista: Anomalia[]): { id: string; nombre: string; items: Ano
  * Lista de registros por revisar (RPC anomalias_asistencia), agrupada por becario.
  * La usan el ingeniero (sus becarios) y el administrador (todos): el servidor decide qué se ve.
  * [rutaBecario] lleva a las asistencias del becario, donde se agrega la salida o se corrige.
+ * [soloLectura]: el administrador solo mira; aprueba el ingeniero asignado (0026).
+ * [rutaAsignar]: ruta para asignarle ingeniero a un becario que no tiene uno activo (nadie puede aprobarle); null si sí tiene.
  */
-export default function Revisar(props: { rutaBecario: (becarioId: string) => string; rutaVolver: string; onNavegar: (ruta: string) => void }) {
+export default function Revisar(props: {
+  rutaBecario: (becarioId: string) => string
+  rutaVolver: string
+  onNavegar: (ruta: string) => void
+  soloLectura?: boolean
+  rutaAsignar?: (becarioId: string) => string | null
+}) {
   const volver = useVolver(props.rutaVolver)
   const avisos = useAvisos()
   const { estado, recargar, actualizar } = useCarga(() => anomalias(), [], 'No se pudo cargar la lista de registros por revisar.')
@@ -94,7 +102,7 @@ export default function Revisar(props: { rutaBecario: (becarioId: string) => str
   const [aAprobar, setAAprobar] = useState<Anomalia | null>(null)
   const [aprobarTodos, setAprobarTodos] = useState(false)
   const [aprobando, setAprobando] = useState(false)
-  const idsLote = new Set(estado.tipo === 'listo' ? estado.datos.filter(seApruebaEnLote).map((a) => a.asistencia_id) : [])
+  const idsLote = new Set(estado.tipo === 'listo' && !props.soloLectura ? estado.datos.filter(seApruebaEnLote).map((a) => a.asistencia_id) : [])
 
   async function aprobar(a: Anomalia) {
     if (aprobando) return
@@ -178,7 +186,10 @@ export default function Revisar(props: { rutaBecario: (becarioId: string) => str
           onCancelar={() => setAAprobar(null)}
         />
       )}
-      <p className="chico texto-2">Desde el inicio del semestre. Un registro por revisar no suma horas hasta que se aprueba o se corrige.</p>
+      <p className="chico texto-2">
+        Desde el inicio del semestre. Un registro por revisar no suma horas hasta que se aprueba o se corrige.
+        {props.soloLectura && ' Los aprueba el ingeniero asignado a cada becario.'}
+      </p>
       {estado.tipo === 'listo' && estado.datos.length >= MAXIMO_FILAS && (
         <p className="chico texto-2">Mostrando los primeros {entero(MAXIMO_FILAS)}, los más antiguos. Al resolverlos aparecerán los demás.</p>
       )}
@@ -188,24 +199,35 @@ export default function Revisar(props: { rutaBecario: (becarioId: string) => str
             <EstadoVacio titulo="Todo en orden" mensaje="No hay registros por revisar en este semestre." icono={CheckCircle2} />
           ) : (
             <>
-              {porBecario(lista).map((g) => (
+              {porBecario(lista).map((g) => {
+                const asignar = props.rutaAsignar?.(g.id)
+                return (
                 <section key={g.id} className="columna" style={{ gap: 8 }} aria-label={`Registros de ${g.nombre}`}>
                   <div className="fila" style={{ paddingTop: 8 }}>
                     <Avatar nombre={g.nombre} tamano={36} />
                     <h3 className="titulo-s crece recortar">{g.nombre}</h3>
                     <span className="chico texto-2">{plural(g.items.length, 'pendiente', 'pendientes')}</span>
                   </div>
+                  {asignar && (
+                    <div className="fila" style={{ flexWrap: 'wrap' }}>
+                      <Badge texto="Sin ingeniero activo: nadie puede aprobar" tono="alerta" icono={TriangleAlert} />
+                      <Boton chico variante="secundario" onClick={() => props.onNavegar(asignar)}>
+                        Asignar ingeniero
+                      </Boton>
+                    </div>
+                  )}
                   {g.items.map((a) => (
                     <FilaAnomalia
                       key={`${a.tipo}-${a.asistencia_id}`}
                       a={a}
                       ocupado={aprobando}
-                      onAprobar={() => setAAprobar(a)}
+                      onAprobar={props.soloLectura ? undefined : () => setAAprobar(a)}
                       onCorregir={() => props.onNavegar(props.rutaBecario(a.becario_id))}
                     />
                   ))}
                 </section>
-              ))}
+                )
+              })}
             </>
           )
         }
@@ -214,7 +236,8 @@ export default function Revisar(props: { rutaBecario: (becarioId: string) => str
   )
 }
 
-function FilaAnomalia(props: { a: Anomalia; ocupado: boolean; onAprobar: () => void; onCorregir: () => void }) {
+/** Sin [onAprobar] (administrador) solo se puede ir a ver las asistencias del becario. */
+function FilaAnomalia(props: { a: Anomalia; ocupado: boolean; onAprobar?: () => void; onCorregir: () => void }) {
   const { a } = props
   // Un motivo nuevo de la base no debe romper una versión vieja de la app en caché.
   const I = ICONOS[a.tipo] ?? TriangleAlert
@@ -235,7 +258,11 @@ function FilaAnomalia(props: { a: Anomalia; ocupado: boolean; onAprobar: () => v
         {pruebas && <p className="chico texto-2">{pruebas}</p>}
         {a.tipo === 'jornada_larga' && a.horas != null && <p className="chico texto-2">Duración: {formatoHoras(a.horas)}</p>}
         <div className="fila" style={{ justifyContent: 'flex-end' }}>
-          {anomaliaSeAprueba(a.tipo) ? (
+          {!props.onAprobar ? (
+            <Boton icono={CalendarDays} variante="secundario" onClick={props.onCorregir} etiqueta={`Ver asistencias de ${a.becario_nombre}`}>
+              Ver asistencias
+            </Boton>
+          ) : anomaliaSeAprueba(a.tipo) ? (
             <Boton icono={CheckCircle2} deshabilitado={props.ocupado} onClick={props.onAprobar} etiqueta={`Aprobar ${etiqueta.toLowerCase()} de ${a.becario_nombre}`}>
               {a.tipo === 'jornada_larga' ? 'Confirmar jornada' : 'Aprobar'}
             </Boton>

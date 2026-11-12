@@ -2,7 +2,8 @@ import { useEffect, useRef, useState } from 'react'
 import { useParams } from 'react-router-dom'
 import { Camera, CheckCircle2, CircleAlert, CloudUpload, RefreshCw, TriangleAlert } from 'lucide-react'
 import { enrolar, tieneEnrolamiento, usuario as obtenerUsuario } from '../../datos/repositorios'
-import { NOMBRE_MODELO, capturarCuadro, prepararMotor, procesar, promediar } from '../../facial/rostro'
+import { promediar, similitudCoseno, UMBRAL_COINCIDENCIA } from '../../facial/comparar'
+import { NOMBRE_MODELO, capturarCuadro, prepararMotor, procesar } from '../../facial/rostro'
 import { mensajeAmigable } from '../../lib/errores'
 import { AvisoBanner, Boton, Dialogo, IconoCircular, Pantalla, useVolver, type Icono, type Tono } from '../../ui/componentes'
 import { MarcoCamara, PanelErrorCamara, useCamara, type EstadoGuia } from '../../ui/camara'
@@ -62,7 +63,10 @@ export default function Enrolamiento() {
       if (r.tipo === 'sin_rostro') setEstado({ tipo: 'error', mensaje: 'No se detectó un rostro. Intenta de nuevo.' })
       else if (r.tipo === 'varios_rostros') setEstado({ tipo: 'error', mensaje: 'Se detectó más de un rostro; solo debe estar el becario.' })
       else if (r.tipo === 'demasiado_pequeno') setEstado({ tipo: 'error', mensaje: 'Acércate más a la cámara.' })
-      else {
+      // Una foto que no se parece a las anteriores (otra persona, movida o a contraluz) echaría a perder el promedio.
+      else if (embeddings.current.length > 0 && similitudCoseno(r.embedding, promediar(embeddings.current)) < UMBRAL_COINCIDENCIA) {
+        setEstado({ tipo: 'error', mensaje: 'Esta foto no se parece a las anteriores. Que solo salga el becario, de frente y con buena luz.' })
+      } else {
         embeddings.current.push(r.embedding)
         setFotos(embeddings.current.length)
         if (embeddings.current.length < CAPTURAS_REQUERIDAS) setEstado({ tipo: 'capturando' })
@@ -74,6 +78,13 @@ export default function Enrolamiento() {
     } finally {
       enCurso.current = false
     }
+  }
+
+  /** Si la primera foto salió mal, las siguientes nunca se parecerán: se descartan todas. */
+  function empezarDeNuevo() {
+    embeddings.current = []
+    setFotos(0)
+    setEstado({ tipo: 'capturando' })
   }
 
   async function reintentarGuardado() {
@@ -103,11 +114,7 @@ export default function Enrolamiento() {
           textoConfirmar="Reemplazar"
           destructivo
           onConfirmar={reintentarGuardado}
-          onCancelar={() => {
-            embeddings.current = []
-            setFotos(0)
-            setEstado({ tipo: 'capturando' })
-          }}
+          onCancelar={empezarDeNuevo}
         />
       )}
 
@@ -157,9 +164,16 @@ export default function Enrolamiento() {
                     Reintentar guardado
                   </Boton>
                 ) : (
-                  <Boton ancho icono={RefreshCw} onClick={() => setEstado({ tipo: 'capturando' })}>
-                    Tomar la foto de nuevo
-                  </Boton>
+                  <>
+                    <Boton ancho icono={RefreshCw} onClick={() => setEstado({ tipo: 'capturando' })}>
+                      Tomar la foto de nuevo
+                    </Boton>
+                    {fotos > 0 && (
+                      <Boton ancho variante="secundario" onClick={empezarDeNuevo}>
+                        Empezar de nuevo
+                      </Boton>
+                    )}
+                  </>
                 )}
               </Resultado>
             ) : (

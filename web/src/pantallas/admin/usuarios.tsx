@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { KeyRound } from 'lucide-react'
-import { listarPorPerfil, listarPorPerfil as listar, progresoEquipo } from '../../datos/repositorios'
+import { asignacionesVigentes, listarPorPerfil, listarPorPerfil as listar, progresoEquipo } from '../../datos/repositorios'
 import type { EstadoUsuario, Perfil, Usuario } from '../../lib/modelos'
 import { Avatar, AvisoBanner, Badge, Segmentado } from '../../ui/componentes'
 import { etiquetaEstadoUsuario, tonoEstadoUsuario } from '../../ui/estadosVisuales'
@@ -35,6 +35,16 @@ export function AvisoCuentasClerk({ perfil }: { perfil: 'becario' | 'ingeniero' 
       onAccion={() => window.open(URL_DASHBOARD_CLERK, '_blank', 'noopener')}
     />
   )
+}
+
+/**
+ * Becarios activos sin ingeniero activo: desde 0026 nadie puede aprobar sus
+ * registros ni resolver sus solicitudes hasta que el administrador les asigne uno.
+ */
+export async function becariosSinIngenieroActivo(): Promise<Set<string>> {
+  const [becarios, ingenieros, asignaciones] = await Promise.all([listar('becario'), listar('ingeniero'), asignacionesVigentes()])
+  const activos = new Set(ingenieros.map((i) => i.id))
+  return new Set(becarios.filter((b) => !activos.has(asignaciones.get(b.id) ?? '')).map((b) => b.id))
 }
 
 /**

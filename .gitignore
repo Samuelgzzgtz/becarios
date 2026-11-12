@@ -1,21 +1,5 @@
-# Android / Gradle
-*.iml
-.gradle/
-.kotlin/
-local.properties
 /.idea/
 .DS_Store
-/build
-app/build/
-/captures
-.externalNativeBuild
-.cxx
-*.apk
-*.aab
-*.hprof
-
-# Kotlin
-*.class
 
 # Claude Code (config local de cada quien; los agentes en .claude/agents sí se versionan)
 .claude/settings.local.json

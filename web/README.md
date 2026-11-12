@@ -1,6 +1,6 @@
 # DocenCheck Web (PWA)
 
-Versión web de DocenCheck que reemplaza a la app Android nativa (`../app`). Se
+Versión web de DocenCheck que reemplaza a la app Android nativa (retirada del repo). Se
 instala en el celular como una app (icono en la pantalla de inicio, pantalla
 completa, funciona sin red para registrar asistencia) en **Android y iPhone**,
 sin pasar por Play Store ni App Store.
@@ -118,6 +118,13 @@ el mismo `mobilefacenet.tflite` de Android (licencia en `public/models/NOTICE.md
   distintas ≤ 0.35 (antes de calibrar se traslapaban). El umbral quedó en **0.55**
   (`src/facial/comparar.ts`). Conviene revisarlo con fotos del equipo tras las
   primeras semanas.
+- **Al registrar** se analizan hasta 3 cuadros seguidos y cada uno derecho y girado
+  ±12°; basta con que uno coincida. Con 18 retratos públicos de 9 personas, la cabeza
+  ladeada 10–18° fallaba 6 de 72 veces y ahora 0; la similitud máxima entre personas
+  distintas pasó de 0.41 a 0.43. Enderezar con los puntos de los ojos de MediaPipe se
+  probó y se descartó: en la misma foto daban hasta 10° de diferencia.
+- **Al enrolar** se rechaza una foto que no se parece al promedio de las anteriores
+  (otra persona, movida o a contraluz).
 - **Enrolamientos hechos con la app Android:** el recorte cambió, así que pueden
   no coincidir. Los enrolamientos nuevos se guardan con `modelo = 'mobilefacenet-web'`;
   si un becario enrolado en Android no es reconocido, su ingeniero debe volver a
@@ -138,8 +145,8 @@ abra.
 ## Correcciones de asistencia
 
 En **Registros → Solicitudes de corrección**, el becario puede solicitar agregar,
-modificar o eliminar una marcación con motivo. Su ingeniero o un administrador
-aprueba o rechaza y responde. Las correcciones directas también exigen motivo.
+modificar o eliminar una marcación con motivo. Su ingeniero asignado aprueba o
+rechaza y responde; el administrador solo consulta (0026). Las correcciones directas también exigen motivo.
 El historial conserva los valores anteriores/nuevos, responsable y fecha.
 Si otro supervisor cambió el registro mientras estaba abierto, hay que volver
 a seleccionarlo; una solicitud obsoleta se rechaza sin aplicar cambios.

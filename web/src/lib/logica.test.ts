@@ -1,10 +1,10 @@
 import { describe, expect, it } from 'vitest'
-import { coincide, similitudCoseno } from '../facial/comparar'
+import { coincide, promediar, similitudCoseno, verificar, type Deteccion } from '../facial/comparar'
 import { ErrorDeNegocio, MENSAJE_SIN_CONEXION, mensajeAmigable } from './errores'
 import { aInstante, diaSemana, fechaLocal, inicioDia, lunesDe, mesLargo, parsear, sumarMeses } from './fechas'
 import { enRiesgo, horasPorDia, permiteSubir, siguienteTipoSegun, type Asistencia, type ProgresoBecario, type TipoAsistencia } from './modelos'
 
-/* Mismos casos que app/src/test/.../LogicaNegocioTest.kt de la versión Android. */
+/* Mismos casos que LogicaNegocioTest.kt de la app Android retirada (está en el historial de git). */
 
 const local = (fecha: string, hora: string) => aInstante(fecha, hora).toISOString()
 const registro = (tipo: TipoAsistencia, iso: string): Asistencia => ({ becario_id: 'b', tipo, ocurrido_en: iso, modalidad: 'presencial' })
@@ -95,5 +95,56 @@ describe('comparación facial', () => {
     expect(similitudCoseno([1, 2, 3], [1, 2, 3])).toBeCloseTo(1)
     expect(coincide([1, 0], [0, 1])).toBe(false)
     expect(similitudCoseno([1, 2], [1, 2, 3])).toBe(0)
+  })
+
+  it('promedia por componente', () => {
+    expect(promediar([[1, 0], [0, 1]])).toEqual([0.5, 0.5])
+  })
+
+  describe('verificar con varios cuadros', () => {
+    const guardado = [1, 0]
+    const sinPausa = () => Promise.resolve()
+    const variante = (d: Deteccion) => () => Promise.resolve(d)
+    /** Cada llamada es un cuadro nuevo con las variantes indicadas. */
+    const cuadros = (...lista: Deteccion[][]) => {
+      let i = 0
+      return () => lista[Math.min(i++, lista.length - 1)].map(variante)
+    }
+
+    it('un cuadro malo no rechaza si el siguiente coincide', async () => {
+      const cuadro = cuadros([{ tipo: 'sin_rostro' }], [{ tipo: 'rostro', embedding: [0, 1] }], [{ tipo: 'rostro', embedding: [1, 0.1] }])
+      expect(await verificar(cuadro, guardado, 3, sinPausa)).toMatchObject({ tipo: 'coincide' })
+    })
+
+    it('sin coincidencia devuelve la mejor similitud', async () => {
+      const r = await verificar(cuadros([{ tipo: 'rostro', embedding: [0, 1] }], [{ tipo: 'rostro', embedding: [1, 2] }]), guardado, 2, sinPausa)
+      expect(r.tipo).toBe('no_coincide')
+      expect(r.tipo === 'no_coincide' && r.similitud).toBeCloseTo(similitudCoseno([1, 2], guardado))
+    })
+
+    it('procesa un giro solo si el derecho no coincidió, y basta con que uno coincida', async () => {
+      const procesadas: string[] = []
+      const marca = (nombre: string, d: Deteccion) => () => (procesadas.push(nombre), Promise.resolve(d))
+      const coincide = { tipo: 'rostro', embedding: [1, 0.2] } as const
+      expect(await verificar(() => [marca('derecho', coincide), marca('giro', coincide)], guardado, 1, sinPausa)).toMatchObject({ tipo: 'coincide' })
+      expect(procesadas).toEqual(['derecho'])
+      expect(await verificar(() => [variante({ tipo: 'rostro', embedding: [0, 1] }), variante(coincide)], guardado, 1, sinPausa)).toMatchObject({ tipo: 'coincide' })
+      // Con la cabeza ladeada el detector puede no ver el rostro derecho, pero sí girado.
+      expect(await verificar(() => [variante({ tipo: 'sin_rostro' }), variante(coincide)], guardado, 1, sinPausa)).toMatchObject({ tipo: 'coincide' })
+    })
+
+    it('un cuadro con varios rostros se descarta sin probar giros y es el motivo que se muestra', async () => {
+      const r = await verificar(
+        cuadros([{ tipo: 'varios_rostros' }, { tipo: 'rostro', embedding: [1, 0] }], [{ tipo: 'sin_rostro' }]),
+        guardado,
+        2,
+        sinPausa
+      )
+      expect(r).toEqual({ tipo: 'varios_rostros' })
+    })
+
+    it('otra dimensión corta de inmediato', async () => {
+      expect(await verificar(cuadros([{ tipo: 'rostro', embedding: [1, 0, 0] }]), guardado, 3, sinPausa)).toEqual({ tipo: 'incompatible' })
+    })
   })
 })

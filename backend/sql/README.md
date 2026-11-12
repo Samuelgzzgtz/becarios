@@ -23,11 +23,16 @@ en "Warnings que se dejaron a propósito" más abajo.
 | `0014_siase_reportes.sql` | Auditoría A-01/A-02/A-03/A-04/M-04/M-16: trigger que impide auto-confirmarse, ruta de Storage en vez de URL firmada, estado efectivo sin pg_cron, firma/exclusión por RPC |
 | `0015_operaciones_transaccionales.sql` | Auditoría C-05/C-06/A-05/A-10/A-13/M-10/M-11: RPC atómicas para transferencias, asignación, enrolamiento, configuración, cierre/apertura de periodo y bajas |
 | `0016_consultas_agregadas.sql` | Auditoría M-05/M-09/A-16: progreso del equipo en una llamada, indicadores del panel, exportación paginada |
+| `0017_becario_ve_su_ingeniero.sql` | El becario puede leer la fila de su ingeniero asignado ("Mi cuenta") |
+| `0018_clerk.sql` | Login con Clerk: `usuarios.clerk_id`, `uid_actual()` y RLS sin `auth.uid()` |
+| `0019_secreto_webhook_clerk.sql` | Firma del webhook de Clerk guardada en Vault |
+| `0020_orden_webhooks_clerk.sql` | Orden de los webhooks de Clerk y permisos tras cambiar de perfil |
 | `0021_integridad_horas.sql` | Integridad de horas: origen/revisión calculados por el servidor, tope de jornada, geocercas opcionales, bitácora de cambios y RPC de revisión (ver `docs/integridad-horas.md`) |
 | `0022_correcciones_asistencias.sql` | Solicitudes de corrección, corrección con motivo y auditoría inmutable |
 | `0023_seguridad.sql` | Modalidad y rostro revisados por el servidor, sin alta desde `auth.users`, campos protegidos de `usuarios`, firma SIASE solo por RPC, ventana y límites en Storage, correo verificado al enlazar con Clerk |
 | `0024_contencion_auditoria.sql` | Todo autorregistro requiere revisión humana; baja local independiente de Clerk |
 | `0025_revision_y_velocidad.sql` | Jornada larga confirmada aparte, aprobación por lote, evidencia y pendientes del periodo, ids del cliente, RLS más barata (ver abajo) |
+| `0026_aprueba_el_ingeniero.sql` | Solo el ingeniero asignado aprueba, corrige y resuelve solicitudes; el administrador solo consulta |
 
 Se aplican **en orden**. (`0006` ya no incluye el bloque de `pg_cron` comentado que
 trae el archivo en disco.) **0012–0016 se aplicaron al proyecto `rcvpowylehewvsxquhip`
@@ -50,7 +55,8 @@ Contrato completo en `docs/integridad-horas.md`. Lo esencial para quien toque el
 ## Solicitudes e historial de asistencias (0022)
 
 `0022_correcciones_asistencias.sql` se aplica después de 0021 junto con la web actualizada.
-Agrega solicitudes del becario, aprobación o rechazo por su ingeniero o administrador,
+Agrega solicitudes del becario, aprobación o rechazo por su ingeniero o administrador
+(desde 0026 solo por su ingeniero asignado),
 y auditoría de cada alta, modificación y eliminación. Las correcciones directas ahora
 requieren `corregir_asistencia` y un motivo. La web anterior no puede corregir registros
 una vez aplicada esta migración; coordinar el despliegue de backend y frontend.
@@ -134,7 +140,7 @@ toque el backend:
 - **Zona horaria.** La base sigue en `TimeZone = UTC` (no se cambió a nivel base para
   no afectar otros timestamps). Las funciones de negocio convierten explícitamente con
   `hoy_local()` / `inicio_dia_local(fecha)` (`America/Monterrey`). La app usa la misma
-  zona (`core/util/FechaUi.kt`), nunca `ZoneId.systemDefault()`.
+  zona (`web/src/lib/fechas.ts`), nunca la del teléfono.
 - **Horas.** `horas_trabajadas` empareja entrada→salida solo si ambas caen el mismo día
   local. Una entrada sin salida ese día no suma (antes sumaba 24 h con la salida del día
   siguiente).

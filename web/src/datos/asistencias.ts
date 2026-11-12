@@ -267,7 +267,7 @@ export async function contarAnomalias(): Promise<number> {
 
 /**
  * Aprueba la revisión del registro. Con [jornada] además confirma la jornada larga
- * que cierra esa salida; sin eso no pasa el tope (0025). Ingeniero asignado o administrador.
+ * que cierra esa salida; sin eso no pasa el tope (0025). Solo el ingeniero asignado (0026).
  */
 export function aprobarAsistencia(asistenciaId: string, jornada = false): Promise<void> {
   return ejecutar(supabase.rpc('aprobar_asistencia', { p_asistencia: asistenciaId, p_jornada: jornada }))

@@ -3,8 +3,8 @@ import { CheckCircle2, CircleAlert, CloudCheck, Lock, LogIn, LogOut, RefreshCw, 
 import * as asistencias from '../../datos/asistencias'
 import { enrolamientoPropio, modalidadDeHoy } from '../../datos/repositorios'
 import { requerirUsuario } from '../../datos/sesion'
-import { dimensionesCompatibles, similitudCoseno, UMBRAL_COINCIDENCIA } from '../../facial/comparar'
-import { NOMBRE_MODELO_ANDROID, capturarCuadro, prepararMotor, procesar } from '../../facial/rostro'
+import { MARGEN_CASI, UMBRAL_COINCIDENCIA, verificar } from '../../facial/comparar'
+import { NOMBRE_MODELO_ANDROID, capturarCuadro, prepararMotor, variantesConGiros } from '../../facial/rostro'
 import { ErrorDeNegocio, MENSAJE_SIN_CONEXION, esErrorDeRed, mensajeAmigable } from '../../lib/errores'
 import { fechaCorta, hoy, hora } from '../../lib/fechas'
 import { ubicacionOpcional } from '../../lib/ubicacion'
@@ -69,7 +69,16 @@ export default function RegistrarAsistencia() {
     try {
       const video = camara.video.current
       if (!video) throw new ErrorDeNegocio('La cámara no está lista. Espera un segundo e intenta de nuevo.')
-      const nuevo = await registrar(capturarCuadro(video))
+      // Cada cuadro es un canvas a resolución completa: se libera al tomar el siguiente y al terminar (iOS).
+      let cuadro: HTMLCanvasElement | null = null
+      const liberar = () => {
+        if (cuadro) cuadro.width = cuadro.height = 0
+      }
+      const nuevo = await registrar(() => {
+        liberar()
+        cuadro = capturarCuadro(video)
+        return variantesConGiros(cuadro)
+      }).finally(liberar)
       setEstado(nuevo)
       if (nuevo.tipo === 'exito') void cargarInfo()
     } catch (e) {
@@ -168,7 +177,8 @@ export default function RegistrarAsistencia() {
   )
 }
 
-async function registrar(foto: HTMLCanvasElement): Promise<EstadoRegistro> {
+/** [cuadro] toma un cuadro nuevo de la cámara cada vez que se llama (ver verificar). */
+async function registrar(cuadro: () => ReturnType<typeof variantesConGiros>): Promise<EstadoRegistro> {
   const usuario = await requerirUsuario()
   const enrolamiento = await enrolamientoPropio(usuario.id)
   if (!enrolamiento) {
@@ -177,7 +187,7 @@ async function registrar(foto: HTMLCanvasElement): Promise<EstadoRegistro> {
 
   // La ubicación es opcional: se pide en paralelo al reconocimiento y nunca frena ni rompe el registro.
   const ubicacion = ubicacionOpcional()
-  const resultado = await procesar(foto)
+  const resultado = await verificar(cuadro, enrolamiento.embedding_vector)
   switch (resultado.tipo) {
     case 'sin_rostro':
       return { tipo: 'error', mensaje: 'No se detectó tu rostro. Intenta de nuevo con buena luz.' }
@@ -185,21 +195,20 @@ async function registrar(foto: HTMLCanvasElement): Promise<EstadoRegistro> {
       return { tipo: 'error', mensaje: 'Se detectó más de un rostro en la foto.' }
     case 'demasiado_pequeno':
       return { tipo: 'error', mensaje: 'Acércate más a la cámara.' }
+    case 'incompatible':
+      return { tipo: 'error', mensaje: 'Tu biometría se registró con otra versión de la app. Pide a tu ingeniero que te vuelva a enrolar.' }
+    case 'no_coincide':
+      return {
+        tipo: 'error',
+        mensaje:
+          enrolamiento.modelo === NOMBRE_MODELO_ANDROID
+            ? 'El rostro no coincide con tu registro biométrico. Tu biometría se tomó con la app Android anterior; pide a tu ingeniero que te vuelva a enrolar desde la web.'
+            : resultado.similitud >= UMBRAL_COINCIDENCIA - MARGEN_CASI
+              ? 'Casi. Mira de frente a la cámara, con buena luz y sin lentes ni gorra, e intenta de nuevo.'
+              : 'El rostro no coincide con tu registro biométrico. Si te pasa seguido, pide a tu ingeniero que te vuelva a enrolar.'
+      }
   }
-
-  if (!dimensionesCompatibles(resultado.embedding, enrolamiento.embedding_vector)) {
-    return { tipo: 'error', mensaje: 'Tu biometría se registró con otra versión de la app. Pide a tu ingeniero que te vuelva a enrolar.' }
-  }
-  const similitud = similitudCoseno(resultado.embedding, enrolamiento.embedding_vector)
-  if (similitud < UMBRAL_COINCIDENCIA) {
-    return {
-      tipo: 'error',
-      mensaje:
-        enrolamiento.modelo === NOMBRE_MODELO_ANDROID
-          ? 'El rostro no coincide con tu registro biométrico. Tu biometría se tomó con la app Android anterior; si sigue fallando, pide a tu ingeniero que te vuelva a enrolar desde la web.'
-          : 'El rostro no coincide con tu registro biométrico.'
-    }
-  }
+  const similitud = resultado.similitud
 
   const tipo = await asistencias.siguienteTipo(usuario.id)
   const { modalidad } = await modalidadDeHoy(usuario.id)
