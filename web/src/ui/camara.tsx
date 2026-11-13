@@ -88,7 +88,15 @@ export function MarcoCamara(props: {
         autoPlay
         aria-label="Vista de la cámara"
       />
-      <div className={cn('guia-rostro pointer-events-none absolute inset-0 grid place-items-center', props.guia)} aria-hidden>
+      {/* En pantalla completa el óvalo queda entre el chip de estado y el pie, y se achica si la hoja de abajo crece. */}
+      <div
+        className={cn(
+          'guia-rostro pointer-events-none absolute grid place-items-center',
+          props.pantallaCompleta ? 'completa inset-x-0 top-[calc(132px+var(--seguro-arriba))] bottom-16' : 'inset-0',
+          props.guia
+        )}
+        aria-hidden
+      >
         <div className="ovalo" />
       </div>
       <div

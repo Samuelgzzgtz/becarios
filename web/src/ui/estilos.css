@@ -543,6 +543,11 @@
     transition: border-color 0.25s;
   }
 
+  .guia-rostro.completa .ovalo {
+    width: auto;
+    height: min(100%, 320px);
+  }
+
   .guia-rostro.verificando .ovalo {
     border-style: solid;
     border-color: #f2b866;
