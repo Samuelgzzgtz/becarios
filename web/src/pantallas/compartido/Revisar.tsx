@@ -3,7 +3,7 @@ import { CheckCircle2 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { anomalias, aprobarAsistencia, aprobarAsistencias } from '../../datos/asistencias'
 import { mensajeAmigable } from '../../lib/errores'
-import { diaCompleto, fechaCorta, hora, parsear } from '../../lib/fechas'
+import { capitalizar, diaCompleto, fechaCorta, hora, parsear } from '../../lib/fechas'
 import { entero, horas as formatoHoras, numeroHoras, plural } from '../../lib/formato'
 import type { Anomalia, TipoAnomalia } from '../../lib/modelos'
 import { useAvisos } from '../../ui/avisos'
@@ -42,16 +42,19 @@ function consecuencia(a: Anomalia, jornadaPendiente: boolean): string {
   return `El registro de ${quien} del ${dia} empezará a contar para sus horas.`
 }
 
-/** Evidencia compacta: "a 35 m · rostro 0.82 · sin conexión · subido 3 h después". */
-function evidencia(a: Anomalia): string {
+/**
+ * Evidencia compacta: "A 35 m · rostro 0.82 · sin conexión · subido 3 h después".
+ * [sinDistancia]: cuando la distancia ya se muestra aparte (junto al esquema).
+ */
+function evidencia(a: Anomalia, opciones: { sinDistancia?: boolean } = {}): string {
   const partes: string[] = []
-  if (a.distancia_m != null) partes.push(a.distancia_m === 0 ? 'en zona' : `a ${entero(a.distancia_m)} m de la zona`)
+  if (a.distancia_m != null && !opciones.sinDistancia) partes.push(a.distancia_m === 0 ? 'en zona' : `a ${entero(a.distancia_m)} m de la zona`)
   if (a.puntaje_rostro != null) partes.push(`rostro ${a.puntaje_rostro.toFixed(2)}`)
   if (a.origen === 'cola') partes.push('sin conexión')
   if (a.origen === 'manual') partes.push('agregado por ingeniero')
   const m = a.subido_minutos ?? 0
   if (m >= 5) partes.push(`subido ${m < 60 ? `${m} min` : m < 2880 ? `${Math.round(m / 60)} h` : `${Math.round(m / 1440)} días`} después`)
-  return partes.join(' · ')
+  return capitalizar(partes.join(' · '))
 }
 
 /** Quita de la lista lo que ya quedó aprobado, sin volver a pedirla al servidor. */
@@ -131,7 +134,9 @@ export default function Revisar(props: {
       titulo="Por revisar"
       subtitulo={estado.tipo === 'listo' ? plural(estado.datos.length, 'registro', 'registros') : 'Registros que necesitan tu atención'}
       onVolver={volver}
+      // Aprobar en lote solo con "Todos": con un motivo filtrado aprobaría registros que no se ven.
       barraAccion={
+        activo == null &&
         idsLote.size > 1 && (
           <Boton ancho icono={CheckCircle2} cargando={aprobando} onClick={() => setAprobarTodos(true)}>
             Aprobar todos ({entero(idsLote.size)})
@@ -255,9 +260,7 @@ function FilaAnomalia(props: { a: Anomalia; ocupado: boolean; onAprobar?: () => 
   const etiqueta = etiquetaAnomalia[a.tipo] ?? 'Por revisar'
   const instante = parsear(a.ocurrido_en)
   const lejos = a.tipo === 'fuera_de_zona' && a.distancia_m != null && a.distancia_m > 0 ? a.distancia_m : null
-  // La distancia ya va junto al esquema: la evidencia agrega lo demás (rostro, sin conexión, atraso).
-  const resto = lejos != null ? evidencia(a).replace(/^a [\d,]+ m de la zona( · )?/, '') : evidencia(a)
-  const pruebas = resto.charAt(0).toUpperCase() + resto.slice(1)
+  const pruebas = evidencia(a, { sinDistancia: lejos != null })
   return (
     <article className="border-t border-regla py-3.5 first:border-t-0" aria-label={`${etiqueta} de ${a.becario_nombre}`}>
       <div className="fila gap-2.5">
