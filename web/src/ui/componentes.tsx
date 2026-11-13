@@ -599,7 +599,7 @@ export function CampoTexto(props: {
         ) : (
           <Input
             {...comunes}
-            className={cn(comunes.className, 'h-11 text-base md:text-base')}
+            className={cn(comunes.className, 'h-11 text-base md:text-base lg:text-sm')}
             type={props.tipo ?? 'text'}
             inputMode={props.modoTeclado}
             autoComplete={props.autoComplete}
@@ -648,7 +648,7 @@ export function Desplegable<T>(props: {
         value={clave}
         disabled={props.deshabilitado}
         aria-invalid={props.error ? true : undefined}
-        className={cn('h-11 border-control bg-superficie text-base shadow-none md:text-sm dark:bg-superficie', props.error && 'border-peligro')}
+        className={cn('h-11 border-control bg-superficie text-base shadow-none lg:text-sm dark:bg-superficie', props.error && 'border-peligro')}
         onChange={(e) => {
           const o = props.opciones.find((x) => props.claveDe(x) === e.target.value)
           if (o !== undefined) props.onSeleccionar(o)

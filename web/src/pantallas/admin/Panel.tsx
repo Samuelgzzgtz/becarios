@@ -64,7 +64,7 @@ export default function PanelAdmin() {
                 </div>
               )}
 
-              <CuadriculaDos className="lg:grid-cols-5">
+              <CuadriculaDos className="lg:grid-cols-5 lg:[&>*:last-child:nth-child(odd)]:col-span-1">
                 <TarjetaIndicador valor={entero(d.becarios_activos)} etiqueta="Becarios activos" onClick={() => navegar('/admin/becarios')} />
                 <TarjetaIndicador
                   valor={entero(d.becarios_sin_asignar)}
