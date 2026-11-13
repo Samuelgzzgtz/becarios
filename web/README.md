@@ -49,19 +49,30 @@ de la misma red usa el despliegue de Vercel (o un túnel HTTPS).
 ### Dar acceso a alguien
 
 1. Clerk Dashboard → **Users → Create user** (o **Invite**), con su correo institucional.
-2. En el usuario → **Metadata → Public**:
-   ```json
-   { "perfil": "becario", "matricula": "1234567", "coordinacion": "Coordinación de Sistemas" }
-   ```
-   `perfil` puede ser `becario`, `ingeniero` o `administrador`. Sin `perfil`, la cuenta
-   queda **sin acceso**: la persona puede iniciar sesión, pero la app le dice que pida acceso.
+   Al crearse queda como **becario**: el webhook le escribe `{ "perfil": "becario" }` en el
+   public metadata.
+2. **Ingeniero o administrador:** ya con cuenta, agrégalo a la organización **Ingenieros** o
+   **Administradores** con **Add member** y rol **member**. Si está en las dos, gana
+   administrador; al sacarlo de la organización vuelve a becario.
+   Opcional en **Metadata → Public**: `"matricula"`, `"coordinacion"` y `"estado": "egresado"`.
+   No edites `perfil` a mano: la próxima vez que cambie su organización se recalcula.
 3. **Quitar acceso:** botón **Ban user** (se conserva su historial). Para devolverlo: **Unban**.
 4. Las cuentas que ya existían en Supabase se enlazan solas si se crean en Clerk con **el mismo correo**.
 
 ### Configuración (una sola vez)
 
 1. **Clerk** (clerk.com) → crea la aplicación "DocenCheck" con **Email + Password** y **Microsoft**.
-   - **Configure → Restrictions → Sign-up mode: Restricted** (solo entran las cuentas que tú creas o invitas).
+   - **Configure → Restrictions → Sign-up mode: Restricted** (solo entran las cuentas que tú creas o invitas;
+     si no, cualquiera que se registre entraría como becario).
+   - **Organizations:** crea **Ingenieros** y **Administradores** y pon en su public metadata
+     `{ "perfil": "ingeniero" }` y `{ "perfil": "administrador" }`; esa metadata, no el nombre,
+     es lo que da el perfil. Deja permitidas las cuentas personales (los becarios no pertenecen a
+     ninguna organización), desactiva que los usuarios creen organizaciones y sube el límite de
+     miembros (el plan gratis permite 20). Agrega a todos con rol **member**: un `org:admin`
+     podría invitar a cualquiera a la organización y darle ese perfil.
+   - **Al activar esto por primera vez:** agrega a cada ingeniero y administrador que ya existía
+     a su organización. Su perfil hoy vive solo en el metadata y se recalcularía como becario
+     con su siguiente cambio de organización.
    - Abre <https://dashboard.clerk.com/setup/supabase> y activa la integración con Supabase
      (agrega el claim `role: authenticated` a los tokens). Copia el **Clerk domain** que muestra.
    - **Microsoft:** en desarrollo funciona con las credenciales compartidas de Clerk; en
@@ -75,10 +86,13 @@ de la misma red usa el despliegue de Vercel (o un túnel HTTPS).
 4. **Webhook:** despliega `backend/supabase/functions/clerk-webhook` con `verify_jwt = false`.
    En Clerk → **Webhooks → Add endpoint**:
    `https://rcvpowylehewvsxquhip.supabase.co/functions/v1/clerk-webhook`, eventos
-   `user.created`, `user.updated` y `user.deleted`. Copia el **Signing secret** y guárdalo en
+   `user.created`, `user.updated`, `user.deleted`, `organizationMembership.created` y
+   `organizationMembership.deleted`. Copia el **Signing secret** y guárdalo en
    Supabase como secreto de Edge Functions `CLERK_WEBHOOK_SIGNING_SECRET`, o en Vault
    mediante `guardar_secreto_webhook_clerk` usando únicamente `service_role`.
-5. **Primer administrador:** crea tu usuario en Clerk con `{ "perfil": "administrador" }`.
+   Guarda también la **Secret key** de Clerk (Configure → API keys) como `CLERK_SECRET_KEY`:
+   el webhook la usa para escribir el perfil.
+5. **Primer administrador:** crea tu usuario en Clerk y agrégalo a **Administradores**.
 
 La función `admin-crear-usuario` se retiró del repositorio (creaba cuentas de Supabase Auth);
 bórrala del proyecto de Supabase si sigue desplegada.

@@ -259,6 +259,6 @@ Cifrarlo de verdad exige elegir dónde vive la llave; las dos rutas sobre la mes
 
 ## Datos de prueba
 
-Los usuarios nacen en Clerk: se crean o invitan desde su Dashboard con el perfil en el
-public metadata (`{ "perfil": "ingeniero", "matricula": "1900123" }`) y el webhook crea
-su fila en `usuarios` (ver `web/README.md`).
+Los usuarios nacen en Clerk: se crean o invitan desde su Dashboard, el perfil sale de
+su organización (ninguna = becario) y el webhook crea su fila en `usuarios`
+(ver `web/README.md`).

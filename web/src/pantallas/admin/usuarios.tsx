@@ -28,7 +28,11 @@ export function AvisoCuentasClerk({ perfil }: { perfil: 'becario' | 'ingeniero' 
   return (
     <AvisoBanner
       titulo="Cuentas y accesos en Clerk"
-      texto={`Para dar de alta, cambiar datos o quitar el acceso a un ${perfil}, usa el Dashboard de Clerk. Pon su perfil ("${perfil}") y matrícula en Public metadata; para quitarle el acceso usa "Ban user".`}
+      texto={
+        perfil === 'becario'
+          ? 'Da de alta, cambia datos o quita el acceso en el Dashboard de Clerk. Toda cuenta nueva entra como becario; su matrícula va en Public metadata y para quitarle el acceso usa "Ban user".'
+          : 'Da de alta, cambia datos o quita el acceso en el Dashboard de Clerk. Para hacer a alguien ingeniero, agrégalo a la organización Ingenieros; para quitarle el acceso usa "Ban user".'
+      }
       tono="info"
       icono={KeyRound}
       textoAccion="Abrir Clerk"
