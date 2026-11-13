@@ -48,15 +48,19 @@ export async function becariosSinIngenieroActivo(): Promise<Set<string>> {
 }
 
 /**
- * Quién supervisa a quién (progreso_equipo trae el ingeniero de cada becario
- * activo), para filtrar becarios por ingeniero y contar becarios por ingeniero.
+ * Quién supervisa a quién (progreso_equipo trae el ingeniero y las horas de cada becario
+ * activo), para filtrar becarios por ingeniero, contar becarios por ingeniero y mostrar su avance.
  * Si falla, las listas siguen funcionando sin esa información.
  */
 export function useAsignaciones() {
   const carga = useCarga(
     async () => {
       const [ingenieros, equipo] = await Promise.all([listar('ingeniero').catch(() => []), progresoEquipo().catch(() => null)])
-      return { ingenieros, ingenieroDe: equipo ? new Map(equipo.map((b) => [b.becario_id, b.ingeniero_id ?? null])) : null }
+      return {
+        ingenieros,
+        ingenieroDe: equipo ? new Map(equipo.map((b) => [b.becario_id, b.ingeniero_id ?? null])) : null,
+        progreso: new Map((equipo ?? []).map((b) => [b.becario_id, b]))
+      }
     },
     [],
     ''
@@ -71,6 +75,8 @@ export function useAsignaciones() {
       const id = d?.ingenieroDe?.get(becarioId)
       return id ? (d?.ingenieros.find((i) => i.id === id)?.nombre ?? null) : null
     },
+    /** Horas de la semana y del semestre (solo becarios activos con ingeniero); null si no hay. */
+    progresoDe: (becarioId: string) => d?.progreso.get(becarioId) ?? null,
     becariosDe: (ingenieroId: string) => (d?.ingenieroDe ? [...d.ingenieroDe.values()].filter((v) => v === ingenieroId).length : 0),
     recargar: carga.recargar
   }
@@ -87,7 +93,8 @@ export function EncabezadoUsuario({ usuario, detalle }: { usuario: Usuario; deta
         <p className="titulo-m recortar">{usuario.nombre}</p>
         <p className="chico texto-2 recortar">{detalle ?? `Matrícula ${usuario.matricula}`}</p>
       </div>
-      <Badge texto={etiquetaEstadoUsuario[usuario.estado]} tono={tonoEstadoUsuario[usuario.estado]} />
+      {/* El estado solo se marca cuando es la excepción (inactivo o egresado). */}
+      {usuario.estado !== 'activo' && <Badge texto={etiquetaEstadoUsuario[usuario.estado]} tono={tonoEstadoUsuario[usuario.estado]} />}
     </div>
   )
 }

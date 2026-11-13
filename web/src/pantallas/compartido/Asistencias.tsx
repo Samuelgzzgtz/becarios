@@ -11,13 +11,10 @@ import {
   CampoTexto,
   Chip,
   Dialogo,
-  IconoCircular,
   Tarjeta,
   etiquetaModalidad,
   etiquetaTipo,
-  iconoModalidad,
-  iconoTipo,
-  tonoTipo
+  iconoModalidad
 } from '../../ui/componentes'
 
 /** Rango de fechas LOCALES, ambas inclusivas. */
@@ -33,8 +30,7 @@ export const semanaPasada = (): FiltroFechas => {
 }
 
 /**
- * Tarjeta de un registro: ícono y badge Entrada (verde) / Salida (ámbar), hora
- * grande, modalidad y cómo se verificó; "Sin subir" o el rechazo si sigue en el
+ * Tarjeta de un registro: hora grande con Entrada o Salida, modalidad y cómo se verificó; "Sin subir" o el rechazo si sigue en el
  * teléfono (A-14, M-03).
  */
 export function TarjetaAsistencia(props: { item: AsistenciaUi; nombreBecario?: string | null; onEliminar?: () => void }) {
@@ -46,12 +42,11 @@ export function TarjetaAsistencia(props: { item: AsistenciaUi; nombreBecario?: s
   return (
     <Tarjeta>
       <div className="fila">
-        <IconoCircular icono={iconoTipo(a.tipo)} tono={tonoTipo(a.tipo)} tamano={44} />
         <div className="crece columna" style={{ gap: 2 }}>
           {props.nombreBecario && <p className="titulo-s recortar">{props.nombreBecario}</p>}
           <div className="fila" style={{ gap: 8 }}>
             <span className="numero-m">{h}</span>
-            <Badge texto={etiquetaTipo(a.tipo)} tono={tonoTipo(a.tipo)} />
+            <span className="texto-2">{etiquetaTipo(a.tipo)}</span>
           </div>
           <p className="chico texto-2 fila" style={{ gap: 4, flexWrap: 'wrap' }}>
             <ModalidadI size={15} aria-hidden /> {etiquetaModalidad(a.modalidad)} ·

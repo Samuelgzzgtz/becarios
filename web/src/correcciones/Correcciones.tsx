@@ -59,7 +59,7 @@ export default function Correcciones() {
       <SegunEstado estado={carga.estado} onReintentar={carga.recargar}>{datos => <>
         {datos.usuario.perfil === 'becario' && !formulario && <Boton onClick={() => setFormulario(datos.usuario.id)}>Solicitar corrección</Boton>}
         {datos.filas.length === 0 && <p>No hay solicitudes {soloPendientes ? 'pendientes' : 'en esta página'}.</p>}
-        {datos.filas.map(s => <section key={s.id} className="columna" style={{ borderBottom: '1px solid var(--borde)', paddingBottom: 16 }}>
+        {datos.filas.map(s => <section key={s.id} className="tarjeta columna gap-1">
           <h2 className="titulo-s">{accionesCorreccion[s.accion]} · {datos.nombres.get(s.becario_id) ?? 'Becario'}</h2>
           <p>Estado: {s.estado === 'pendiente' ? 'Pendiente' : s.estado === 'aprobada' ? 'Aprobada' : 'Rechazada'} · Solicitada el {fechaHora(s.created_at)}</p>
           <Instantanea etiqueta="Registro original" valor={s.antes} />

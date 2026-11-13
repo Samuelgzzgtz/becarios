@@ -1,38 +1,17 @@
 import { useNavigate } from 'react-router-dom'
-import {
-  ArrowLeftRight,
-  CalendarDays,
-  ChevronRight,
-  CircleUser,
-  ClipboardCheck,
-  ClipboardList,
-  Download,
-  HardHat,
-  Hourglass,
-  SlidersHorizontal,
-  TriangleAlert,
-  UserX,
-  Users
-} from 'lucide-react'
+import { CircleUser } from 'lucide-react'
+import { Button } from '@/components/ui/button'
 import { contarAnomalias } from '../../datos/asistencias'
 import { indicadores } from '../../datos/repositorios'
 import { fechaDeTexto, fechaMedia } from '../../lib/fechas'
 import { entero, plural } from '../../lib/formato'
-import {
-  AvisoBanner,
-  Badge,
-  BotonIcono,
-  CuadriculaDos,
-  Divisor,
-  IconoCircular,
-  Pantalla,
-  SegunEstado,
-  Tarjeta,
-  TarjetaIndicador,
-  type Icono
-} from '../../ui/componentes'
+import { BotonIcono, CuadriculaDos, Pantalla, SegunEstado, TarjetaIndicador } from '../../ui/componentes'
 import { useAlReanudar, useCarga } from '../../ui/hooks'
 
+/**
+ * Inicio del administrador: arriba lo que pide acción (firmar SIASE, registros por revisar),
+ * luego los indicadores del sistema y el periodo actual.
+ */
 export default function PanelAdmin() {
   const navegar = useNavigate()
   const { estado, recargar } = useCarga(
@@ -49,136 +28,89 @@ export default function PanelAdmin() {
     <Pantalla
       titulo="Coordinación de becarios"
       subtitulo="Pasalista · FIME"
-      etiqueta="Administrador"
-      accionHeader={<BotonIcono icono={CircleUser} etiqueta="Mi cuenta" onClick={() => navegar('/admin/cuenta')} />}
+      // En escritorio "Mi cuenta" está en la barra lateral.
+      accionHeader={<BotonIcono icono={CircleUser} etiqueta="Mi cuenta" onClick={() => navegar('/admin/cuenta')} className="bg-superficie lg:hidden" />}
     >
       <SegunEstado estado={estado} onReintentar={recargar}>
         {(d) => {
           const fin = fechaDeTexto(d.periodo_fin)
+          const pendientes = d.siase_por_firmar > 0 || (d.porRevisar ?? 0) > 0
           return (
             <>
-              {d.siase_por_firmar > 0 && (
-                <AvisoBanner
-                  titulo={`${plural(d.siase_por_firmar, 'reporte SIASE listo', 'reportes SIASE listos')} para firmar`}
-                  texto="Revisa y firma los reportes que los becarios ya subieron."
-                  tono="exito"
-                  icono={ClipboardCheck}
-                  textoAccion="Ir a firmar"
-                  onAccion={() => navegar('/admin/siase')}
-                />
+              {pendientes && (
+                <div className="rounded-lg bg-superficie px-4">
+                  {d.siase_por_firmar > 0 && (
+                    <div className="fila border-regla py-3 [&+&]:border-t">
+                      <span className="crece">
+                        <span className="block font-medium">{plural(d.siase_por_firmar, 'reporte SIASE espera', 'reportes SIASE esperan')} firma</span>
+                        <span className="block text-[13px] text-texto-2">Los becarios ya los subieron</span>
+                      </span>
+                      <Button className="h-10" onClick={() => navegar('/admin/siase')}>
+                        Firmar
+                      </Button>
+                    </div>
+                  )}
+                  {(d.porRevisar ?? 0) > 0 && (
+                    <div className="fila border-regla py-3 [&+&]:border-t">
+                      <span className="crece">
+                        <span className="block font-medium">{plural(d.porRevisar ?? 0, 'registro', 'registros')} por revisar</span>
+                        <span className="block text-[13px] text-texto-2">Los aprueba el ingeniero de cada becario</span>
+                      </span>
+                      <Button variant="link" onClick={() => navegar('/admin/revisar')}>
+                        Ver
+                      </Button>
+                    </div>
+                  )}
+                </div>
               )}
-              <CuadriculaDos>
-                <TarjetaIndicador valor={entero(d.becarios_activos)} etiqueta="Becarios activos" icono={Users} onClick={() => navegar('/admin/becarios')} />
+
+              <CuadriculaDos className="lg:grid-cols-5 lg:[&>*:last-child:nth-child(odd)]:col-span-1">
+                <TarjetaIndicador valor={entero(d.becarios_activos)} etiqueta="Becarios activos" onClick={() => navegar('/admin/becarios')} />
                 <TarjetaIndicador
                   valor={entero(d.becarios_sin_asignar)}
-                  etiqueta="Sin asignar"
-                  icono={UserX}
+                  etiqueta="Sin ingeniero"
                   alerta={d.becarios_sin_asignar > 0}
                   onClick={() => navegar('/admin/becarios')}
                 />
-                <TarjetaIndicador valor={entero(d.ingenieros_activos)} etiqueta="Ingenieros" icono={HardHat} onClick={() => navegar('/admin/ingenieros')} />
+                <TarjetaIndicador valor={entero(d.ingenieros_activos)} etiqueta="Ingenieros" onClick={() => navegar('/admin/ingenieros')} />
                 <TarjetaIndicador
                   valor={entero(d.transferencias_pendientes)}
                   etiqueta="Traspasos pendientes"
-                  icono={ArrowLeftRight}
                   alerta={d.transferencias_pendientes > 0}
                   onClick={() => navegar('/admin/traspasos')}
                 />
                 <TarjetaIndicador
-                  valor={d.porRevisar != null ? entero(d.porRevisar) : '–'}
-                  etiqueta="Por revisar"
-                  icono={Hourglass}
-                  alerta={(d.porRevisar ?? 0) > 0}
-                  detalle="registros de asistencia"
-                  onClick={() => navegar('/admin/revisar')}
-                />
-                <TarjetaIndicador
-                  valor={entero(d.siase_por_firmar)}
-                  etiqueta="SIASE por firmar"
-                  icono={ClipboardCheck}
-                  alerta={d.siase_por_firmar > 0}
-                  onClick={() => navegar('/admin/siase')}
-                />
-                <TarjetaIndicador
                   valor={entero(d.siase_sin_entregar)}
-                  etiqueta="SIASE sin entregar"
-                  icono={ClipboardList}
+                  etiqueta="SIASE sin entregar este mes"
                   alerta={d.siase_sin_entregar > 0}
-                  detalle="este mes"
                   onClick={() => navegar('/admin/siase')}
                 />
               </CuadriculaDos>
 
-              <Tarjeta onClick={() => navegar('/admin/semestres')} etiqueta="Periodo actual">
-                <div className="fila">
-                  <IconoCircular icono={d.periodo_nombre ? CalendarDays : TriangleAlert} tono={d.periodo_nombre ? 'exito' : 'peligro'} />
-                  <div className="crece">
-                    <p className="chico texto-2">Periodo actual</p>
-                    <p className="titulo-m">{d.periodo_nombre ?? 'No hay periodo activo'}</p>
-                    {fin && <p className="chico texto-2">Termina el {fechaMedia(fin)}</p>}
-                  </div>
-                  <ChevronRight color="var(--texto-2)" aria-hidden />
+              <div className="rounded-lg bg-superficie px-4">
+                <div className="fila py-3">
+                  <span className="crece">
+                    <span className="block text-[13px] text-texto-2">Periodo actual</span>
+                    <span className={d.periodo_nombre ? 'block font-medium' : 'block font-medium text-peligro'}>{d.periodo_nombre ?? 'No hay periodo activo'}</span>
+                    {fin && <span className="block text-[13px] text-texto-2">Termina el {fechaMedia(fin)}</span>}
+                  </span>
+                  <Button variant="link" onClick={() => navegar('/admin/semestres')}>
+                    Semestres
+                  </Button>
                 </div>
                 {d.ventana_abierta != null && (
-                  <div style={{ marginTop: 12 }}>
-                    <Badge
-                      texto={
-                        d.ventana_abierta
-                          ? `Ventana SIASE abierta · quedan ${plural(d.ventana_dias_restantes ?? 0, 'día', 'días')}`
-                          : 'Ventana SIASE cerrada'
-                      }
-                      tono={d.ventana_abierta ? 'alerta' : 'neutro'}
-                    />
+                  <div className="fila border-t border-regla py-3">
+                    <span className="crece">Ventana SIASE</span>
+                    <span className={d.ventana_abierta ? 'text-alerta' : 'text-texto-2'}>
+                      {d.ventana_abierta ? `Abierta, quedan ${plural(d.ventana_dias_restantes ?? 0, 'día', 'días')}` : 'Cerrada'}
+                    </span>
                   </div>
                 )}
-              </Tarjeta>
-
-              <Accesos
-                accesos={[
-                  { titulo: 'Reporte de horas', detalle: 'Avance de todos los becarios', icono: Users, ruta: '/admin/reporte-horas' },
-                  { titulo: 'Configuración', detalle: 'Metas, ventana SIASE y reglas de asistencia', icono: SlidersHorizontal, ruta: '/admin/configuracion' },
-                  { titulo: 'Exportar asistencias', detalle: 'Archivo CSV para Excel', icono: Download, ruta: '/admin/exportar' }
-                ]}
-              />
+              </div>
             </>
           )
         }}
       </SegunEstado>
     </Pantalla>
-  )
-}
-
-export interface Acceso {
-  titulo: string
-  detalle: string
-  icono: Icono
-  ruta: string
-}
-
-/** Lista de accesos (fila con ícono, texto y flecha). */
-export function Accesos({ accesos }: { accesos: Acceso[] }) {
-  const navegar = useNavigate()
-  return (
-    <div className="tarjeta" style={{ padding: '4px 0' }}>
-      {accesos.map((a, i) => (
-        <div key={a.ruta}>
-          {i > 0 && <div style={{ marginLeft: 72 }}><Divisor /></div>}
-          <button
-            className="fila"
-            onClick={() => navegar(a.ruta)}
-            style={{ width: '100%', background: 'none', border: 'none', padding: '12px 16px', cursor: 'pointer', textAlign: 'left' }}
-          >
-            <IconoCircular icono={a.icono} tono="exito" />
-            <span className="crece">
-              <span className="titulo-s" style={{ display: 'block' }}>
-                {a.titulo}
-              </span>
-              <span className="chico texto-2">{a.detalle}</span>
-            </span>
-            <ChevronRight color="var(--texto-2)" aria-hidden />
-          </button>
-        </div>
-      ))}
-    </div>
   )
 }

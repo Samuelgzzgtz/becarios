@@ -52,7 +52,6 @@ export default function Traspasos() {
   return (
     <Pantalla
       titulo="Traspasos"
-      etiqueta="Administrador"
       subtitulo={datos ? (datos.length === 0 ? 'Sin solicitudes pendientes' : plural(datos.length, 'solicitud pendiente', 'solicitudes pendientes')) : 'Solicitudes de cambio de ingeniero'}
     >
       {c && (

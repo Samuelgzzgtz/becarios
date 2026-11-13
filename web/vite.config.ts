@@ -1,7 +1,9 @@
+import tailwindcss from '@tailwindcss/vite'
 import react from '@vitejs/plugin-react'
 import { defineConfig } from 'vite'
 import { VitePWA } from 'vite-plugin-pwa'
 import { readFileSync } from 'node:fs'
+import { fileURLToPath } from 'node:url'
 
 const version = (paquete: string) => JSON.parse(readFileSync(`node_modules/${paquete}/package.json`, 'utf-8')).version as string
 // Si se actualiza MediaPipe o LiteRT, cambia el nombre de la caché y no se mezclan WASM viejos con código nuevo.
@@ -16,8 +18,11 @@ const cacheIa = `docencheck-ia-mediapipe${version('@mediapipe/tasks-vision')}-li
 export default defineConfig({
   // La app borra las cachés de IA con otro nombre (main.tsx).
   define: { 'import.meta.env.VITE_CACHE_IA': JSON.stringify(cacheIa) },
+  // @/ = src/, el alias que usan los componentes de shadcn/ui (components.json).
+  resolve: { alias: { '@': fileURLToPath(new URL('./src', import.meta.url)) } },
   plugins: [
     react(),
+    tailwindcss(),
     VitePWA({
       registerType: 'autoUpdate',
       injectRegister: 'auto',
@@ -31,8 +36,8 @@ export default defineConfig({
         scope: '/',
         display: 'standalone',
         orientation: 'portrait',
-        background_color: '#154A2E',
-        theme_color: '#154A2E',
+        background_color: '#f1f4f1',
+        theme_color: '#f1f4f1',
         icons: [
           { src: 'pwa-64x64.png', sizes: '64x64', type: 'image/png' },
           { src: 'pwa-192x192.png', sizes: '192x192', type: 'image/png' },

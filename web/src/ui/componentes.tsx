@@ -1,10 +1,9 @@
-import { useEffect, useId, useRef, useState, type ComponentType, type ReactNode } from 'react'
+import { useEffect, useId, useState, type ComponentType, type CSSProperties, type ReactNode } from 'react'
 import {
   AlertTriangle,
   ArrowLeft,
   Ban,
   Building2,
-  CheckCircle2,
   ChevronLeft,
   ChevronRight,
   CircleHelp,
@@ -14,16 +13,53 @@ import {
   LogIn,
   LogOut,
   RefreshCw,
+  Search,
   type LucideProps
 } from 'lucide-react'
 import { useNavigate } from 'react-router-dom'
+import { Avatar as AvatarRadix, AvatarFallback } from '@/components/ui/avatar'
+import { Badge as BadgeUi } from '@/components/ui/badge'
+import { Button } from '@/components/ui/button'
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog'
+import { Input } from '@/components/ui/input'
+import { NativeSelect, NativeSelectOption } from '@/components/ui/native-select'
+import { Skeleton } from '@/components/ui/skeleton'
+import { Textarea } from '@/components/ui/textarea'
+import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group'
+import { cn } from '@/lib/utils'
 import { MENSAJE_SIN_CONEXION } from '../lib/errores'
-import { horasDeMeta, iniciales, vaAlRitmo } from '../lib/formato'
+import { iniciales, numeroHoras, vaAlRitmo } from '../lib/formato'
 import type { ModalidadTrabajo, TipoAsistencia } from '../lib/modelos'
 import type { Estado } from './hooks'
 
 export type Icono = ComponentType<LucideProps>
 export type Tono = 'exito' | 'alerta' | 'peligro' | 'info' | 'neutro'
+
+/*
+ * Componentes de Pasalista sobre shadcn/ui + Tailwind. Las pantallas solo usan estos;
+ * cambiar el aspecto de la app es cambiar este archivo y ui/estilos.css.
+ * Reglas visuales: superficies blancas sin borde ni sombra, títulos de texto sobre el
+ * fondo, un solo botón principal (casi negro) por pantalla, pastillas solo dentro de
+ * filas, sin íconos dentro de círculos de color.
+ */
+
+/** Pastilla: tinte pálido con texto oscuro del mismo tono. Info y neutro van en gris (el cromo no lleva color). */
+const PASTILLA: Record<Tono, string> = {
+  exito: 'bg-dato-c text-sobre-dato-c',
+  alerta: 'bg-alerta-c text-alerta',
+  peligro: 'bg-peligro-c text-peligro',
+  info: 'bg-neutro-c text-sobre-neutro-c',
+  neutro: 'bg-neutro-c text-sobre-neutro-c'
+}
+
+/** Color de un ícono suelto: solo lo que pide acción o falló lleva color. */
+const COLOR_ICONO: Record<Tono, string> = {
+  exito: 'text-dato',
+  alerta: 'text-alerta',
+  peligro: 'text-peligro',
+  info: 'text-texto-2',
+  neutro: 'text-texto-2'
+}
 
 // ===========================================================================
 // Estructura
@@ -39,17 +75,17 @@ export function useVolver(respaldo = '/'): () => void {
 }
 
 /**
- * Pantalla con el header verde (título, subtítulo, "Volver") y contenido.
- * [barraAccion] queda fija abajo (botón principal); [fab] flota abajo a la derecha.
+ * Pantalla: título de texto sobre el fondo (con "Volver" si aplica) y el contenido.
+ * [saludo] pone el título en peso normal (el "Hola, Ana" del becario).
+ * [barraAccion] queda fija abajo (botón principal).
  */
 export function Pantalla(props: {
   titulo: string
   subtitulo?: string | null
-  etiqueta?: string
+  saludo?: boolean
   onVolver?: (() => void) | null
   accionHeader?: ReactNode
   barraAccion?: ReactNode
-  fab?: ReactNode
   children: ReactNode
   sinRelleno?: boolean
 }) {
@@ -58,36 +94,53 @@ export function Pantalla(props: {
   }, [props.titulo])
 
   return (
-    <div className="pantalla">
-      <header className="encabezado">
+    <div className="flex min-h-0 flex-1 flex-col">
+      <header className="flex items-center gap-3 px-4 pt-[calc(18px+var(--seguro-arriba))] pb-3.5 lg:pt-7">
         {props.onVolver && (
-          <button className="boton-icono" onClick={props.onVolver} aria-label="Volver">
-            <ArrowLeft />
+          <button
+            type="button"
+            className="grid size-11 shrink-0 place-items-center rounded-md bg-superficie transition-colors hover:bg-elevado"
+            onClick={props.onVolver}
+            aria-label="Volver"
+          >
+            <ArrowLeft className="size-5" />
           </button>
         )}
-        <div className="textos">
-          {props.etiqueta && <span className="etiqueta">{props.etiqueta}</span>}
-          <h1>{props.titulo}</h1>
-          {props.subtitulo && <p className="subtitulo">{props.subtitulo}</p>}
+        <div className="min-w-0 flex-1">
+          <h1 className={cn('text-2xl leading-tight tracking-[-0.01em]', props.saludo ? 'font-normal' : 'font-semibold')}>{props.titulo}</h1>
+          {props.subtitulo && <p className="mt-0.5 text-texto-2">{props.subtitulo}</p>}
         </div>
         {props.accionHeader}
       </header>
-      {props.sinRelleno ? props.children : <main className={`contenido${props.fab ? ' con-fab' : ''}`}>{props.children}</main>}
-      {props.barraAccion && <div className="barra-accion">{props.barraAccion}</div>}
-      {props.fab}
+      {props.sinRelleno ? (
+        props.children
+      ) : (
+        <main className="flex flex-1 flex-col gap-3 px-4 pb-4 motion-safe:animate-[entrar_var(--duration-fast)_var(--ease-smooth-out)]">{props.children}</main>
+      )}
+      {props.barraAccion && (
+        <div className="sticky bottom-[var(--alto-barra,0px)] z-[4] border-t border-regla bg-fondo px-4 pt-3 pb-[calc(12px+var(--seguro-abajo))]">
+          {props.barraAccion}
+        </div>
+      )}
     </div>
   )
 }
 
+/** Contenedor blanco sin borde ni sombra. Con [onClick] es un botón de ancho completo. */
 export function Tarjeta(props: {
   children: ReactNode
   onClick?: () => void
   className?: string
   seleccionada?: boolean
-  style?: React.CSSProperties
+  style?: CSSProperties
   etiqueta?: string
 }) {
-  const clases = `tarjeta${props.onClick ? ' clic' : ''}${props.seleccionada ? ' seleccionada' : ''} ${props.className ?? ''}`
+  const clases = cn(
+    'tarjeta',
+    props.onClick && 'block w-full text-left transition-colors hover:bg-superficie/70 active:scale-[0.995]',
+    props.seleccionada && 'seleccionada',
+    props.className
+  )
   if (props.onClick) {
     return (
       <button type="button" className={clases} onClick={props.onClick} style={props.style} aria-label={props.etiqueta}>
@@ -102,23 +155,22 @@ export function Tarjeta(props: {
   )
 }
 
+/** Título de sección; el ícono ya no se dibuja (los encabezados van solo con texto). */
 export function EncabezadoSeccion(props: { titulo: string; icono?: Icono; textoAccion?: string | null; onAccion?: () => void }) {
-  const I = props.icono
   return (
-    <div className="seccion">
-      {I && <I size={20} color="var(--primario)" aria-hidden />}
-      <h2>{props.titulo}</h2>
+    <div className="flex min-h-9 items-center gap-2">
+      <h2 className="flex-1 text-[15px] font-semibold">{props.titulo}</h2>
       {props.textoAccion && props.onAccion && (
-        <button className="accion" onClick={props.onAccion}>
+        <Button variant="link" className="min-h-9 h-auto" onClick={props.onAccion}>
           {props.textoAccion}
-        </button>
+        </Button>
       )}
     </div>
   )
 }
 
 export function Divisor() {
-  return <div className="divisor" role="separator" />
+  return <div className="my-1 h-px bg-regla" role="separator" />
 }
 
 // ===========================================================================
@@ -126,6 +178,14 @@ export function Divisor() {
 // ===========================================================================
 
 type Variante = 'primario' | 'secundario' | 'destructivo' | 'destructivo-borde' | 'texto'
+
+const VARIANTE = {
+  primario: 'default',
+  secundario: 'secondary',
+  destructivo: 'destructive',
+  'destructivo-borde': 'destructive-soft',
+  texto: 'link'
+} as const
 
 export function Boton(props: {
   children: ReactNode
@@ -142,26 +202,28 @@ export function Boton(props: {
 }) {
   const I = props.icono
   return (
-    <button
+    <Button
       type={props.tipo ?? 'button'}
-      className={`boton ${props.variante ?? 'primario'}${props.ancho ? ' ancho' : ''}${props.chico ? ' chico' : ''} ${props.className ?? ''}`}
+      variant={VARIANTE[props.variante ?? 'primario']}
+      size={props.chico ? 'sm' : 'default'}
+      className={cn(props.ancho && 'w-full', props.className)}
       onClick={props.onClick}
       disabled={props.deshabilitado || props.cargando}
       aria-busy={props.cargando || undefined}
       aria-label={props.etiqueta}
     >
-      {props.cargando ? <span className="giro" aria-hidden /> : I ? <I size={18} aria-hidden /> : null}
+      {props.cargando ? <span className="giro size-4" aria-hidden /> : I ? <I aria-hidden /> : null}
       {props.children}
-    </button>
+    </Button>
   )
 }
 
 export function BotonIcono(props: { icono: Icono; etiqueta: string; onClick: () => void; deshabilitado?: boolean; className?: string }) {
   const I = props.icono
   return (
-    <button className={`boton-icono ${props.className ?? ''}`} onClick={props.onClick} aria-label={props.etiqueta} disabled={props.deshabilitado}>
-      <I size={22} />
-    </button>
+    <Button variant="ghost" size="icon" className={cn('rounded-md [&_svg]:size-5', props.className)} onClick={props.onClick} aria-label={props.etiqueta} disabled={props.deshabilitado}>
+      <I />
+    </Button>
   )
 }
 
@@ -169,39 +231,52 @@ export function BotonIcono(props: { icono: Icono; etiqueta: string; onClick: () 
 // Elementos visuales
 // ===========================================================================
 
+/**
+ * Antes un ícono dentro de un círculo de color; ahora el ícono solo, en gris (o en el
+ * color del tono si avisa algo). Conserva el ancho para que las filas sigan alineadas.
+ */
 export function IconoCircular(props: { icono: Icono; tono?: Tono; tamano?: number }) {
   const t = props.tamano ?? 40
   const I = props.icono
   return (
-    <span className={`icono-circular tono-${props.tono ?? 'exito'}`} style={{ width: t, height: t }} aria-hidden>
-      <I size={Math.round(t * 0.5)} />
+    <span className={cn('grid shrink-0 place-items-center', COLOR_ICONO[props.tono ?? 'neutro'])} style={{ width: Math.min(t, 32) }} aria-hidden>
+      <I size={Math.min(28, Math.max(18, Math.round(t * 0.42)))} strokeWidth={1.75} />
     </span>
   )
 }
 
 export function Badge(props: { texto: string; tono: Tono; icono?: Icono; className?: string }) {
-  const I = props.icono
-  return (
-    <span className={`badge tono-${props.tono} ${props.className ?? ''}`}>
-      {I && <I size={14} aria-hidden />}
-      {props.texto}
-    </span>
-  )
+  return <BadgeUi className={cn('h-5 self-center border-0 px-2 py-0 text-xs', PASTILLA[props.tono], props.className)}>{props.texto}</BadgeUi>
+}
+
+/** Tonos pálidos para avatares (sin violetas ni índigos); cada persona conserva siempre el mismo. */
+const MATICES = [150, 30, 195, 0, 85, 175, 45, 120, 210, 15]
+
+export function matizDe(nombre: string): number {
+  let h = 0
+  for (const c of nombre) h = (h * 31 + c.charCodeAt(0)) | 0
+  return MATICES[Math.abs(h) % MATICES.length]
 }
 
 export function Avatar(props: { nombre: string; tamano?: number }) {
-  const t = props.tamano ?? 44
+  const t = props.tamano ?? 40
   return (
-    <span className="avatar" style={{ width: t, height: t, fontSize: t * 0.36 }} aria-hidden>
-      {iniciales(props.nombre)}
-    </span>
+    <AvatarRadix className="shrink-0" style={{ width: t, height: t, '--h': matizDe(props.nombre) } as CSSProperties} aria-hidden>
+      <AvatarFallback
+        className="bg-[hsl(var(--h)_45%_90%)] font-semibold text-[hsl(var(--h)_45%_26%)] dark:bg-[hsl(var(--h)_20%_22%)] dark:text-[hsl(var(--h)_45%_82%)]"
+        style={{ fontSize: Math.round(t * 0.36) }}
+      >
+        {iniciales(props.nombre)}
+      </AvatarFallback>
+    </AvatarRadix>
   )
 }
 
 export function Logo({ tamano = 80 }: { tamano?: number }) {
-  return <img className="logo" src="/logo.svg" width={tamano} height={tamano} alt="" />
+  return <img className="rounded-[24%]" src="/logo.svg" width={tamano} height={tamano} alt="" />
 }
 
+/** Aviso dentro de la pantalla: panel blanco, ícono y título en el color del tono, acciones de texto. */
 export function AvisoBanner(props: {
   texto: string
   titulo?: string
@@ -213,17 +288,24 @@ export function AvisoBanner(props: {
   onAccionSecundaria?: () => void
 }) {
   const I = props.icono
+  const acciones = (props.textoAccion && props.onAccion) || (props.textoAccionSecundaria && props.onAccionSecundaria)
   return (
-    <div className={`banner tono-${props.tono}`} role={props.tono === 'peligro' ? 'alert' : undefined}>
-      {I && <I size={22} style={{ flexShrink: 0, marginTop: 1 }} aria-hidden />}
-      <div style={{ flex: 1 }}>
-        {props.titulo && <p className="titulo">{props.titulo}</p>}
-        <p>{props.texto}</p>
-        {((props.textoAccion && props.onAccion) || (props.textoAccionSecundaria && props.onAccionSecundaria)) && (
-          <div className="acciones">
-            {props.textoAccion && props.onAccion && <button onClick={props.onAccion}>{props.textoAccion}</button>}
+    <div className="flex items-start gap-3 rounded-lg bg-superficie px-4 py-3.5" role={props.tono === 'peligro' ? 'alert' : undefined}>
+      {I && <I className={cn('mt-0.5 size-[18px] shrink-0', COLOR_ICONO[props.tono])} strokeWidth={1.75} aria-hidden />}
+      <div className="min-w-0 flex-1">
+        {props.titulo && <p className="font-medium">{props.titulo}</p>}
+        <p className={cn(props.titulo && 'text-[13px] text-texto-2')}>{props.texto}</p>
+        {acciones && (
+          <div className="mt-1 -mb-2 flex flex-wrap gap-x-4">
+            {props.textoAccion && props.onAccion && (
+              <Button variant="link" className="px-0" onClick={props.onAccion}>
+                {props.textoAccion}
+              </Button>
+            )}
             {props.textoAccionSecundaria && props.onAccionSecundaria && (
-              <button onClick={props.onAccionSecundaria}>{props.textoAccionSecundaria}</button>
+              <Button variant="link" className="px-0 text-texto-2" onClick={props.onAccionSecundaria}>
+                {props.textoAccionSecundaria}
+              </Button>
             )}
           </div>
         )}
@@ -233,41 +315,54 @@ export function AvisoBanner(props: {
 }
 
 /**
- * Barra de progreso: verde si va al ritmo esperado, ámbar si va por debajo
- * (B-06). Con [ritmoEsperado] dibuja una marca donde "debería ir" a esta altura.
+ * Barra de horas: el relleno siempre en verde (horas trabajadas); con [ritmoEsperado]
+ * dibuja una marca donde "debería ir" a esta altura (B-06). Quien la usa pinta en ámbar
+ * la cifra si va atrasado.
  */
 export function BarraProgreso(props: { progreso: number; ritmoEsperado?: number | null; altura?: number }) {
   const valor = Math.min(1, Math.max(0, props.progreso))
-  const color = vaAlRitmo(props.progreso, props.ritmoEsperado) ? 'var(--exito)' : 'var(--alerta)'
   const ritmo = props.ritmoEsperado
+  const alto = props.altura ?? 6
   return (
     <div
-      className="barra-progreso"
-      style={{ height: props.altura ?? 8 }}
+      className="relative rounded-full bg-regla"
+      style={{ height: alto }}
       role="progressbar"
       aria-valuemin={0}
       aria-valuemax={100}
       aria-valuenow={Math.round(valor * 100)}
     >
-      <div className="relleno" style={{ width: `${valor * 100}%`, background: color }} />
-      {ritmo != null && ritmo > 0.01 && ritmo < 0.99 && <div className="marca" style={{ left: `${ritmo * 100}%` }} />}
+      <div className="absolute inset-y-0 left-0 rounded-full bg-dato transition-[width] duration-700" style={{ width: `${valor * 100}%` }} />
+      {ritmo != null && ritmo > 0.01 && ritmo < 0.99 && (
+        <div className="absolute w-[1.5px] bg-marca-ritmo" style={{ left: `${ritmo * 100}%`, top: -4, height: alto + 8 }} />
+      )}
     </div>
   )
 }
 
-/** Etiqueta + "x / y h" + barra. Se usa en Inicio, Reporte de horas y listas de becarios. */
+/** "12.5 de 20 h": cifra en tinta (ámbar si va atrasada) y la meta en gris. */
+export function HorasDeMeta(props: { horas: number; meta: number | null | undefined; atrasado?: boolean }) {
+  const { meta } = props
+  return (
+    <span className="whitespace-nowrap">
+      <span className={cn('font-medium', props.atrasado && 'text-alerta')}>{numeroHoras(props.horas)}</span>
+      <span className="text-texto-2">{meta != null && meta > 0 ? ` de ${numeroHoras(meta)} h` : ' h'}</span>
+    </span>
+  )
+}
+
+/** Etiqueta + "x de y h" + barra. Se usa en Reporte de horas y listas de becarios. */
 export function FilaProgreso(props: { etiqueta: string; horas: number; meta: number | null | undefined; ritmoEsperado?: number | null }) {
   const { meta } = props
   const progreso = meta != null && meta > 0 ? props.horas / meta : 0
   return (
-    <div className="fila-progreso">
+    <div className="py-2.5">
       <div className="fila">
-        <span className="crece texto-2">{props.etiqueta}</span>
-        {progreso >= 1 && <CheckCircle2 size={16} color="var(--exito)" aria-label="Meta cumplida" />}
-        <span className="titulo-s tnum">{horasDeMeta(props.horas, meta)}</span>
+        <span className="crece">{props.etiqueta}</span>
+        <HorasDeMeta horas={props.horas} meta={meta} atrasado={meta != null && meta > 0 && !vaAlRitmo(progreso, props.ritmoEsperado)} />
       </div>
       {meta != null && meta > 0 && (
-        <div style={{ marginTop: 8 }}>
+        <div className="mt-2">
           <BarraProgreso progreso={progreso} ritmoEsperado={props.ritmoEsperado} />
         </div>
       )}
@@ -275,36 +370,60 @@ export function FilaProgreso(props: { etiqueta: string; horas: number; meta: num
   )
 }
 
-export function CuadriculaDos({ children }: { children: ReactNode }) {
-  return <div className="cuadricula-dos">{children}</div>
+/**
+ * Indicadores: un solo contenedor blanco dividido por reglas de 1 px (el fondo gris
+ * asoma por el hueco de 1 px). Si la cuenta es impar, la última celda ocupa el resto
+ * de la fila para no dejar un hueco.
+ */
+export function CuadriculaDos({ children, className }: { children: ReactNode; className?: string }) {
+  return (
+    <div
+      className={cn(
+        'grid grid-cols-2 gap-px overflow-hidden rounded-lg bg-regla',
+        '[&>*:last-child:nth-child(odd)]:col-span-2',
+        className
+      )}
+    >
+      {children}
+    </div>
+  )
 }
 
+/** Celda de indicador: valor arriba, etiqueta abajo; sin ícono. El ícono se acepta por compatibilidad y no se dibuja. */
 export function TarjetaIndicador(props: {
   valor: string
   etiqueta: string
-  icono: Icono
+  icono?: Icono
   alerta?: boolean
   detalle?: string | null
   onClick?: () => void
 }) {
-  const I = props.icono
-  return (
-    <Tarjeta onClick={props.onClick} className={`indicador${props.alerta ? ' alerta' : ''}`} etiqueta={`${props.etiqueta}: ${props.valor}`}>
-      <I size={22} color={props.alerta ? 'var(--alerta)' : 'var(--primario)'} aria-hidden />
-      <span className="valor">{props.valor}</span>
-      <span className="titulo-s">{props.etiqueta}</span>
-      {props.detalle && <span className="chico texto-2">{props.detalle}</span>}
-    </Tarjeta>
+  const contenido = (
+    <>
+      <span className="text-[22px] leading-tight font-semibold tracking-[-0.01em]">
+        <span className={cn(props.alerta && 'text-alerta')}>{props.valor}</span>
+        {props.detalle && <span className="text-sm font-normal tracking-normal text-texto-2"> {props.detalle}</span>}
+      </span>
+      <span className="truncate text-[13px] text-texto-2">{props.etiqueta}</span>
+    </>
+  )
+  const clases = 'flex min-w-0 flex-col gap-0.5 bg-superficie px-3.5 py-3 text-left'
+  return props.onClick ? (
+    <button type="button" className={cn(clases, 'transition-colors hover:bg-superficie/70')} onClick={props.onClick} aria-label={`${props.etiqueta}: ${props.valor}`}>
+      {contenido}
+    </button>
+  ) : (
+    <div className={clases}>{contenido}</div>
   )
 }
 
 export function FilaInfo(props: { etiqueta: string; icono: Icono; valor?: string; children?: ReactNode }) {
   const I = props.icono
   return (
-    <div className="fila" style={{ padding: '10px 0' }}>
-      <I size={20} color="var(--texto-2)" aria-hidden />
-      <span className="crece texto-2">{props.etiqueta}</span>
-      {props.children ?? <span className="titulo-s" style={{ textAlign: 'right' }}>{props.valor}</span>}
+    <div className="fila py-2.5">
+      <I className="size-[18px] text-texto-2" strokeWidth={1.75} aria-hidden />
+      <span className="crece text-texto-2">{props.etiqueta}</span>
+      {props.children ?? <span className="text-right font-medium">{props.valor}</span>}
     </div>
   )
 }
@@ -315,15 +434,14 @@ export function FilaInfo(props: { etiqueta: string; icono: Icono; valor?: string
 
 export function EstadoError(props: { mensaje: string; onReintentar?: () => void }) {
   const sinRed = props.mensaje.startsWith(MENSAJE_SIN_CONEXION.slice(0, 12))
+  const I = sinRed ? CloudOff : AlertTriangle
   return (
     <div className="estado-centrado" role="alert">
-      <IconoCircular icono={sinRed ? CloudOff : AlertTriangle} tono="peligro" tamano={56} />
-      <p className="titulo-m" style={{ marginTop: 10 }}>
-        {sinRed ? 'Sin conexión' : 'Algo salió mal'}
-      </p>
-      <p className="texto-2">{props.mensaje}</p>
+      <I className="size-7 text-peligro" strokeWidth={1.75} aria-hidden />
+      <p className="titulo-m mt-1.5">{sinRed ? 'Sin conexión' : 'Algo salió mal'}</p>
+      <p className="max-w-sm text-texto-2">{props.mensaje}</p>
       {props.onReintentar && (
-        <Boton variante="secundario" icono={RefreshCw} onClick={props.onReintentar}>
+        <Boton variante="secundario" icono={RefreshCw} onClick={props.onReintentar} className="mt-3">
           Reintentar
         </Boton>
       )}
@@ -332,15 +450,14 @@ export function EstadoError(props: { mensaje: string; onReintentar?: () => void 
 }
 
 export function EstadoVacio(props: { titulo: string; mensaje?: string | null; icono?: Icono; textoAccion?: string | null; onAccion?: () => void }) {
+  const I = props.icono ?? Inbox
   return (
     <div className="estado-centrado">
-      <IconoCircular icono={props.icono ?? Inbox} tono="neutro" tamano={64} />
-      <p className="titulo-m" style={{ marginTop: 10 }}>
-        {props.titulo}
-      </p>
-      {props.mensaje && <p className="texto-2">{props.mensaje}</p>}
+      <I className="size-7 text-texto-2" strokeWidth={1.75} aria-hidden />
+      <p className="titulo-m mt-1.5">{props.titulo}</p>
+      {props.mensaje && <p className="max-w-sm text-texto-2">{props.mensaje}</p>}
       {props.textoAccion && props.onAccion && (
-        <Boton variante="secundario" onClick={props.onAccion}>
+        <Boton variante="secundario" onClick={props.onAccion} className="mt-3">
           {props.textoAccion}
         </Boton>
       )}
@@ -352,25 +469,23 @@ export function Cargando({ texto }: { texto?: string }) {
   return (
     <div className="estado-centrado" aria-live="polite">
       <span className="giro grande" aria-hidden />
-      <p className="texto-2" style={{ marginTop: 8 }}>
-        {texto ?? 'Cargando…'}
-      </p>
+      <p className="mt-2 text-texto-2">{texto ?? 'Cargando…'}</p>
     </div>
   )
 }
 
 export function Esqueleto({ ancho = '100%', alto = 16 }: { ancho?: string; alto?: number }) {
-  return <div className="esqueleto" style={{ width: ancho, height: alto }} aria-hidden />
+  return <Skeleton className="rounded-sm bg-elevado" style={{ width: ancho, height: alto }} aria-hidden />
 }
 
 export function EsqueletoLista({ tarjetas = 3 }: { tarjetas?: number }) {
   return (
-    <div className="columna" style={{ gap: 12 }} aria-label="Cargando" role="status">
+    <div className="columna gap-3" aria-label="Cargando" role="status">
       {Array.from({ length: tarjetas }, (_, i) => (
         <div key={i} className="tarjeta columna">
           <Esqueleto ancho="55%" alto={18} />
           <Esqueleto ancho="35%" />
-          <Esqueleto alto={8} />
+          <Esqueleto alto={6} />
         </div>
       ))}
     </div>
@@ -390,8 +505,9 @@ export function SegunEstado<T>(props: { estado: Estado<T>; onReintentar: () => v
 // ===========================================================================
 
 /**
- * Confirmación para acciones que no se pueden deshacer. Con [destructivo] el
- * botón de confirmar es rojo y el ícono es de advertencia.
+ * Confirmación para acciones que no se pueden deshacer (Dialog de shadcn/Radix: atrapa
+ * el foco, cierra con Escape o tocando fuera y devuelve el foco al salir). Con
+ * [destructivo] el botón de confirmar es rojo. [icono] se acepta por compatibilidad y no se dibuja.
  */
 export function Dialogo(props: {
   titulo: string
@@ -405,53 +521,39 @@ export function Dialogo(props: {
   icono?: Icono | null
   children?: ReactNode
 }) {
-  const id = useId()
-  const ref = useRef<HTMLDivElement>(null)
-  useEffect(() => {
-    const previo = document.activeElement as HTMLElement | null
-    ref.current?.querySelector<HTMLElement>('input, textarea, select, button')?.focus()
-    const alTeclear = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') props.onCancelar()
-    }
-    document.addEventListener('keydown', alTeclear)
-    return () => {
-      document.removeEventListener('keydown', alTeclear)
-      previo?.focus?.()
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [])
-  const I = props.icono === undefined ? (props.destructivo ? AlertTriangle : null) : props.icono
   return (
-    <div className="fondo-dialogo" onClick={props.onCancelar}>
-      <div className="dialogo" role="dialog" aria-modal="true" aria-labelledby={id} ref={ref} onClick={(e) => e.stopPropagation()}>
-        {I && (
-          <div style={{ display: 'grid', placeItems: 'center' }}>
-            <IconoCircular icono={I} tono={props.destructivo ? 'peligro' : 'exito'} tamano={48} />
-          </div>
-        )}
-        <h2 id={id}>{props.titulo}</h2>
-        <p className="texto-2">{props.mensaje}</p>
-        {props.children && <div className="columna" style={{ gap: 12, marginTop: 4 }}>{props.children}</div>}
-        <div className="botones">
-          <Boton variante="texto" onClick={props.onCancelar}>
+    <Dialog open onOpenChange={(abierto) => !abierto && props.onCancelar()}>
+      <DialogContent showCloseButton={false} className="max-h-[88dvh] gap-3 overflow-y-auto rounded-lg border-0 bg-superficie p-5 sm:max-w-[420px]">
+        <DialogHeader className="gap-1.5 text-left">
+          <DialogTitle className="text-lg leading-snug">{props.titulo}</DialogTitle>
+          <DialogDescription className="text-sm text-texto-2">{props.mensaje}</DialogDescription>
+        </DialogHeader>
+        {props.children && <div className="columna mt-1 gap-3">{props.children}</div>}
+        <DialogFooter className="mt-2 flex-row justify-end gap-2">
+          <Boton variante="secundario" onClick={props.onCancelar}>
             {props.textoCancelar ?? 'Cancelar'}
           </Boton>
-          <Boton
-            variante={props.destructivo ? 'destructivo' : 'primario'}
-            onClick={props.onConfirmar}
-            deshabilitado={props.confirmarHabilitado === false}
-          >
+          <Boton variante={props.destructivo ? 'destructivo' : 'primario'} onClick={props.onConfirmar} deshabilitado={props.confirmarHabilitado === false}>
             {props.textoConfirmar ?? 'Confirmar'}
           </Boton>
-        </div>
-      </div>
-    </div>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
   )
 }
 
 // ===========================================================================
 // Formularios
 // ===========================================================================
+
+const CONTROL = 'flex items-center gap-2 rounded-md border border-control bg-superficie px-3 focus-within:ring-[3px] focus-within:ring-ring/40'
+const ETIQUETA = 'text-[13px] font-medium'
+
+function AyudaOError(props: { id: string; error?: string | null; ayuda?: string | null }) {
+  if (props.error) return <span className="mensaje-error" id={props.id}>{props.error}</span>
+  if (props.ayuda) return <span className="text-[13px] text-texto-2" id={props.id}>{props.ayuda}</span>
+  return null
+}
 
 export function CampoTexto(props: {
   etiqueta: string
@@ -470,6 +572,8 @@ export function CampoTexto(props: {
   min?: string
   max?: string
   onEnter?: () => void
+  /** La etiqueta solo para lectores de pantalla (buscadores). */
+  etiquetaOculta?: boolean
 }) {
   const id = useId()
   const I = props.icono
@@ -479,18 +583,23 @@ export function CampoTexto(props: {
     placeholder: props.placeholder,
     disabled: props.deshabilitado,
     'aria-invalid': props.error ? true : undefined,
-    'aria-describedby': props.error || props.ayuda ? `${id}-ayuda` : undefined
+    'aria-describedby': props.error || props.ayuda ? `${id}-ayuda` : undefined,
+    // El borde y el foco los pone el contenedor (para el ícono y el sufijo).
+    className: 'border-0 bg-transparent px-0 shadow-none focus-visible:ring-0 dark:bg-transparent'
   }
   return (
-    <div className={`campo${props.error ? ' error' : ''}`}>
-      <label htmlFor={id}>{props.etiqueta}</label>
-      <div className="control">
-        {I && <I size={20} aria-hidden />}
+    <div className="flex flex-col gap-1.5">
+      <label htmlFor={id} className={cn(ETIQUETA, props.etiquetaOculta && 'sr-only')}>
+        {props.etiqueta}
+      </label>
+      <div className={cn(CONTROL, props.error && 'border-peligro', props.deshabilitado && 'opacity-60')}>
+        {I && <I className="size-[18px] shrink-0 text-texto-2" strokeWidth={1.75} aria-hidden />}
         {props.multilinea ? (
-          <textarea {...comunes} rows={props.multilinea} onChange={(e) => props.onCambio(e.target.value)} />
+          <Textarea {...comunes} className={cn(comunes.className, 'min-h-0 py-2.5')} rows={props.multilinea} onChange={(e) => props.onCambio(e.target.value)} />
         ) : (
-          <input
+          <Input
             {...comunes}
+            className={cn(comunes.className, 'h-11 text-base md:text-base lg:text-sm')}
             type={props.tipo ?? 'text'}
             inputMode={props.modoTeclado}
             autoComplete={props.autoComplete}
@@ -507,19 +616,12 @@ export function CampoTexto(props: {
         )}
         {props.sufijo}
       </div>
-      {props.error ? (
-        <span className="mensaje-error" id={`${id}-ayuda`}>
-          {props.error}
-        </span>
-      ) : props.ayuda ? (
-        <span className="ayuda" id={`${id}-ayuda`}>
-          {props.ayuda}
-        </span>
-      ) : null}
+      <AyudaOError id={`${id}-ayuda`} error={props.error} ayuda={props.ayuda} />
     </div>
   )
 }
 
+/** Lista desplegable nativa (en el teléfono abre el selector del sistema). [icono] ya no se dibuja. */
 export function Desplegable<T>(props: {
   etiqueta: string
   opciones: T[]
@@ -532,37 +634,42 @@ export function Desplegable<T>(props: {
   error?: string | null
   ayuda?: string | null
   deshabilitado?: boolean
+  etiquetaOculta?: boolean
 }) {
   const id = useId()
-  const I = props.icono
   const clave = props.seleccionado != null ? props.claveDe(props.seleccionado) : ''
   return (
-    <div className={`campo${props.error ? ' error' : ''}`}>
-      <label htmlFor={id}>{props.etiqueta}</label>
-      <div className="control">
-        {I && <I size={20} aria-hidden />}
-        <select
-          id={id}
-          value={clave}
-          disabled={props.deshabilitado}
-          onChange={(e) => {
-            const o = props.opciones.find((x) => props.claveDe(x) === e.target.value)
-            if (o !== undefined) props.onSeleccionar(o)
-          }}
-        >
-          {props.seleccionado == null && <option value="">{props.placeholder ?? 'Elige una opción'}</option>}
-          {props.opciones.map((o) => (
-            <option key={props.claveDe(o)} value={props.claveDe(o)}>
-              {props.textoDe(o)}
-            </option>
-          ))}
-        </select>
-      </div>
-      {props.error ? <span className="mensaje-error">{props.error}</span> : props.ayuda ? <span className="ayuda">{props.ayuda}</span> : null}
+    <div className="flex min-w-0 flex-col gap-1.5">
+      <label htmlFor={id} className={cn(ETIQUETA, props.etiquetaOculta && 'sr-only')}>
+        {props.etiqueta}
+      </label>
+      <NativeSelect
+        id={id}
+        value={clave}
+        disabled={props.deshabilitado}
+        aria-invalid={props.error ? true : undefined}
+        className={cn('h-11 border-control bg-superficie text-base shadow-none lg:text-sm dark:bg-superficie', props.error && 'border-peligro')}
+        onChange={(e) => {
+          const o = props.opciones.find((x) => props.claveDe(x) === e.target.value)
+          if (o !== undefined) props.onSeleccionar(o)
+        }}
+      >
+        {props.seleccionado == null && <NativeSelectOption value="">{props.placeholder ?? 'Elige una opción'}</NativeSelectOption>}
+        {props.opciones.map((o) => (
+          <NativeSelectOption key={props.claveDe(o)} value={props.claveDe(o)}>
+            {props.textoDe(o)}
+          </NativeSelectOption>
+        ))}
+      </NativeSelect>
+      <AyudaOError id={`${id}-ayuda`} error={props.error} ayuda={props.ayuda} />
     </div>
   )
 }
 
+/**
+ * Control segmentado (Toggle Group de shadcn). Sin [onSeleccionar] es informativo:
+ * muestra la opción vigente y no se puede tocar.
+ */
 export function Segmentado(props: {
   opciones: string[]
   seleccionado: number
@@ -573,32 +680,47 @@ export function Segmentado(props: {
 }) {
   const informativo = !props.onSeleccionar
   return (
-    <div className={`segmentado${informativo ? ' informativo' : ''}`} role="group" aria-label={props.etiqueta}>
+    <ToggleGroup
+      type="single"
+      value={props.seleccionado >= 0 ? String(props.seleccionado) : ''}
+      onValueChange={(v) => v && props.onSeleccionar?.(Number(v))}
+      disabled={props.deshabilitado}
+      aria-label={props.etiqueta}
+      className="w-full gap-1 rounded-md bg-elevado p-1"
+    >
       {props.opciones.map((o, i) => {
         const I = props.iconos?.[i]
         return (
-          <button
+          <ToggleGroupItem
             key={o}
-            type="button"
-            aria-pressed={i === props.seleccionado}
-            disabled={props.deshabilitado}
+            value={String(i)}
             tabIndex={informativo ? -1 : undefined}
-            onClick={() => props.onSeleccionar?.(i)}
+            className={cn(
+              'h-9 flex-1 rounded-[4px]! text-texto-2 hover:bg-transparent hover:text-texto data-[state=on]:bg-superficie data-[state=on]:text-texto',
+              informativo && 'pointer-events-none'
+            )}
           >
-            {I && <I size={16} aria-hidden />}
+            {I && <I aria-hidden />}
             {o}
-          </button>
+          </ToggleGroupItem>
         )
       })}
-    </div>
+    </ToggleGroup>
   )
 }
 
+/** Filtro de una sola fila: activo en tinta, inactivo en blanco (en gris dentro de un panel blanco). */
 export function Chip(props: { texto: string; activo: boolean; onClick: () => void; icono?: Icono }) {
-  const I = props.icono
   return (
-    <button type="button" className="chip" aria-pressed={props.activo} onClick={props.onClick}>
-      {I && <I size={16} aria-hidden />}
+    <button
+      type="button"
+      aria-pressed={props.activo}
+      onClick={props.onClick}
+      className={cn(
+        'inline-flex h-9 shrink-0 items-center rounded-full px-3.5 text-[13px] font-medium whitespace-nowrap transition-colors',
+        props.activo ? 'bg-tinta text-sobre-tinta' : 'bg-superficie text-texto hover:bg-elevado in-[.tarjeta]:bg-elevado'
+      )}
+    >
       {props.texto}
     </button>
   )
@@ -607,19 +729,26 @@ export function Chip(props: { texto: string; activo: boolean; onClick: () => voi
 /** Selector de mes con flechas (A-03). */
 export function SelectorMes(props: { nombre: string; puedeSiguiente: boolean; onAnterior: () => void; onSiguiente: () => void }) {
   return (
-    <div className="fila" style={{ padding: '8px 8px 0' }}>
-      <BotonIcono icono={ChevronLeft} etiqueta="Mes anterior" onClick={props.onAnterior} />
-      <p className="titulo-m crece" style={{ textAlign: 'center' }}>
-        {props.nombre}
-      </p>
-      <BotonIcono icono={ChevronRight} etiqueta="Mes siguiente" onClick={props.onSiguiente} deshabilitado={!props.puedeSiguiente} />
+    <div className="fila">
+      <BotonIcono icono={ChevronLeft} etiqueta="Mes anterior" onClick={props.onAnterior} className="bg-superficie" />
+      <p className="crece text-center text-[15px] font-semibold">{props.nombre}</p>
+      <BotonIcono icono={ChevronRight} etiqueta="Mes siguiente" onClick={props.onSiguiente} deshabilitado={!props.puedeSiguiente} className="bg-superficie" />
     </div>
   )
 }
 
 export function Buscador(props: { valor: string; onCambio: (v: string) => void; placeholder: string }) {
   return (
-    <CampoTexto etiqueta="Buscar" valor={props.valor} onCambio={props.onCambio} placeholder={props.placeholder} tipo="search" modoTeclado="search" />
+    <CampoTexto
+      etiqueta="Buscar"
+      etiquetaOculta
+      icono={Search}
+      valor={props.valor}
+      onCambio={props.onCambio}
+      placeholder={props.placeholder}
+      tipo="search"
+      modoTeclado="search"
+    />
   )
 }
 
@@ -628,8 +757,6 @@ export function Buscador(props: { valor: string; onCambio: (v: string) => void; 
 // ===========================================================================
 
 export const etiquetaTipo = (t: TipoAsistencia) => (t === 'entrada' ? 'Entrada' : 'Salida')
-/** Entrada en verde, Salida en ámbar. */
-export const tonoTipo = (t: TipoAsistencia): Tono => (t === 'entrada' ? 'exito' : 'alerta')
 export const iconoTipo = (t: TipoAsistencia): Icono => (t === 'entrada' ? LogIn : LogOut)
 
 /** null = día sin configurar / no aplica. */
