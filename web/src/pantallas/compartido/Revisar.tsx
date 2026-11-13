@@ -1,38 +1,27 @@
 import { useState } from 'react'
-import { CalendarDays, CalendarPlus, CalendarX, CheckCircle2, ClipboardCheck, Clock, MapPinOff, MapPin, ScanFace, TriangleAlert, Watch, type LucideProps } from 'lucide-react'
-import type { ComponentType } from 'react'
+import { CheckCircle2 } from 'lucide-react'
+import { Button } from '@/components/ui/button'
 import { anomalias, aprobarAsistencia, aprobarAsistencias } from '../../datos/asistencias'
 import { mensajeAmigable } from '../../lib/errores'
-import { diaCompleto, hora, parsear } from '../../lib/fechas'
-import { entero, horas as formatoHoras, plural } from '../../lib/formato'
+import { diaCompleto, fechaCorta, hora, parsear } from '../../lib/fechas'
+import { entero, horas as formatoHoras, numeroHoras, plural } from '../../lib/formato'
 import type { Anomalia, TipoAnomalia } from '../../lib/modelos'
 import { useAvisos } from '../../ui/avisos'
-import { Avatar, Badge, Boton, Dialogo, EstadoVacio, Pantalla, SegunEstado, Tarjeta, useVolver, type Tono } from '../../ui/componentes'
+import { Avatar, Badge, Boton, Chip, Dialogo, EstadoVacio, Pantalla, SegunEstado, useVolver, type Tono } from '../../ui/componentes'
 import { anomaliaSeAprueba, etiquetaAnomalia } from '../../ui/estadosVisuales'
 import { useAlReanudar, useCarga } from '../../ui/hooks'
 
-const ICONOS: Record<TipoAnomalia, ComponentType<LucideProps>> = {
-  turno_abierto: Clock,
-  jornada_larga: TriangleAlert,
-  atraso: Clock,
-  reloj_adelantado: Watch,
-  sin_ubicacion: MapPinOff,
-  fuera_de_zona: MapPin,
-  revision_humana: ClipboardCheck,
-  sin_rostro: ScanFace,
-  modalidad_distinta: CalendarX
-}
-
+/** Pastilla de cada motivo: rojo lo fuera de zona, ámbar lo que falta o no cuadra, gris lo demás. */
 const TONOS: Record<TipoAnomalia, Tono> = {
-  turno_abierto: 'peligro',
+  turno_abierto: 'alerta',
   jornada_larga: 'alerta',
   atraso: 'alerta',
-  reloj_adelantado: 'alerta',
-  sin_ubicacion: 'info',
-  fuera_de_zona: 'alerta',
-  revision_humana: 'info',
+  reloj_adelantado: 'neutro',
+  sin_ubicacion: 'neutro',
+  fuera_de_zona: 'peligro',
+  revision_humana: 'neutro',
   sin_rostro: 'alerta',
-  modalidad_distinta: 'alerta'
+  modalidad_distinta: 'neutro'
 }
 
 /** Solo la revisión humana simple se aprueba en lote (igual que aprobar_asistencias); lo demás, uno por uno. */
@@ -71,18 +60,8 @@ function sinAprobadas(lista: Anomalia[], ids: Set<string>, jornada: boolean): An
   return lista.filter((a) => !ids.has(a.asistencia_id) || a.tipo === 'turno_abierto' || (a.tipo === 'jornada_larga' && !jornada))
 }
 
-function porBecario(lista: Anomalia[]): { id: string; nombre: string; items: Anomalia[] }[] {
-  const mapa = new Map<string, { id: string; nombre: string; items: Anomalia[] }>()
-  for (const a of lista) {
-    const g = mapa.get(a.becario_id) ?? { id: a.becario_id, nombre: a.becario_nombre, items: [] }
-    g.items.push(a)
-    mapa.set(a.becario_id, g)
-  }
-  return [...mapa.values()].sort((x, y) => x.nombre.localeCompare(y.nombre, 'es'))
-}
-
 /**
- * Lista de registros por revisar (RPC anomalias_asistencia), agrupada por becario.
+ * Lista de registros por revisar (RPC anomalias_asistencia), con filtro por motivo.
  * La usan el ingeniero (sus becarios) y el administrador (todos): el servidor decide qué se ve.
  * [rutaBecario] lleva a las asistencias del becario, donde se agrega la salida o se corrige.
  * [soloLectura]: el administrador solo mira; aprueba el ingeniero asignado (0026).
@@ -102,6 +81,7 @@ export default function Revisar(props: {
   const [aAprobar, setAAprobar] = useState<Anomalia | null>(null)
   const [aprobarTodos, setAprobarTodos] = useState(false)
   const [aprobando, setAprobando] = useState(false)
+  const [filtro, setFiltro] = useState<TipoAnomalia | null>(null)
   const idsLote = new Set(estado.tipo === 'listo' && !props.soloLectura ? estado.datos.filter(seApruebaEnLote).map((a) => a.asistencia_id) : [])
 
   async function aprobar(a: Anomalia) {
@@ -142,6 +122,10 @@ export default function Revisar(props: {
     }
   }
 
+  // Filtro por tipo; si el tipo elegido ya no tiene registros (se aprobaron), vuelve a "Todos".
+  const tipos = estado.tipo === 'listo' ? conteoPorTipo(estado.datos) : []
+  const activo = filtro && tipos.some(([t]) => t === filtro) ? filtro : null
+
   return (
     <Pantalla
       titulo="Por revisar"
@@ -159,7 +143,6 @@ export default function Revisar(props: {
         <Dialogo
           titulo="Aprobar todos"
           mensaje={`Se aprobarán ${plural(idsLote.size, 'registro', 'registros')} en revisión humana. Los demás motivos y las jornadas largas se revisan uno por uno.`}
-          icono={ClipboardCheck}
           textoConfirmar="Aprobar todos"
           onConfirmar={() => {
             setAprobarTodos(false)
@@ -176,7 +159,6 @@ export default function Revisar(props: {
             estado.tipo === 'listo' &&
               estado.datos.some((x) => x.tipo === 'jornada_larga' && (x.asistencia_id === aAprobar.asistencia_id || x.entrada_id === aAprobar.asistencia_id))
           )}
-          icono={ClipboardCheck}
           textoConfirmar={aAprobar.tipo === 'jornada_larga' ? 'Confirmar' : 'Aprobar'}
           onConfirmar={() => {
             const a = aAprobar
@@ -187,7 +169,7 @@ export default function Revisar(props: {
         />
       )}
       <p className="chico texto-2">
-        Desde el inicio del semestre. Un registro por revisar no suma horas hasta que se aprueba o se corrige.
+        Desde el inicio del semestre. No suman horas hasta que se aprueban o se corrigen.
         {props.soloLectura && ' Los aprueba el ingeniero asignado a cada becario.'}
       </p>
       {estado.tipo === 'listo' && estado.datos.length >= MAXIMO_FILAS && (
@@ -199,35 +181,31 @@ export default function Revisar(props: {
             <EstadoVacio titulo="Todo en orden" mensaje="No hay registros por revisar en este semestre." icono={CheckCircle2} />
           ) : (
             <>
-              {porBecario(lista).map((g) => {
-                const asignar = props.rutaAsignar?.(g.id)
-                return (
-                <section key={g.id} className="columna" style={{ gap: 8 }} aria-label={`Registros de ${g.nombre}`}>
-                  <div className="fila" style={{ paddingTop: 8 }}>
-                    <Avatar nombre={g.nombre} tamano={36} />
-                    <h3 className="titulo-s crece recortar">{g.nombre}</h3>
-                    <span className="chico texto-2">{plural(g.items.length, 'pendiente', 'pendientes')}</span>
-                  </div>
-                  {asignar && (
-                    <div className="fila" style={{ flexWrap: 'wrap' }}>
-                      <Badge texto="Sin ingeniero activo: nadie puede aprobar" tono="alerta" icono={TriangleAlert} />
-                      <Boton chico variante="secundario" onClick={() => props.onNavegar(asignar)}>
-                        Asignar ingeniero
-                      </Boton>
-                    </div>
-                  )}
-                  {g.items.map((a) => (
-                    <FilaAnomalia
-                      key={`${a.tipo}-${a.asistencia_id}`}
-                      a={a}
-                      ocupado={aprobando}
-                      onAprobar={props.soloLectura ? undefined : () => setAAprobar(a)}
-                      onCorregir={() => props.onNavegar(props.rutaBecario(a.becario_id))}
-                    />
+              {tipos.length > 1 && (
+                <div className="chips" role="group" aria-label="Filtrar por motivo">
+                  <Chip texto={`Todos · ${entero(lista.length)}`} activo={activo == null} onClick={() => setFiltro(null)} />
+                  {tipos.map(([t, n]) => (
+                    <Chip key={t} texto={`${etiquetaAnomalia[t] ?? 'Por revisar'} · ${entero(n)}`} activo={activo === t} onClick={() => setFiltro(t)} />
                   ))}
-                </section>
-                )
-              })}
+                </div>
+              )}
+              <section className="rounded-lg bg-superficie px-4" aria-label="Registros por revisar">
+                {lista
+                  .filter((a) => activo == null || a.tipo === activo)
+                  .map((a) => {
+                    const asignar = props.rutaAsignar?.(a.becario_id)
+                    return (
+                      <FilaAnomalia
+                        key={`${a.tipo}-${a.asistencia_id}`}
+                        a={a}
+                        ocupado={aprobando}
+                        onAprobar={props.soloLectura ? undefined : () => setAAprobar(a)}
+                        onCorregir={() => props.onNavegar(props.rutaBecario(a.becario_id))}
+                        onAsignar={asignar ? () => props.onNavegar(asignar) : undefined}
+                      />
+                    )
+                  })}
+              </section>
             </>
           )
         }
@@ -236,43 +214,98 @@ export default function Revisar(props: {
   )
 }
 
-/** Sin [onAprobar] (administrador) solo se puede ir a ver las asistencias del becario. */
-function FilaAnomalia(props: { a: Anomalia; ocupado: boolean; onAprobar?: () => void; onCorregir: () => void }) {
+/** [tipo, cuántos] en el orden en que aparecen en la lista. */
+function conteoPorTipo(lista: Anomalia[]): [TipoAnomalia, number][] {
+  const mapa = new Map<TipoAnomalia, number>()
+  for (const a of lista) mapa.set(a.tipo, (mapa.get(a.tipo) ?? 0) + 1)
+  return [...mapa]
+}
+
+/** "A 256 m de la zona" o "A 1.3 km de la zona". */
+function textoDistancia(m: number): string {
+  return m >= 1000 ? `A ${numeroHoras(m / 1000)} km de la zona` : `A ${entero(m)} m de la zona`
+}
+
+/**
+ * Esquema de un registro fuera de zona: el círculo es la zona y el punto, dónde se
+ * registró. Solo representa la DISTANCIA (escala logarítmica, de 3 a 20 px fuera del
+ * borde): no tenemos el rumbo, así que el punto va siempre en la misma dirección.
+ */
+function EsquemaDistancia({ metros }: { metros: number }) {
+  const r = 13
+  const fuera = 3 + 17 * Math.min(1, Math.log10(1 + metros / 25) / Math.log10(1 + 2000 / 25))
+  const angulo = (-35 * Math.PI) / 180
+  return (
+    <svg className="size-14 shrink-0 rounded-md bg-fondo" viewBox="0 0 56 56" aria-hidden>
+      <circle cx={20} cy={32} r={r} fill="var(--dato-c)" stroke="var(--dato)" strokeWidth={1} />
+      <circle cx={20 + (r + fuera) * Math.cos(angulo)} cy={32 + (r + fuera) * Math.sin(angulo)} r={3.5} fill="var(--peligro)" />
+    </svg>
+  )
+}
+
+/**
+ * Un registro: quién, cuándo y por qué; la evidencia y las acciones de texto.
+ * Sin [onAprobar] (administrador) solo se puede ir a ver las asistencias del becario.
+ * No hay "rechazar": un registro que no procede se corrige o elimina en las asistencias del becario.
+ */
+function FilaAnomalia(props: { a: Anomalia; ocupado: boolean; onAprobar?: () => void; onCorregir: () => void; onAsignar?: () => void }) {
   const { a } = props
   // Un motivo nuevo de la base no debe romper una versión vieja de la app en caché.
-  const I = ICONOS[a.tipo] ?? TriangleAlert
   const etiqueta = etiquetaAnomalia[a.tipo] ?? 'Por revisar'
   const instante = parsear(a.ocurrido_en)
-  const pruebas = evidencia(a)
+  const lejos = a.tipo === 'fuera_de_zona' && a.distancia_m != null && a.distancia_m > 0 ? a.distancia_m : null
+  // La distancia ya va junto al esquema: la evidencia agrega lo demás (rostro, sin conexión, atraso).
+  const resto = lejos != null ? evidencia(a).replace(/^a [\d,]+ m de la zona( · )?/, '') : evidencia(a)
+  const pruebas = resto.charAt(0).toUpperCase() + resto.slice(1)
   return (
-    <Tarjeta>
-      <div className="columna" style={{ gap: 8 }}>
-        <div className="fila" style={{ flexWrap: 'wrap' }}>
-          <Badge texto={etiqueta} tono={TONOS[a.tipo] ?? 'alerta'} icono={I} />
-          <span className="chico texto-2">
-            {diaCompleto(a.fecha)}
+    <article className="border-t border-regla py-3.5 first:border-t-0" aria-label={`${etiqueta} de ${a.becario_nombre}`}>
+      <div className="fila gap-2.5">
+        <Avatar nombre={a.becario_nombre} tamano={32} />
+        <span className="crece">
+          <span className="block truncate font-medium">{a.becario_nombre}</span>
+          <span className="block text-[13px] text-texto-2">
+            {fechaCorta(a.fecha)}
             {instante ? ` · ${hora(instante)}` : ''}
           </span>
-        </div>
-        <p>{a.detalle}</p>
-        {pruebas && <p className="chico texto-2">{pruebas}</p>}
-        {a.tipo === 'jornada_larga' && a.horas != null && <p className="chico texto-2">Duración: {formatoHoras(a.horas)}</p>}
-        <div className="fila" style={{ justifyContent: 'flex-end' }}>
-          {!props.onAprobar ? (
-            <Boton icono={CalendarDays} variante="secundario" onClick={props.onCorregir} etiqueta={`Ver asistencias de ${a.becario_nombre}`}>
-              Ver asistencias
-            </Boton>
-          ) : anomaliaSeAprueba(a.tipo) ? (
-            <Boton icono={CheckCircle2} deshabilitado={props.ocupado} onClick={props.onAprobar} etiqueta={`Aprobar ${etiqueta.toLowerCase()} de ${a.becario_nombre}`}>
-              {a.tipo === 'jornada_larga' ? 'Confirmar jornada' : 'Aprobar'}
-            </Boton>
-          ) : (
-            <Boton icono={CalendarPlus} variante="secundario" onClick={props.onCorregir} etiqueta={`Agregar salida o corregir registros de ${a.becario_nombre}`}>
-              Agregar salida / corregir
-            </Boton>
-          )}
-        </div>
+        </span>
+        <Badge texto={etiqueta} tono={TONOS[a.tipo] ?? 'alerta'} />
       </div>
-    </Tarjeta>
+      <div className="mt-2.5 flex items-center gap-3 pl-[42px]">
+        {lejos != null && <EsquemaDistancia metros={lejos} />}
+        <span className="min-w-0 flex-1 text-[13px] text-texto-2">
+          {lejos != null ? <span className="block text-texto">{textoDistancia(lejos)}</span> : <span className="block">{a.detalle}</span>}
+          {pruebas && <span className="block">{pruebas}</span>}
+          {a.tipo === 'jornada_larga' && a.horas != null && <span className="block">Duración: {formatoHoras(a.horas)}</span>}
+        </span>
+      </div>
+      {props.onAsignar && (
+        <div className="mt-2 flex items-center gap-3 pl-[42px]">
+          <Badge texto="Sin ingeniero activo" tono="alerta" />
+          <Button variant="link" className="min-h-9 h-auto" onClick={props.onAsignar}>
+            Asignar ingeniero
+          </Button>
+        </div>
+      )}
+      <div className="-mb-2 flex justify-end gap-4">
+        {!props.onAprobar ? (
+          <Button variant="link" onClick={props.onCorregir} aria-label={`Ver asistencias de ${a.becario_nombre}`}>
+            Ver asistencias
+          </Button>
+        ) : anomaliaSeAprueba(a.tipo) ? (
+          <>
+            <Button variant="link" className="text-texto-2" onClick={props.onCorregir} aria-label={`Corregir registros de ${a.becario_nombre}`}>
+              Corregir
+            </Button>
+            <Button variant="link" disabled={props.ocupado} onClick={props.onAprobar} aria-label={`Aprobar ${etiqueta.toLowerCase()} de ${a.becario_nombre}`}>
+              {a.tipo === 'jornada_larga' ? 'Confirmar jornada' : 'Aprobar'}
+            </Button>
+          </>
+        ) : (
+          <Button variant="link" onClick={props.onCorregir} aria-label={`Agregar salida o corregir registros de ${a.becario_nombre}`}>
+            Agregar salida
+          </Button>
+        )}
+      </div>
+    </article>
   )
 }
