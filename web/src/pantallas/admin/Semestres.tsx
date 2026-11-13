@@ -137,7 +137,6 @@ export default function Semestres() {
         <Dialogo
           titulo="Semestre cerrado"
           mensaje={`${resultado.becarios_cumplidos} de ${resultado.becarios_activos} becarios cumplieron su meta semestral. El periodo "${resultado.periodo_nuevo}" ya está activo.`}
-          icono={CalendarCheck}
           textoConfirmar="Entendido"
           textoCancelar="Cerrar"
           onConfirmar={() => {

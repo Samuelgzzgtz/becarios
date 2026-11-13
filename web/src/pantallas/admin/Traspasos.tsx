@@ -58,7 +58,6 @@ export default function Traspasos() {
         <Dialogo
           titulo={c.aprobar ? 'Aprobar traspaso' : 'Rechazar traspaso'}
           mensaje={c.aprobar ? `${becario} pasará de ${origen} a ${destino}.` : `Se rechazará la solicitud para mover a ${becario} de ${origen} a ${destino}.`}
-          icono={c.aprobar ? ArrowLeftRight : undefined}
           textoConfirmar={c.aprobar ? 'Aprobar' : 'Rechazar'}
           destructivo={!c.aprobar}
           onConfirmar={resolver}

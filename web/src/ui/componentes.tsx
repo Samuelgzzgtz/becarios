@@ -17,7 +17,6 @@ import {
   type LucideProps
 } from 'lucide-react'
 import { useNavigate } from 'react-router-dom'
-import { Avatar as AvatarRadix, AvatarFallback } from '@/components/ui/avatar'
 import { Badge as BadgeUi } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog'
@@ -155,13 +154,13 @@ export function Tarjeta(props: {
   )
 }
 
-/** Título de sección; el ícono ya no se dibuja (los encabezados van solo con texto). */
-export function EncabezadoSeccion(props: { titulo: string; icono?: Icono; textoAccion?: string | null; onAccion?: () => void }) {
+/** Título de sección, solo texto, con una acción de texto opcional. */
+export function EncabezadoSeccion(props: { titulo: string; textoAccion?: string | null; onAccion?: () => void }) {
   return (
     <div className="flex min-h-9 items-center gap-2">
       <h2 className="flex-1 text-[15px] font-semibold">{props.titulo}</h2>
       {props.textoAccion && props.onAccion && (
-        <Button variant="link" className="min-h-9 h-auto" onClick={props.onAccion}>
+        <Button variant="link" className="-my-1" onClick={props.onAccion}>
           {props.textoAccion}
         </Button>
       )}
@@ -245,7 +244,7 @@ export function IconoCircular(props: { icono: Icono; tono?: Tono; tamano?: numbe
   )
 }
 
-export function Badge(props: { texto: string; tono: Tono; icono?: Icono; className?: string }) {
+export function Badge(props: { texto: string; tono: Tono; className?: string }) {
   return <BadgeUi className={cn('h-5 self-center border-0 px-2 py-0 text-xs', PASTILLA[props.tono], props.className)}>{props.texto}</BadgeUi>
 }
 
@@ -258,17 +257,17 @@ export function matizDe(nombre: string): number {
   return MATICES[Math.abs(h) % MATICES.length]
 }
 
+/** Iniciales sobre un tinte pálido propio de cada persona. */
 export function Avatar(props: { nombre: string; tamano?: number }) {
   const t = props.tamano ?? 40
   return (
-    <AvatarRadix className="shrink-0" style={{ width: t, height: t, '--h': matizDe(props.nombre) } as CSSProperties} aria-hidden>
-      <AvatarFallback
-        className="bg-[hsl(var(--h)_45%_90%)] font-semibold text-[hsl(var(--h)_45%_26%)] dark:bg-[hsl(var(--h)_20%_22%)] dark:text-[hsl(var(--h)_45%_82%)]"
-        style={{ fontSize: Math.round(t * 0.36) }}
-      >
-        {iniciales(props.nombre)}
-      </AvatarFallback>
-    </AvatarRadix>
+    <span
+      className="grid shrink-0 place-items-center rounded-full bg-[hsl(var(--h)_45%_90%)] font-semibold text-[hsl(var(--h)_45%_26%)] select-none dark:bg-[hsl(var(--h)_20%_22%)] dark:text-[hsl(var(--h)_45%_82%)]"
+      style={{ width: t, height: t, fontSize: Math.round(t * 0.36), '--h': matizDe(props.nombre) } as CSSProperties}
+      aria-hidden
+    >
+      {iniciales(props.nombre)}
+    </span>
   )
 }
 
@@ -389,11 +388,10 @@ export function CuadriculaDos({ children, className }: { children: ReactNode; cl
   )
 }
 
-/** Celda de indicador: valor arriba, etiqueta abajo; sin ícono. El ícono se acepta por compatibilidad y no se dibuja. */
+/** Celda de indicador: valor arriba, etiqueta abajo; sin ícono. */
 export function TarjetaIndicador(props: {
   valor: string
   etiqueta: string
-  icono?: Icono
   alerta?: boolean
   detalle?: string | null
   onClick?: () => void
@@ -506,8 +504,8 @@ export function SegunEstado<T>(props: { estado: Estado<T>; onReintentar: () => v
 
 /**
  * Confirmación para acciones que no se pueden deshacer (Dialog de shadcn/Radix: atrapa
- * el foco, cierra con Escape o tocando fuera y devuelve el foco al salir). Con
- * [destructivo] el botón de confirmar es rojo. [icono] se acepta por compatibilidad y no se dibuja.
+ * el foco y cierra con Escape o tocando fuera). Con
+ * [destructivo] el botón de confirmar es rojo.
  */
 export function Dialogo(props: {
   titulo: string
@@ -518,12 +516,20 @@ export function Dialogo(props: {
   textoCancelar?: string
   destructivo?: boolean
   confirmarHabilitado?: boolean
-  icono?: Icono | null
   children?: ReactNode
 }) {
+  // Sin DialogTrigger, Radix no sabe a dónde devolver el foco al cerrar: se guarda el
+  // elemento que lo tenía al abrir (el botón que abrió el diálogo) y se le regresa.
+  const [previo] = useState(() => document.activeElement as HTMLElement | null)
   return (
     <Dialog open onOpenChange={(abierto) => !abierto && props.onCancelar()}>
-      <DialogContent showCloseButton={false} className="max-h-[88dvh] gap-3 overflow-y-auto rounded-lg border-0 bg-superficie p-5 sm:max-w-[420px]">
+      <DialogContent
+        showCloseButton={false}
+        onCloseAutoFocus={(e) => {
+          e.preventDefault()
+          previo?.focus?.()
+        }}
+        className="max-h-[88dvh] gap-3 overflow-y-auto rounded-lg border-0 bg-superficie p-5 sm:max-w-[420px]">
         <DialogHeader className="gap-1.5 text-left">
           <DialogTitle className="text-lg leading-snug">{props.titulo}</DialogTitle>
           <DialogDescription className="text-sm text-texto-2">{props.mensaje}</DialogDescription>
@@ -546,6 +552,11 @@ export function Dialogo(props: {
 // Formularios
 // ===========================================================================
 
+/*
+ * Los campos van a 16 px (text-base): con menos, iPhone y iPad hacen zoom al tocarlos.
+ * Solo en escritorio (lg) bajan a 14 px para igualar el resto del texto.
+ */
+const TEXTO_CAMPO = 'text-base md:text-base lg:text-sm'
 const CONTROL = 'flex items-center gap-2 rounded-md border border-control bg-superficie px-3 focus-within:ring-[3px] focus-within:ring-ring/40'
 const ETIQUETA = 'text-[13px] font-medium'
 
@@ -595,11 +606,11 @@ export function CampoTexto(props: {
       <div className={cn(CONTROL, props.error && 'border-peligro', props.deshabilitado && 'opacity-60')}>
         {I && <I className="size-[18px] shrink-0 text-texto-2" strokeWidth={1.75} aria-hidden />}
         {props.multilinea ? (
-          <Textarea {...comunes} className={cn(comunes.className, 'min-h-0 py-2.5')} rows={props.multilinea} onChange={(e) => props.onCambio(e.target.value)} />
+          <Textarea {...comunes} className={cn(comunes.className, TEXTO_CAMPO, 'min-h-0 py-2.5')} rows={props.multilinea} onChange={(e) => props.onCambio(e.target.value)} />
         ) : (
           <Input
             {...comunes}
-            className={cn(comunes.className, 'h-11 text-base md:text-base lg:text-sm')}
+            className={cn(comunes.className, TEXTO_CAMPO, 'h-11')}
             type={props.tipo ?? 'text'}
             inputMode={props.modoTeclado}
             autoComplete={props.autoComplete}
@@ -621,7 +632,7 @@ export function CampoTexto(props: {
   )
 }
 
-/** Lista desplegable nativa (en el teléfono abre el selector del sistema). [icono] ya no se dibuja. */
+/** Lista desplegable nativa (en el teléfono abre el selector del sistema). */
 export function Desplegable<T>(props: {
   etiqueta: string
   opciones: T[]
@@ -629,7 +640,6 @@ export function Desplegable<T>(props: {
   textoDe: (o: T) => string
   claveDe: (o: T) => string
   onSeleccionar: (o: T) => void
-  icono?: Icono
   placeholder?: string
   error?: string | null
   ayuda?: string | null
@@ -648,7 +658,7 @@ export function Desplegable<T>(props: {
         value={clave}
         disabled={props.deshabilitado}
         aria-invalid={props.error ? true : undefined}
-        className={cn('h-11 border-control bg-superficie text-base shadow-none lg:text-sm dark:bg-superficie', props.error && 'border-peligro')}
+        className={cn('h-11 border-control bg-superficie shadow-none dark:bg-superficie', TEXTO_CAMPO, props.error && 'border-peligro')}
         onChange={(e) => {
           const o = props.opciones.find((x) => props.claveDe(x) === e.target.value)
           if (o !== undefined) props.onSeleccionar(o)
@@ -696,7 +706,8 @@ export function Segmentado(props: {
             value={String(i)}
             tabIndex={informativo ? -1 : undefined}
             className={cn(
-              'h-9 flex-1 rounded-[4px]! text-texto-2 hover:bg-transparent hover:text-texto data-[state=on]:bg-superficie data-[state=on]:text-texto',
+              // El ::after cubre el relleno del contenedor: 44 px de área táctil por opción.
+              'relative h-9 flex-1 rounded-[4px]! text-texto-2 after:absolute after:inset-x-0 after:-inset-y-1 hover:bg-transparent hover:text-texto data-[state=on]:bg-superficie data-[state=on]:text-texto',
               informativo && 'pointer-events-none'
             )}
           >
@@ -710,14 +721,15 @@ export function Segmentado(props: {
 }
 
 /** Filtro de una sola fila: activo en tinta, inactivo en blanco (en gris dentro de un panel blanco). */
-export function Chip(props: { texto: string; activo: boolean; onClick: () => void; icono?: Icono }) {
+export function Chip(props: { texto: string; activo: boolean; onClick: () => void }) {
   return (
     <button
       type="button"
       aria-pressed={props.activo}
       onClick={props.onClick}
       className={cn(
-        'inline-flex h-9 shrink-0 items-center rounded-full px-3.5 text-[13px] font-medium whitespace-nowrap transition-colors',
+        // 36 px a la vista y 44 px de área táctil (el ::after; .chips deja el espacio arriba y abajo).
+        'relative inline-flex h-9 shrink-0 items-center rounded-full px-3.5 text-[13px] font-medium whitespace-nowrap transition-colors after:absolute after:inset-x-0 after:-inset-y-1',
         props.activo ? 'bg-tinta text-sobre-tinta' : 'bg-superficie text-texto hover:bg-elevado in-[.tarjeta]:bg-elevado'
       )}
     >

@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { ClipboardCheck, ExternalLink, History, Inbox, PenLine } from 'lucide-react'
+import { ClipboardCheck, ExternalLink, Inbox, PenLine } from 'lucide-react'
 import { firmar, porFirmarAntesDe, reportesDelMes, urlParaVer } from '../../datos/repositorios'
 import { mensajeAmigable } from '../../lib/errores'
 import { mesActual, mesLargo, parsearMes, sumarMeses } from '../../lib/fechas'
@@ -80,7 +80,6 @@ export default function FirmasSiase() {
         <Dialogo
           titulo="Firmar reportes"
           mensaje={`Se firmarán ${plural(seleccionados.length, 'reporte', 'reportes')} de ${mesLargo(mes)}.`}
-          icono={PenLine}
           textoConfirmar={`Firmar ${seleccionados.length}`}
           onConfirmar={() => {
             setConfirmando(false)
@@ -128,7 +127,7 @@ export default function FirmasSiase() {
 
               {d.anteriores.length > 0 && (
                 <>
-                  <EncabezadoSeccion titulo="Pendientes de meses anteriores" icono={History} />
+                  <EncabezadoSeccion titulo="Pendientes de meses anteriores" />
                   {d.anteriores
                     .filter((p) => p.reporte.id)
                     .map((p) => (

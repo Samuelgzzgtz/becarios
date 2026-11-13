@@ -116,7 +116,7 @@ function CuadriculaSemana({ dias }: { dias: DiaReporte[] }) {
               <span className="titulo-s tnum" style={{ color: d.horas > 0 ? 'var(--texto)' : 'var(--texto-2)', padding: '4px 0' }}>
                 {d.esFuturo || d.horas === 0 ? '–' : numeroHoras(d.horas)}
               </span>
-              <I size={18} color={d.modalidad ? 'var(--primario)' : 'var(--texto-2)'} aria-hidden />
+              <I size={18} color={d.modalidad ? 'var(--texto)' : 'var(--texto-2)'} aria-hidden />
             </div>
           )
         })}
@@ -143,7 +143,7 @@ function TarjetaTotal(props: { titulo: string; horasHechas: number; porAprobar: 
           <div style={{ marginTop: 12 }}>
             <BarraProgreso progreso={progreso} ritmoEsperado={ritmo} altura={10} />
           </div>
-          <p className="chico fila" style={{ gap: 6, marginTop: 8, color: alRitmo ? 'var(--exito)' : 'var(--alerta)' }}>
+          <p className="chico fila" style={{ gap: 6, marginTop: 8, color: alRitmo ? 'var(--texto-2)' : 'var(--alerta)' }}>
             <Tendencia size={18} aria-hidden />
             {progreso >= 1
               ? 'Meta cumplida'

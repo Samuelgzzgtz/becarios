@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { Building, HardHat, Users } from 'lucide-react'
+import { Building, HardHat } from 'lucide-react'
 import { plural } from '../../lib/formato'
 import { Badge, Buscador, EstadoVacio, Pantalla, SegunEstado, Tarjeta } from '../../ui/componentes'
 import { useAlReanudar } from '../../ui/hooks'
@@ -37,7 +37,7 @@ export default function Ingenieros() {
                     </>
                   )}
                 </span>
-                {asignaciones.conocida && <Badge texto={plural(asignaciones.becariosDe(u.id), 'becario', 'becarios')} tono="info" icono={Users} />}
+                {asignaciones.conocida && <Badge texto={plural(asignaciones.becariosDe(u.id), 'becario', 'becarios')} tono="info" />}
               </div>
             </Tarjeta>
           ))

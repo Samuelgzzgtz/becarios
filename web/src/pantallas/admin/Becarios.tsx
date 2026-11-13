@@ -5,19 +5,13 @@ import { Button } from '@/components/ui/button'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
 import { cn } from '@/lib/utils'
 import { entero, plural } from '../../lib/formato'
-import { enRiesgo, type EstadoUsuario, type Usuario } from '../../lib/modelos'
+import { enRiesgo, type Usuario } from '../../lib/modelos'
 import { Badge, Buscador, Desplegable, EstadoVacio, HorasDeMeta, Pantalla, SegunEstado } from '../../ui/componentes'
 import { etiquetaEstadoUsuario, tonoEstadoUsuario } from '../../ui/estadosVisuales'
 import { useAlReanudar } from '../../ui/hooks'
-import { AvisoCuentasClerk, useAsignaciones, useListaUsuarios } from './usuarios'
+import { AvisoCuentasClerk, OPCIONES_ESTADO, useAsignaciones, useListaUsuarios } from './usuarios'
 
 type FiltroIngeniero = { tipo: 'todos' } | { tipo: 'sin_asignar' } | { tipo: 'de'; id: string; nombre: string }
-
-const ESTADOS: { estado: EstadoUsuario | null; texto: string }[] = [
-  { estado: 'activo', texto: 'Activos' },
-  { estado: 'inactivo', texto: 'Inactivos' },
-  { estado: null, texto: 'Todos' }
-]
 
 /**
  * Becarios del sistema. En escritorio (md y más) una tabla con búsqueda, filtro por
@@ -65,8 +59,8 @@ export default function Becarios() {
             <Desplegable
               etiqueta="Estado de la cuenta"
               etiquetaOculta
-              opciones={ESTADOS}
-              seleccionado={ESTADOS.find((e) => e.estado === lista.filtro)}
+              opciones={OPCIONES_ESTADO}
+              seleccionado={OPCIONES_ESTADO.find((e) => e.estado === lista.filtro)}
               textoDe={(e) => e.texto}
               claveDe={(e) => e.estado ?? 'todos'}
               onSeleccionar={(e) => lista.setFiltro(e.estado)}
@@ -136,11 +130,11 @@ export default function Becarios() {
                           <span className="inline-flex items-center gap-3">
                             {!activo && <Badge texto={etiquetaEstadoUsuario[u.estado]} tono={tonoEstadoUsuario[u.estado]} />}
                             {activo && (
-                              <Button variant="link" className={cn('min-h-8 h-auto', !sinIngeniero && 'text-texto-2')} onClick={() => asignar(u)}>
+                              <Button variant="link" className={cn('-my-1.5', !sinIngeniero && 'text-texto-2')} onClick={() => asignar(u)}>
                                 {ingeniero ? 'Reasignar' : 'Asignar'}
                               </Button>
                             )}
-                            <Button variant="link" className="min-h-8 h-auto" onClick={() => verAsistencias(u)} aria-label={`Ver asistencias de ${u.nombre}`}>
+                            <Button variant="link" className="-my-1.5" onClick={() => verAsistencias(u)} aria-label={`Ver asistencias de ${u.nombre}`}>
                               Ver
                             </Button>
                           </span>

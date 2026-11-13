@@ -28,7 +28,7 @@ import { usuarioAutenticado, usuarioEnMemoria } from '../datos/sesion'
 import { entero } from '../lib/formato'
 import type { Perfil, Usuario } from '../lib/modelos'
 import { Logo, type Icono } from './componentes'
-import { useCarga, useEnLinea } from './hooks'
+import { useAlReanudar, useCarga, useEnLinea } from './hooks'
 
 interface Destino {
   ruta: string
@@ -127,19 +127,20 @@ function BarraNavegacion({ destinos, className }: { destinos: Destino[]; classNa
 
 /**
  * Barra lateral del administrador en escritorio, sobre el mismo fondo de la página.
- * Los conteos salen de las dos consultas que ya usa el panel (indicadores y por revisar)
- * y se refrescan al cambiar de sección; si fallan, la barra se queda sin números.
+ * Los conteos salen de las dos consultas del panel (indicadores y por revisar): se piden
+ * una vez y al volver a la app; al recargar se quedan los números anteriores. Si fallan,
+ * la barra se queda sin números.
  */
 function BarraLateralAdmin() {
-  const { pathname } = useLocation()
-  const { datos } = useCarga(
+  const { datos, recargar } = useCarga(
     async () => {
       const [ind, porRevisar] = await Promise.all([indicadores(), contarAnomalias().catch(() => null)])
       return { ...ind, porRevisar }
     },
-    [pathname],
+    [],
     ''
   )
+  useAlReanudar(recargar)
   const conteos: Record<string, number | null | undefined> = {
     '/admin/becarios': datos?.becarios_activos,
     '/admin/ingenieros': datos?.ingenieros_activos,

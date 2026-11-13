@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { CalendarRange, CircleAlert, CircleCheck, CloudOff, Hourglass, ScanFace, Trash2, UserCheck, X } from 'lucide-react'
+import { CircleAlert, ScanFace, Trash2, UserCheck, X } from 'lucide-react'
 import { diaCompleto, fechaCorta, fechaLocal, hoy, hora, lunesDe, parsear, sumarDias, diaMes, type Fecha } from '../../lib/fechas'
 import { horas as formatoHoras } from '../../lib/formato'
 import { horasPorDia, totalHoras, type AsistenciaUi } from '../../lib/modelos'
@@ -57,20 +57,20 @@ export function TarjetaAsistencia(props: { item: AsistenciaUi; nombreBecario?: s
               <CircleAlert size={15} aria-hidden /> No se subió: {props.item.rechazo}
             </p>
           ) : props.item.sinSubir ? (
-            <Badge texto="Sin subir · se sube al haber conexión" tono="info" icono={CloudOff} />
+            <Badge texto="Sin subir · se sube al haber conexión" tono="info" />
           ) : null}
           {a.revision === 'por_revisar' && (
             <div className="columna" style={{ gap: 2 }}>
-              <Badge texto="Por revisar" tono="alerta" icono={Hourglass} />
+              <Badge texto="Por revisar" tono="alerta" />
               <p className="chico texto-2">
                 {a.motivo_revision ? explicacionMotivo[a.motivo_revision] : null} {EXPLICACION_POR_REVISAR}
               </p>
             </div>
           )}
-          {a.revision === 'aprobada' && <Badge texto="Aprobado" tono="exito" icono={CircleCheck} />}
+          {a.revision === 'aprobada' && <Badge texto="Aprobado" tono="exito" />}
           {a.origen === 'cola' && (
             <div className="columna" style={{ gap: 2 }}>
-              <Badge texto="Registro tardío" tono="info" icono={CloudOff} />
+              <Badge texto="Registro tardío" tono="info" />
               <p className="chico texto-2">{EXPLICACION_TARDIO}</p>
             </div>
           )}
@@ -159,7 +159,6 @@ export function FiltrosFecha(props: {
         <Chip
           texto={esRango && filtro ? `${diaMes(filtro.desde)} – ${diaMes(filtro.hasta)}` : 'Elegir fechas'}
           activo={esRango}
-          icono={CalendarRange}
           onClick={() => setEligiendo(true)}
         />
       </div>
@@ -194,7 +193,6 @@ function DialogoRango(props: { inicial: FiltroFechas | null; onConfirmar: (f: Fi
     <Dialogo
       titulo="Elegir fechas"
       mensaje="Muestra los registros entre estas dos fechas (ambas incluidas)."
-      icono={CalendarRange}
       textoConfirmar="Aplicar"
       confirmarHabilitado={!!desde && !!hasta && !error}
       onConfirmar={() => props.onConfirmar({ desde, hasta })}

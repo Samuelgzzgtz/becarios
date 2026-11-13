@@ -23,7 +23,7 @@ export function TarjetaTransferencia({ detalle, children }: { detalle: Transfere
           <p className="chico texto-2">De</p>
           <p>{detalle.origen?.nombre ?? '—'}</p>
         </div>
-        <ArrowRight color="var(--primario)" aria-label="hacia" style={{ marginTop: 10 }} />
+        <ArrowRight color="var(--texto-2)" aria-label="hacia" style={{ marginTop: 10 }} />
         <div className="crece">
           <p className="chico texto-2">A</p>
           <p>{detalle.destino?.nombre ?? '—'}</p>

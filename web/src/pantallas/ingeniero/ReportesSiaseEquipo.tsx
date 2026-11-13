@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { Ban, CheckCheck, ExternalLink, History, ListChecks, UserX } from 'lucide-react'
+import { Ban, ExternalLink, ListChecks, UserX } from 'lucide-react'
 import { firmar, porFirmarAntesDe, reportesDelMes, urlParaVer } from '../../datos/repositorios'
 import { requerirUsuario } from '../../datos/sesion'
 import { mensajeAmigable } from '../../lib/errores'
@@ -21,7 +21,7 @@ import {
   abrirUrl
 } from '../../ui/componentes'
 import { useAvisos } from '../../ui/avisos'
-import { etiquetaSiase, iconoSiase, tonoSiase } from '../../ui/estadosVisuales'
+import { etiquetaSiase, tonoSiase } from '../../ui/estadosVisuales'
 import { useAlReanudar, useCarga } from '../../ui/hooks'
 
 /** Acción que espera confirmación (M-16: excluir y firmar en lote no son de un toque). */
@@ -80,7 +80,6 @@ export default function ReportesSiaseEquipo() {
         <Dialogo
           titulo="Confirmar reportes"
           mensaje={`Se confirmarán ${plural(accion.ids.length, 'reporte subido', 'reportes subidos')}. ¿Ya los revisaste?`}
-          icono={CheckCheck}
           textoConfirmar={`Confirmar ${accion.ids.length}`}
           onConfirmar={() => {
             setAccion(null)
@@ -110,7 +109,7 @@ export default function ReportesSiaseEquipo() {
 
               {d.anteriores.length > 0 && (
                 <>
-                  <EncabezadoSeccion titulo="Pendientes de meses anteriores" icono={History} />
+                  <EncabezadoSeccion titulo="Pendientes de meses anteriores" />
                   {d.anteriores
                     .filter((p) => p.reporte.id)
                     .map((p) => {
@@ -148,7 +147,7 @@ export default function ReportesSiaseEquipo() {
                 return (
                   <Tarjeta key={r.becario_id}>
                     <FilaPersona nombre={r.nombre} detalle={`Matrícula ${r.matricula}`}>
-                      <Badge texto={etiquetaSiase[r.estado]} tono={tonoSiase[r.estado]} icono={iconoSiase[r.estado]} />
+                      <Badge texto={etiquetaSiase[r.estado]} tono={tonoSiase[r.estado]} />
                     </FilaPersona>
                     {r.fecha_firma && <p className="chico texto-2" style={{ marginTop: 8 }}>Confirmado el {fechaHora(r.fecha_firma)}</p>}
                     {(r.archivo_ruta || puedeRevisar) && (

@@ -45,7 +45,7 @@ export default function PanelAdmin() {
                         <span className="block font-medium">{plural(d.siase_por_firmar, 'reporte SIASE espera', 'reportes SIASE esperan')} firma</span>
                         <span className="block text-[13px] text-texto-2">Los becarios ya los subieron</span>
                       </span>
-                      <Button className="h-10" onClick={() => navegar('/admin/siase')}>
+                      <Button onClick={() => navegar('/admin/siase')}>
                         Firmar
                       </Button>
                     </div>

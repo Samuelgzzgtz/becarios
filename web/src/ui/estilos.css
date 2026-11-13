@@ -51,12 +51,6 @@
   --marca-ritmo: #8a8f8a;
   --escaner: #0d100e;
 
-  /* Nombres anteriores que algunas pantallas todavía usan en estilos en línea. */
-  --primario: var(--texto);
-  --exito: var(--dato);
-  --borde: var(--regla);
-  --pista: var(--regla);
-
   --barra-nav: 64px;
   --seguro-abajo: env(safe-area-inset-bottom, 0px);
   --seguro-arriba: env(safe-area-inset-top, 0px);
@@ -175,12 +169,15 @@
 }
 
 @layer base {
+  /*
+   * La raíz se queda en 16 px (las medidas de Tailwind van en rem: h-11 = 44 px); el
+   * texto de la app va a 14 px desde el body.
+   */
   html,
   body {
     background: var(--fondo);
     color: var(--texto);
     font-family: var(--font-sans);
-    font-size: 14px;
     line-height: 1.45;
     font-variant-numeric: tabular-nums;
     overscroll-behavior-y: none;
@@ -202,6 +199,7 @@
   }
 
   body {
+    font-size: 14px;
     overflow-x: clip;
     -webkit-tap-highlight-color: transparent;
   }
@@ -308,29 +306,6 @@
     outline-offset: -1.5px;
   }
 
-  .tono-exito {
-    background: var(--dato-c);
-    color: var(--sobre-dato-c);
-  }
-  .tono-alerta {
-    background: var(--alerta-c);
-    color: var(--alerta);
-  }
-  .tono-peligro {
-    background: var(--peligro-c);
-    color: var(--peligro);
-  }
-  .tono-info,
-  .tono-neutro {
-    background: var(--neutro-c);
-    color: var(--sobre-neutro-c);
-  }
-
-  .banner {
-    border-radius: var(--radius);
-    padding: 12px 14px;
-  }
-
   .mensaje-error {
     font-size: 13px;
     color: var(--peligro);
@@ -361,7 +336,8 @@
     display: flex;
     gap: 6px;
     overflow-x: auto;
-    padding-bottom: 2px;
+    /* Espacio para el área táctil de 44 px de cada chip (el contenedor recorta lo que sobresale). */
+    padding-block: 4px;
     scrollbar-width: none;
   }
 

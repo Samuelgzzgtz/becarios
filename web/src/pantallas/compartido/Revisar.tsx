@@ -282,7 +282,7 @@ function FilaAnomalia(props: { a: Anomalia; ocupado: boolean; onAprobar?: () => 
       {props.onAsignar && (
         <div className="mt-2 flex items-center gap-3 pl-[42px]">
           <Badge texto="Sin ingeniero activo" tono="alerta" />
-          <Button variant="link" className="min-h-9 h-auto" onClick={props.onAsignar}>
+          <Button variant="link" className="-my-1" onClick={props.onAsignar}>
             Asignar ingeniero
           </Button>
         </div>

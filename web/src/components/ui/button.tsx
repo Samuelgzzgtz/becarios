@@ -4,7 +4,7 @@ import { cn } from "@/lib/utils"
 import { Slot } from "radix-ui"
 
 // Variantes de Pasalista: un principal casi negro por pantalla, secundario en gris,
-// acciones de texto subrayadas. Alto mínimo de 44 px para el dedo (36 px en "sm").
+// acciones de texto subrayadas. Área táctil de 44 px en todos los tamaños.
 const buttonVariants = cva(
   "inline-flex shrink-0 items-center justify-center gap-2 rounded-md text-sm font-medium whitespace-nowrap transition-[background-color,opacity] duration-150 outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50 disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-4",
   {
@@ -19,7 +19,8 @@ const buttonVariants = cva(
       },
       size: {
         default: "h-11 px-4",
-        sm: "h-9 gap-1.5 px-3",
+        // 36 px a la vista; el ::after lleva el área táctil a 44 px.
+        sm: "relative h-9 gap-1.5 px-3 after:absolute after:inset-x-0 after:-inset-y-1",
         icon: "size-11",
       },
     },

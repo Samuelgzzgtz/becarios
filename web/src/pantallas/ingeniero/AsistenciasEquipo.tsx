@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { CalendarX, User } from 'lucide-react'
+import { CalendarX } from 'lucide-react'
 import { historialEquipo } from '../../datos/asistencias'
 import { progresoEquipo } from '../../datos/repositorios'
 import { requerirUsuario } from '../../datos/sesion'
@@ -56,7 +56,6 @@ export default function AsistenciasEquipo() {
         textoDe={(b) => (b.matricula ? `${b.nombre} · ${b.matricula}` : b.nombre)}
         claveDe={(b) => b.id || 'todos'}
         onSeleccionar={setBecario}
-        icono={User}
       />
       <FiltrosFecha filtro={filtro} onFiltro={(f) => setFiltro(f.hasta < f.desde ? { desde: f.hasta, hasta: f.desde } : f)} conSemanaPasada />
       <div className="chips">

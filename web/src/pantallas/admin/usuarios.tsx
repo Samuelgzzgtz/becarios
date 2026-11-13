@@ -100,14 +100,19 @@ export function EncabezadoUsuario({ usuario, detalle }: { usuario: Usuario; deta
 }
 
 
-const ESTADOS: (EstadoUsuario | null)[] = ['activo', 'inactivo', null]
+/** Filtro de estado de las listas de usuarios; null = todos. */
+export const OPCIONES_ESTADO: { estado: EstadoUsuario | null; texto: string }[] = [
+  { estado: 'activo', texto: 'Activos' },
+  { estado: 'inactivo', texto: 'Inactivos' },
+  { estado: null, texto: 'Todos' }
+]
 
 export function FiltroEstadoUsuarios(props: { actual: EstadoUsuario | null; onCambiar: (e: EstadoUsuario | null) => void }) {
   return (
     <Segmentado
-      opciones={['Activos', 'Inactivos', 'Todos']}
-      seleccionado={ESTADOS.indexOf(props.actual)}
-      onSeleccionar={(i) => props.onCambiar(ESTADOS[i])}
+      opciones={OPCIONES_ESTADO.map((o) => o.texto)}
+      seleccionado={OPCIONES_ESTADO.findIndex((o) => o.estado === props.actual)}
+      onSeleccionar={(i) => props.onCambiar(OPCIONES_ESTADO[i].estado)}
       etiqueta="Estado de la cuenta"
     />
   )

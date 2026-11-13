@@ -63,7 +63,7 @@ export default function PanelIngeniero() {
                     </span>
                     <span className="block text-[13px] text-texto-2">No suman horas hasta que los revises</span>
                   </span>
-                  <Button className="h-10" onClick={() => navegar('/ingeniero/revisar')}>
+                  <Button onClick={() => navegar('/ingeniero/revisar')}>
                     Revisar
                   </Button>
                 </div>

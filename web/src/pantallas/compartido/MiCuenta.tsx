@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { ArrowLeftRight, BadgeCheck, KeyRound, Building, CalendarDays, ChevronRight, HardHat, IdCard, LogOut, TrendingDown, Users } from 'lucide-react'
+import { ArrowLeftRight, BadgeCheck, KeyRound, Building, CalendarDays, ChevronRight, HardHat, IdCard, LogOut } from 'lucide-react'
 import * as asistencias from '../../datos/asistencias'
 import { indicadores, ingenieroDe, periodoActivo, progresoEquipo } from '../../datos/repositorios'
 import { abrirPerfilClerk, cerrarSesion, sesionActiva } from '../../datos/sesion'
@@ -128,14 +128,14 @@ export default function MiCuenta({ conVolver = false }: { conVolver?: boolean })
 
               {u.perfil === 'ingeniero' && d.indicadorA != null && (
                 <CuadriculaDos>
-                  <TarjetaIndicador valor={String(d.indicadorA)} etiqueta="Becarios a cargo" icono={Users} />
-                  <TarjetaIndicador valor={String(d.indicadorB ?? 0)} etiqueta="Con ritmo bajo" icono={TrendingDown} alerta={(d.indicadorB ?? 0) > 0} />
+                  <TarjetaIndicador valor={String(d.indicadorA)} etiqueta="Becarios a cargo" />
+                  <TarjetaIndicador valor={String(d.indicadorB ?? 0)} etiqueta="Con ritmo bajo" alerta={(d.indicadorB ?? 0) > 0} />
                 </CuadriculaDos>
               )}
               {u.perfil === 'administrador' && d.indicadorA != null && (
                 <CuadriculaDos>
-                  <TarjetaIndicador valor={String(d.indicadorA)} etiqueta="Becarios activos" icono={Users} />
-                  <TarjetaIndicador valor={String(d.indicadorB ?? 0)} etiqueta="Supervisores FIME" icono={HardHat} />
+                  <TarjetaIndicador valor={String(d.indicadorA)} etiqueta="Becarios activos" />
+                  <TarjetaIndicador valor={String(d.indicadorB ?? 0)} etiqueta="Supervisores FIME" />
                 </CuadriculaDos>
               )}
 
