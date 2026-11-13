@@ -729,7 +729,7 @@ export function Chip(props: { texto: string; activo: boolean; onClick: () => voi
       onClick={props.onClick}
       className={cn(
         // 36 px a la vista y 44 px de área táctil (el ::after; .chips deja el espacio arriba y abajo).
-        'relative inline-flex h-9 shrink-0 items-center rounded-full px-3.5 text-[13px] font-medium whitespace-nowrap transition-colors after:absolute after:inset-x-0 after:-inset-y-1',
+        'relative inline-flex h-9 shrink-0 items-center rounded-full px-3 text-[13px] font-medium whitespace-nowrap transition-colors after:absolute after:inset-x-0 after:-inset-y-1',
         props.activo ? 'bg-tinta text-sobre-tinta' : 'bg-superficie text-texto hover:bg-elevado in-[.tarjeta]:bg-elevado'
       )}
     >
