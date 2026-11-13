@@ -30,7 +30,7 @@ export function AvisoCuentasClerk({ perfil }: { perfil: 'becario' | 'ingeniero' 
       titulo="Cuentas y accesos en Clerk"
       texto={
         perfil === 'becario'
-          ? 'Da de alta, cambia datos o quita el acceso en el Dashboard de Clerk. Toda cuenta nueva entra como becario; para quitarle el acceso usa "Ban user".'
+          ? 'Da de alta, cambia datos o quita el acceso en el Dashboard de Clerk. Toda cuenta nueva entra como becario; su matrícula va en Public metadata y para quitarle el acceso usa "Ban user".'
           : 'Da de alta, cambia datos o quita el acceso en el Dashboard de Clerk. Para hacer a alguien ingeniero, agrégalo a la organización Ingenieros; para quitarle el acceso usa "Ban user".'
       }
       tono="info"
