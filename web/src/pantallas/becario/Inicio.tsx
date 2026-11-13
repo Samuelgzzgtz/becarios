@@ -4,12 +4,12 @@ import { CircleAlert, CloudUpload, ScanFace, TriangleAlert } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { cn } from '@/lib/utils'
 import * as asistencias from '../../datos/asistencias'
-import { enrolamientoPropio, estadoVentana, horasPorAprobar, jornadaMaximaHoras, modalidadDeHoy, progresoDe } from '../../datos/repositorios'
+import { enrolamientoPropio, estadoVentana, horasPorAprobar, jornadaMaximaHoras, modalidadDeHoy, progresoDe, semanaConRespaldo } from '../../datos/repositorios'
 import { requerirUsuario, usuarioEnMemoria } from '../../datos/sesion'
 import { mensajeAmigable } from '../../lib/errores'
-import { diaCompleto, diaMesLargo, fechaDeTexto, hoy, lunesDe, mesActual, mesLargo, nombreDia, sumarDias, type Fecha } from '../../lib/fechas'
-import { horas, numeroHoras, plural, primerNombre, ritmoSemana } from '../../lib/formato'
-import { horasPorDia, type Anomalia, type EstadoVentanaSiase, type ModalidadTrabajo, type ProgresoHoras, type TipoAsistencia } from '../../lib/modelos'
+import { capitalizar, diaCompleto, diaMesLargo, fechaDeTexto, hoy, lunesDe, mesActual, mesLargo, nombreDia, sumarDias, type Fecha } from '../../lib/fechas'
+import { horas, numeroHoras, plural, primerNombre } from '../../lib/formato'
+import { diasLaborales, horasPorDia, type Anomalia, type EstadoVentanaSiase, type ModalidadTrabajo, type ProgresoHoras, type TipoAsistencia } from '../../lib/modelos'
 import { AvisoBanner, Boton, Esqueleto, EstadoError, HorasDeMeta, Pantalla, etiquetaModalidad } from '../../ui/componentes'
 import { useAlReanudar, useCarga } from '../../ui/hooks'
 
@@ -31,6 +31,8 @@ interface DatosInicio {
   porAprobar: number
   /** Horas por día de lunes a viernes de esta semana (igual que Mi reporte de horas); null si no se pudo consultar. */
   semana: Map<Fecha, number> | null
+  /** Días del horario (dia_semana, 0 = domingo) para lo esperado, como lo calcula el ingeniero; null si no se pudo consultar. */
+  horario: number[] | null
 }
 
 async function cargar(): Promise<DatosInicio> {
@@ -40,7 +42,7 @@ async function cargar(): Promise<DatosInicio> {
   if ((await asistencias.pendientesSinSubir(usuario.id)) > 0) await asistencias.sincronizarPendientes().catch(() => undefined)
 
   const lunes = lunesDe()
-  const [progreso, datosHoy, ventana, turnosAbiertos, porAprobar, semana] = await Promise.all([
+  const [progreso, datosHoy, ventana, turnosAbiertos, porAprobar, semana, horario] = await Promise.all([
     progresoDe(usuario.id).then(
       (datos) => ({ ok: true as const, datos }),
       (e) => ({ ok: false as const, mensaje: mensajeAmigable(e, 'No se pudo cargar tu progreso.') })
@@ -58,6 +60,10 @@ async function cargar(): Promise<DatosInicio> {
     Promise.all([asistencias.historialEntreFechas(usuario.id, lunes, sumarDias(lunes, 4)), jornadaMaximaHoras()]).then(
       ([h, tope]) => horasPorDia(h, tope),
       () => null
+    ),
+    semanaConRespaldo(usuario.id).then(
+      (dias) => dias.map((d) => d.dia_semana),
+      () => null
     )
   ])
   return {
@@ -68,7 +74,8 @@ async function cargar(): Promise<DatosInicio> {
     ventana,
     turnosAbiertos,
     porAprobar,
-    semana
+    semana,
+    horario
   }
 }
 
@@ -88,10 +95,13 @@ export default function InicioBecario() {
   }, [])
 
   const hoyOk = datos?.hoy.ok ? datos.hoy.datos : null
-  const lunes = lunesDe()
-  // Los turnos sin salida de esta semana se marcan en la tira de días; los anteriores, con un aviso.
-  const abiertosSemana = new Set((datos?.turnosAbiertos ?? []).filter((t) => t.fecha >= lunes).map((t) => t.fecha))
-  const abiertosAntes = (datos?.turnosAbiertos ?? []).filter((t) => t.fecha < lunes)
+  // Los turnos sin salida de lunes a viernes de esta semana se marcan en la tira de días (si se
+  // dibuja); los demás (fin de semana, días anteriores o sin tira), con su propio aviso.
+  const conTira = datos?.progreso.ok === true && datos.semana != null
+  const diasTira = new Set(Array.from({ length: 5 }, (_, i) => sumarDias(lunesDe(), i)))
+  const enTira = (t: Anomalia) => conTira && diasTira.has(t.fecha)
+  const abiertosSemana = new Set((datos?.turnosAbiertos ?? []).filter(enTira).map((t) => t.fecha))
+  const abiertosAparte = (datos?.turnosAbiertos ?? []).filter((t) => !enTira(t))
 
   return (
     <Pantalla
@@ -110,7 +120,7 @@ export default function InicioBecario() {
 
       {datos && !datos.hoy.ok && <AvisoBanner texto={datos.hoy.mensaje} tono="peligro" icono={CircleAlert} textoAccion="Reintentar" onAccion={recargar} />}
 
-      {abiertosAntes.map((t) => (
+      {abiertosAparte.map((t) => (
         <AvisoBanner
           key={t.asistencia_id}
           titulo="Turno sin salida"
@@ -153,21 +163,27 @@ export default function InicioBecario() {
           <Esqueleto alto={84} />
         </section>
       ) : datos.progreso.ok ? (
-        <>
-          <PanelSemana progreso={datos.progreso.datos} porDia={datos.semana} abiertos={abiertosSemana} />
-          <section className="rounded-lg bg-superficie px-4" aria-label="Avance del mes y del semestre">
-            <FilaDato etiqueta={mesLargo(mesActual()).split(' ')[0]}>
-              <HorasDeMeta horas={datos.progreso.datos.horas_mes} meta={datos.progreso.datos.meta_mensual} />
-            </FilaDato>
-            <FilaDato etiqueta="Semestre" detalle={datos.porAprobar >= 0.05 ? `${horas(datos.porAprobar)} por aprobar` : null}>
-              <HorasDeMeta horas={datos.progreso.datos.horas_semestre} meta={datos.progreso.datos.meta_semestral} />
-            </FilaDato>
-            {datos.ventana && <FilaSiase ventana={datos.ventana} onAbrir={() => navegar('/becario/siase')} />}
-          </section>
-        </>
+        <PanelSemana progreso={datos.progreso.datos} porDia={datos.semana} horario={datos.horario} abiertos={abiertosSemana} />
       ) : (
         <section className="tarjeta">
           <EstadoError mensaje={datos.progreso.mensaje} onReintentar={recargar} />
+        </section>
+      )}
+
+      {/* La ventana SIASE no depende del progreso: se muestra aunque este falle. */}
+      {datos && (datos.progreso.ok || datos.ventana) && (
+        <section className="rounded-lg bg-superficie px-4" aria-label="Avance del mes y del semestre">
+          {datos.progreso.ok && (
+            <>
+              <FilaDato etiqueta={mesLargo(mesActual()).split(' ')[0]}>
+                <HorasDeMeta horas={datos.progreso.datos.horas_mes} meta={datos.progreso.datos.meta_mensual} />
+              </FilaDato>
+              <FilaDato etiqueta="Semestre" detalle={datos.porAprobar >= 0.05 ? `${horas(datos.porAprobar)} por aprobar` : null}>
+                <HorasDeMeta horas={datos.progreso.datos.horas_semestre} meta={datos.progreso.datos.meta_semestral} />
+              </FilaDato>
+            </>
+          )}
+          {datos.ventana && <FilaSiase ventana={datos.ventana} onAbrir={() => navegar('/becario/siase')} />}
         </section>
       )}
     </Pantalla>
@@ -207,24 +223,37 @@ function FilaSiase({ ventana, onAbrir }: { ventana: EstadoVentanaSiase; onAbrir:
 const DIAS = ['Lun', 'Mar', 'Mié', 'Jue', 'Vie']
 
 /**
- * La semana del becario: el total como cifra grande, lo que ya debería llevar (días
- * laborales terminados, ritmoSemana) y una columna por día de lunes a viernes contra la
- * marca punteada de las horas diarias esperadas. Hoy va con contorno punteado y un día
- * con entrada sin salida, rayado en ámbar con la explicación debajo.
+ * La semana del becario: el total como cifra grande, lo que ya debería llevar y una
+ * columna por día de lunes a viernes contra la marca punteada de las horas diarias.
+ * Lo esperado usa los días laborales de su horario, igual que su ingeniero
+ * (diasLaborales y horasEsperadasSemana); sin horario cargado no se afirma un número.
+ * Hoy va con contorno punteado y un día con entrada sin salida, rayado en ámbar con la
+ * explicación debajo.
  */
-function PanelSemana(props: { progreso: ProgresoHoras; porDia: Map<Fecha, number> | null; abiertos: Set<Fecha> }) {
+function PanelSemana(props: { progreso: ProgresoHoras; porDia: Map<Fecha, number> | null; horario: number[] | null; abiertos: Set<Fecha> }) {
   const { horas_semana: hechas, meta_semanal: meta } = props.progreso
-  const diasTerminados = Math.round(ritmoSemana() * 5)
-  const diaria = meta != null && meta > 0 ? meta / 5 : null
+  const laborales = props.horario ? diasLaborales(props.horario) : null
+  const diaria = meta != null && meta > 0 && laborales != null ? meta / laborales.dias.length : null
+  const ultimoTerminado = laborales?.terminados.at(-1)
   const lunes = lunesDe()
   const h = hoy()
   const dias = DIAS.map((nombre, i) => {
     const fecha = sumarDias(lunes, i)
-    return { nombre, fecha, horas: props.porDia?.get(fecha) ?? 0, esHoy: fecha === h, futuro: fecha > h, abierto: props.abiertos.has(fecha) }
+    const dow = i + 1
+    return {
+      nombre,
+      dow,
+      fecha,
+      horas: props.porDia?.get(fecha) ?? 0,
+      esHoy: fecha === h,
+      futuro: fecha > h,
+      abierto: props.abiertos.has(fecha),
+      laboral: laborales?.dias.includes(dow) ?? false
+    }
   })
   const escala = Math.max(diaria ?? 0, ...dias.map((d) => d.horas), 1) * 1.25
   const abiertos = dias.filter((d) => d.abierto)
-  const nombresAbiertos = abiertos.map((d) => `el ${nombreDia(DIAS.indexOf(d.nombre) + 1).toLowerCase()}`)
+  const nombresAbiertos = abiertos.map((d) => `el ${nombreDia(d.dow).toLowerCase()}`)
 
   return (
     <section className="tarjeta" aria-label="Tu semana">
@@ -232,9 +261,9 @@ function PanelSemana(props: { progreso: ProgresoHoras; porDia: Map<Fecha, number
         {numeroHoras(hechas)} h
         <span className="text-base font-normal tracking-normal text-texto-2">{meta != null && meta > 0 ? ` de ${numeroHoras(meta)} esta semana` : ' esta semana'}</span>
       </p>
-      {meta != null && meta > 0 && diasTerminados > 0 && (
+      {diaria != null && laborales != null && ultimoTerminado != null && (
         <p className="mt-1.5 text-texto-2">
-          Al {nombreDia(diasTerminados).toLowerCase()} deberías llevar {horas((meta * diasTerminados) / 5)}
+          Al {nombreDia(ultimoTerminado).toLowerCase()} deberías llevar {horas(diaria * laborales.terminados.length)}
         </p>
       )}
 
@@ -245,7 +274,7 @@ function PanelSemana(props: { progreso: ProgresoHoras; porDia: Map<Fecha, number
               key={d.fecha}
               className="flex flex-col items-center gap-1.5"
               role="img"
-              aria-label={`${nombreDia(DIAS.indexOf(d.nombre) + 1)}: ${d.futuro ? 'por venir' : d.abierto ? 'entrada sin salida' : horas(d.horas)}${d.esHoy ? ', hoy' : ''}`}
+              aria-label={`${nombreDia(d.dow)}: ${d.futuro ? 'por venir' : d.abierto ? 'entrada sin salida' : horas(d.horas)}${d.esHoy ? ', hoy' : ''}`}
             >
               <span className={cn('h-[18px] text-xs font-medium', d.abierto && 'text-alerta', d.futuro && 'invisible')}>
                 {d.abierto && d.horas === 0 ? '?' : d.esHoy && d.horas === 0 ? '–' : numeroHoras(d.horas)}
@@ -257,7 +286,8 @@ function PanelSemana(props: { progreso: ProgresoHoras; porDia: Map<Fecha, number
                 )}
               >
                 {d.horas > 0 && <i className="absolute inset-x-0 bottom-0 rounded-[4px] bg-dato" style={{ height: `${(d.horas / escala) * 100}%` }} />}
-                {diaria != null && (
+                {/* La marca de las horas diarias, solo en los días laborales de su horario. */}
+                {diaria != null && d.laboral && (
                   <b className="absolute -inset-x-1 border-t-[1.5px] border-dashed border-marca-ritmo" style={{ bottom: `${(diaria / escala) * 100}%` }} />
                 )}
               </div>
@@ -280,6 +310,5 @@ function PanelSemana(props: { progreso: ProgresoHoras; porDia: Map<Fecha, number
   )
 }
 
-const capitalizar = (s: string) => s.charAt(0).toUpperCase() + s.slice(1)
 /** "el lunes", "el lunes y el miércoles", "el lunes, el martes y el jueves". */
 const unir = (partes: string[]) => (partes.length < 2 ? (partes[0] ?? '') : `${partes.slice(0, -1).join(', ')} y ${partes[partes.length - 1]}`)

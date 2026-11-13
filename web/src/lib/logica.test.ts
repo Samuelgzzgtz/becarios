@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest'
 import { coincide, promediar, similitudCoseno, verificar, type Deteccion } from '../facial/comparar'
 import { ErrorDeNegocio, MENSAJE_SIN_CONEXION, mensajeAmigable } from './errores'
 import { aInstante, diaSemana, fechaLocal, inicioDia, lunesDe, mesLargo, parsear, sumarMeses } from './fechas'
-import { enRiesgo, horasPorDia, permiteSubir, siguienteTipoSegun, type Asistencia, type ProgresoBecario, type TipoAsistencia } from './modelos'
+import { diasLaborales, enRiesgo, horasPorDia, permiteSubir, siguienteTipoSegun, type Asistencia, type ProgresoBecario, type TipoAsistencia } from './modelos'
 
 /* Mismos casos que LogicaNegocioTest.kt de la app Android retirada (está en el historial de git). */
 
@@ -146,5 +146,21 @@ describe('comparación facial', () => {
     it('otra dimensión corta de inmediato', async () => {
       expect(await verificar(cuadros([{ tipo: 'rostro', embedding: [1, 0, 0] }]), guardado, 3, sinPausa)).toEqual({ tipo: 'incompatible' })
     })
+  })
+})
+
+describe('diasLaborales (igual que progreso_equipo, 0016)', () => {
+  // 2026-11-12 es jueves; 2026-11-13, viernes; 2026-11-14, sábado; 2026-11-15, domingo.
+  it('sin horario: de lunes a viernes, terminados de lunes a ayer', () => {
+    expect(diasLaborales([], '2026-11-12')).toEqual({ dias: [1, 2, 3, 4, 5], terminados: [1, 2, 3] })
+  })
+
+  it('con horario: solo sus días; hoy todavía no cuenta', () => {
+    expect(diasLaborales([5, 1, 3], '2026-11-13')).toEqual({ dias: [1, 3, 5], terminados: [1, 3] })
+  })
+
+  it('el domingo es el último día de la semana', () => {
+    expect(diasLaborales([0, 6], '2026-11-14').terminados).toEqual([])
+    expect(diasLaborales([0, 6], '2026-11-15').terminados).toEqual([6])
   })
 })

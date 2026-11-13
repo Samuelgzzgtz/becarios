@@ -1,4 +1,4 @@
-import { fechaLocal, hoy, parsear, type Fecha } from './fechas'
+import { diaSemana, fechaLocal, hoy, parsear, type Fecha } from './fechas'
 
 export type Perfil = 'becario' | 'ingeniero' | 'administrador'
 export type EstadoUsuario = 'activo' | 'inactivo' | 'egresado'
@@ -129,6 +129,19 @@ export function horasEsperadasSemana(p: ProgresoBecario): number {
   const dias = p.dias_laborales_semana ?? 5
   if (meta == null || dias <= 0) return 0
   return (meta * (p.dias_laborales_transcurridos ?? 0)) / dias
+}
+
+/**
+ * Días laborales de la semana con la misma regla que progreso_equipo (0016): los del
+ * horario del becario (dia_semana de horarios_modalidad, 0 = domingo) o, si no tiene
+ * ninguno, de lunes a viernes. [terminados]: los que ya pasaron (de lunes a ayer, semana
+ * ISO). Así el becario ve lo mismo que su ingeniero en horasEsperadasSemana.
+ */
+export function diasLaborales(horario: number[], dia: Fecha = hoy()): { dias: number[]; terminados: number[] } {
+  const iso = (d: number) => (d === 0 ? 7 : d)
+  const dias = horario.length > 0 ? [...new Set(horario)].sort((a, b) => iso(a) - iso(b)) : [1, 2, 3, 4, 5]
+  const hoyIso = iso(diaSemana(dia))
+  return { dias, terminados: dias.filter((d) => iso(d) < hoyIso) }
 }
 
 /** En riesgo: va por debajo del 80 % de lo esperado a la fecha (y ya hubo al menos un día laboral). */
