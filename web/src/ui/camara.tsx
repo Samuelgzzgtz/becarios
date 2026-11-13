@@ -102,7 +102,7 @@ export function MarcoCamara(props: {
         {props.guia === 'verificando' ? <span className="giro size-3.5" /> : <IconoChip className="size-4" />}
         {props.textoEstado}
       </div>
-      {props.pie && <p className="absolute inset-x-0 bottom-3.5 px-4 text-center text-[13px] text-white">{props.pie}</p>}
+      {props.pie && <p className={cn('absolute inset-x-0 px-4 text-center text-[13px] text-white', props.pantallaCompleta ? 'bottom-8' : 'bottom-3.5')}>{props.pie}</p>}
       {props.alCambiarCamara && (
         <button
           type="button"

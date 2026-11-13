@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
-import { CheckCircle2, CircleAlert, CloudCheck, Lock, LogIn, LogOut, RefreshCw, ScanFace } from 'lucide-react'
+import { ArrowLeft, Check, CircleAlert, CloudOff, MapPin, RefreshCw, ScanFace, TriangleAlert } from 'lucide-react'
 import * as asistencias from '../../datos/asistencias'
 import { enrolamientoPropio, modalidadDeHoy } from '../../datos/repositorios'
 import { requerirUsuario } from '../../datos/sesion'
@@ -11,24 +11,23 @@ import { ubicacionOpcional } from '../../lib/ubicacion'
 import type { ModalidadTrabajo, TipoAsistencia } from '../../lib/modelos'
 import {
   Boton,
-  IconoCircular,
   IconoSinConfigurar,
   Pantalla,
-  Segmentado,
   etiquetaModalidad,
   etiquetaTipo,
   iconoModalidad,
+  useAhora,
   useVolver,
-  type Icono,
-  type Tono
+  type Icono
 } from '../../ui/componentes'
 import { MarcoCamara, PanelErrorCamara, useCamara, type EstadoGuia } from '../../ui/camara'
+import { useEnLinea } from '../../ui/hooks'
 
 type EstadoRegistro =
   | { tipo: 'listo' }
   | { tipo: 'procesando' }
-  /** enCola = sin red: quedó guardado en el teléfono y se sube solo después (C-01). */
-  | { tipo: 'exito'; registro: TipoAsistencia; enCola: boolean; hora: string }
+  /** enCola = sin red: quedó guardado en el teléfono y se sube solo después (C-01). ubicada: se mandó la ubicación. */
+  | { tipo: 'exito'; registro: TipoAsistencia; enCola: boolean; hora: string; ubicada: boolean }
   | { tipo: 'error'; mensaje: string }
 
 interface InfoHoy {
@@ -40,6 +39,8 @@ interface InfoHoy {
 export default function RegistrarAsistencia() {
   const volver = useVolver('/becario')
   const camara = useCamara(true)
+  const enLinea = useEnLinea()
+  const ahora = useAhora(10_000)
   const [estado, setEstado] = useState<EstadoRegistro>({ tipo: 'listo' })
   const [info, setInfo] = useState<InfoHoy | null>(null)
   const enCurso = useRef(false)
@@ -57,6 +58,7 @@ export default function RegistrarAsistencia() {
   }, [])
 
   useEffect(() => {
+    document.title = 'Registrar asistencia · Pasalista'
     void cargarInfo()
     void prepararMotor().catch(() => undefined) // descarga los modelos mientras el becario se acomoda
   }, [cargarInfo])
@@ -95,85 +97,137 @@ export default function RegistrarAsistencia() {
     exito: 'Coincidencia facial',
     error: 'No se pudo verificar'
   }[estado.tipo]
+  // Tras registrar, el título dice lo que se registró (info ya apunta al siguiente).
+  const tipo = estado.tipo === 'exito' ? estado.registro : info?.proximo
 
-  return (
-    <Pantalla titulo="Registrar asistencia" subtitulo={fechaCorta(hoy())} onVolver={volver}>
-      {camara.error ? (
+  if (camara.error) {
+    return (
+      <Pantalla titulo="Registrar asistencia" subtitulo={fechaCorta(hoy())} onVolver={volver}>
         <PanelErrorCamara
           mensaje={camara.error}
           explicacion="Pasalista compara tu rostro con el enrolamiento. El registro requiere aprobación humana."
           onReintentar={camara.reintentar}
           onVolver={volver}
         />
-      ) : (
-        <>
-          <Segmentado
-            opciones={['Entrada', 'Salida']}
-            seleccionado={info ? (info.proximo === 'entrada' ? 0 : 1) : -1}
-            iconos={[LogIn, LogOut]}
-            etiqueta="Registro que toca"
-          />
-          <p className="chico texto-2">La app elige Entrada o Salida según tus registros de hoy.</p>
+      </Pantalla>
+    )
+  }
 
-          <MarcoCamara
-            video={camara.video}
-            espejo
-            guia={guia}
-            textoEstado={camara.lista || estado.tipo !== 'listo' ? textoGuia : 'Abriendo la cámara…'}
-            pie={guia === 'buscando' ? 'Buena luz, sin lentes oscuros ni cubrebocas' : null}
-          />
+  /*
+   * La cámara ocupa toda la pantalla; abajo, una hoja blanca con lo que se verifica
+   * (rostro, ubicación, modalidad) y el botón. La ubicación no se valida en el teléfono
+   * (M-13): solo se dice si se adjuntó.
+   */
+  return (
+    <div className="fixed inset-0 z-20 flex flex-col bg-[var(--escaner)]">
+      <div className="relative min-h-0 flex-1">
+        <MarcoCamara
+          video={camara.video}
+          espejo
+          pantallaCompleta
+          guia={guia}
+          textoEstado={camara.lista || estado.tipo !== 'listo' ? textoGuia : 'Abriendo la cámara…'}
+          pie={guia === 'buscando' ? 'Buena luz, sin lentes oscuros ni cubrebocas' : null}
+        />
+        <div className="absolute inset-x-4 top-[calc(16px+var(--seguro-arriba))] flex items-center gap-3 text-white">
+          <button type="button" className="grid size-11 shrink-0 place-items-center rounded-full bg-white/15" onClick={volver} aria-label="Volver">
+            <ArrowLeft className="size-5" />
+          </button>
+          <h1 className="font-medium">{tipo ? etiquetaTipo(tipo) : 'Registrar asistencia'}</h1>
+        </div>
+      </div>
 
-          <div aria-live="polite" className="columna" style={{ gap: 12, paddingBottom: 8 }}>
-            {estado.tipo === 'exito' ? (
-              <Resultado
-                icono={estado.enCola ? CloudCheck : CheckCircle2}
-                tono={estado.enCola ? 'info' : 'exito'}
-                titulo={estado.enCola ? `${etiquetaTipo(estado.registro)} guardada en el teléfono` : `${etiquetaTipo(estado.registro)} registrada a las ${estado.hora}`}
-                mensaje={estado.enCola ? 'Se subirá cuando vuelva la red y requerirá aprobación humana.' : 'Pendiente de aprobación por tu ingeniero. Aún no suma horas.'}
-              >
-                <Boton ancho onClick={volver}>
-                  Listo
-                </Boton>
-              </Resultado>
-            ) : estado.tipo === 'error' ? (
-              <Resultado icono={CircleAlert} tono="peligro" titulo="No se registró la asistencia" mensaje={estado.mensaje}>
-                <Boton ancho icono={RefreshCw} onClick={() => setEstado({ tipo: 'listo' })}>
-                  Intentar de nuevo
-                </Boton>
-                <Boton ancho variante="secundario" onClick={volver}>
-                  Volver
-                </Boton>
-              </Resultado>
-            ) : (
-              <>
-                {info && (
-                  <p className="fila texto-2" style={{ gap: 8 }}>
-                    {(() => {
-                      const I = info.configurada ? iconoModalidad(info.modalidad) : IconoSinConfigurar
-                      return <I size={20} aria-hidden />
-                    })()}
-                    {/* M-13: no se valida ubicación; no insinuarlo. */}
-                    {info.configurada ? `Modalidad de hoy: ${etiquetaModalidad(info.modalidad)}` : 'Modalidad sin configurar: se registra como presencial'}
-                  </p>
-                )}
-                <Boton ancho icono={ScanFace} cargando={estado.tipo === 'procesando'} deshabilitado={!camara.lista} onClick={capturarYRegistrar}>
-                  {estado.tipo === 'procesando'
-                    ? 'Verificando…'
-                    : info?.proximo === 'salida'
-                      ? 'Registrar salida'
-                      : info?.proximo === 'entrada'
-                        ? 'Registrar entrada'
-                        : 'Verificar y registrar'}
-                </Boton>
-                <p className="chico texto-2 fila" style={{ justifyContent: 'center', gap: 6 }}>
-                  <Lock size={14} aria-hidden /> Se compara con tu biometría en el teléfono; la foto no se guarda.
-                </p>
-              </>
-            )}
-          </div>
-        </>
-      )}
-    </Pantalla>
+      <section className="relative z-10 -mt-4 rounded-t-2xl bg-superficie px-4 pt-3 pb-[calc(20px+var(--seguro-abajo))]" aria-live="polite">
+        <div className="mb-3">
+          <FilaCheque
+            icono={ScanFace}
+            titulo={{ listo: 'Tu rostro', procesando: 'Verificando tu rostro…', exito: 'Es tu rostro', error: 'No se pudo verificar' }[estado.tipo]}
+            detalle={estado.tipo === 'exito' ? 'Coincide con tu enrolamiento' : 'Se compara en tu teléfono; la foto no se guarda'}
+            resultado={estado.tipo === 'exito' ? 'ok' : estado.tipo === 'error' ? 'fallo' : null}
+          />
+          <FilaCheque
+            icono={MapPin}
+            titulo={estado.tipo !== 'exito' ? 'Ubicación' : estado.ubicada ? 'Ubicación adjunta' : 'Sin ubicación'}
+            detalle={
+              estado.tipo !== 'exito'
+                ? 'Se envía con el registro si el teléfono la da'
+                : estado.ubicada
+                  ? 'Tu ingeniero ve dónde registraste'
+                  : 'Tu ingeniero revisará este registro'
+            }
+            resultado={estado.tipo === 'exito' ? (estado.ubicada ? 'ok' : 'aviso') : null}
+          />
+          {info && (
+            <FilaCheque
+              icono={info.configurada ? iconoModalidad(info.modalidad) : IconoSinConfigurar}
+              titulo={info.configurada ? etiquetaModalidad(info.modalidad) : 'Modalidad sin configurar'}
+              detalle={info.configurada ? 'Modalidad de hoy' : 'Se registra como presencial'}
+              resultado={null}
+            />
+          )}
+          {!enLinea && estado.tipo !== 'exito' && (
+            <FilaCheque icono={CloudOff} titulo="Sin conexión" detalle="Se guarda en el teléfono y se sube al volver la red" resultado={null} />
+          )}
+        </div>
+
+        {estado.tipo === 'exito' ? (
+          <Resultado
+            titulo={estado.enCola ? `${etiquetaTipo(estado.registro)} guardada en el teléfono` : `${etiquetaTipo(estado.registro)} registrada a las ${estado.hora}`}
+            mensaje={estado.enCola ? 'Se subirá cuando vuelva la red y requerirá aprobación humana.' : 'Pendiente de aprobación por tu ingeniero. Aún no suma horas.'}
+          >
+            <Boton ancho onClick={volver}>
+              Listo
+            </Boton>
+          </Resultado>
+        ) : estado.tipo === 'error' ? (
+          <Resultado titulo="No se registró la asistencia" mensaje={estado.mensaje} error>
+            <Boton ancho icono={RefreshCw} onClick={() => setEstado({ tipo: 'listo' })}>
+              Intentar de nuevo
+            </Boton>
+            <Boton ancho variante="secundario" onClick={volver}>
+              Volver
+            </Boton>
+          </Resultado>
+        ) : (
+          <Boton ancho icono={ScanFace} cargando={estado.tipo === 'procesando'} deshabilitado={!camara.lista} onClick={capturarYRegistrar}>
+            {estado.tipo === 'procesando'
+              ? 'Verificando…'
+              : tipo
+                ? `Registrar ${etiquetaTipo(tipo).toLowerCase()} a las ${hora(ahora)}`
+                : 'Verificar y registrar'}
+          </Boton>
+        )}
+      </section>
+    </div>
+  )
+}
+
+/** Una verificación de la hoja: ícono gris, qué es y su estado; a la derecha, la marca del resultado. */
+function FilaCheque(props: { icono: Icono; titulo: string; detalle: string; resultado: 'ok' | 'aviso' | 'fallo' | null }) {
+  const I = props.icono
+  return (
+    <div className="fila border-regla py-2.5 [&+&]:border-t">
+      <I className="size-[18px] shrink-0 text-texto-2" strokeWidth={1.75} aria-hidden />
+      <span className="crece">
+        <span className="block">{props.titulo}</span>
+        <span className="block text-[13px] text-texto-2">{props.detalle}</span>
+      </span>
+      {props.resultado === 'ok' && <Check className="size-[18px] text-dato" aria-label="Listo" />}
+      {props.resultado === 'aviso' && <TriangleAlert className="size-[18px] text-alerta" aria-label="Atención" />}
+      {props.resultado === 'fallo' && <CircleAlert className="size-[18px] text-peligro" aria-label="Falló" />}
+    </div>
+  )
+}
+
+function Resultado(props: { titulo: string; mensaje: string; error?: boolean; children: React.ReactNode }) {
+  return (
+    <div className="columna gap-2">
+      <div className="mb-1">
+        <p className={props.error ? 'titulo-m text-peligro' : 'titulo-m'}>{props.titulo}</p>
+        <p className="text-texto-2">{props.mensaje}</p>
+      </div>
+      {props.children}
+    </div>
   )
 }
 
@@ -214,7 +268,7 @@ async function registrar(cuadro: () => ReturnType<typeof variantesConGiros>): Pr
   const { modalidad } = await modalidadDeHoy(usuario.id)
   const lugar = await ubicacion
   const subida = await asistencias.registrar(usuario.id, tipo, modalidad, lugar?.latitud ?? null, lugar?.longitud ?? null, similitud)
-  return { tipo: 'exito', registro: tipo, enCola: subida === 'en_cola', hora: hora(new Date()) }
+  return { tipo: 'exito', registro: tipo, enCola: subida === 'en_cola', hora: hora(new Date()), ubicada: lugar != null }
 }
 
 function mensajeDeFallo(e: unknown): string {
@@ -227,17 +281,3 @@ function mensajeDeFallo(e: unknown): string {
   return mensajeAmigable(e, 'No se pudo registrar tu asistencia. Intenta de nuevo.')
 }
 
-function Resultado(props: { icono: Icono; tono: Tono; titulo: string; mensaje: string; children: React.ReactNode }) {
-  return (
-    <>
-      <div className="fila">
-        <IconoCircular icono={props.icono} tono={props.tono} tamano={48} />
-        <div className="crece">
-          <p className="titulo-m">{props.titulo}</p>
-          <p className="texto-2">{props.mensaje}</p>
-        </div>
-      </div>
-      {props.children}
-    </>
-  )
-}
