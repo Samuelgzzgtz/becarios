@@ -709,7 +709,7 @@ export function Segmentado(props: {
   )
 }
 
-/** Filtro de una sola fila: activo en tinta, inactivo en blanco. */
+/** Filtro de una sola fila: activo en tinta, inactivo en blanco (en gris dentro de un panel blanco). */
 export function Chip(props: { texto: string; activo: boolean; onClick: () => void; icono?: Icono }) {
   return (
     <button
@@ -718,7 +718,7 @@ export function Chip(props: { texto: string; activo: boolean; onClick: () => voi
       onClick={props.onClick}
       className={cn(
         'inline-flex h-9 shrink-0 items-center rounded-full px-3.5 text-[13px] font-medium whitespace-nowrap transition-colors',
-        props.activo ? 'bg-tinta text-sobre-tinta' : 'bg-superficie text-texto hover:bg-elevado'
+        props.activo ? 'bg-tinta text-sobre-tinta' : 'bg-superficie text-texto hover:bg-elevado in-[.tarjeta]:bg-elevado'
       )}
     >
       {props.texto}

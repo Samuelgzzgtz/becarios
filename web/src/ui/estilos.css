@@ -427,9 +427,10 @@
     opacity: 0.5;
   }
 
+  /* Día con modalidad: un paso de tono (el verde queda para las horas trabajadas). */
   .dia.activo {
-    background: var(--dato-c);
-    color: var(--sobre-dato-c);
+    background: var(--elevado);
+    color: var(--texto);
   }
 
   /* ---- Reporte SIASE ---------------------------------------------------- */

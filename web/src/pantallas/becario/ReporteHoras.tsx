@@ -135,7 +135,7 @@ function TarjetaTotal(props: { titulo: string; horasHechas: number; porAprobar: 
       <p className="texto-2">{props.titulo}</p>
       <p>
         <span className="numero-g">{numeroHoras(props.horasHechas)}</span>
-        <span className="titulo-m texto-2"> {meta != null && meta > 0 ? `/ ${horas(meta)}` : 'h'}</span>
+        <span className="titulo-m texto-2"> {meta != null && meta > 0 ? `de ${horas(meta)}` : 'h'}</span>
       </p>
       {props.porAprobar >= 0.05 && <p className="chico texto-2">{horas(props.porAprobar)} por aprobar</p>}
       {meta != null && meta > 0 && (

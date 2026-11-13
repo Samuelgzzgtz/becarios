@@ -245,7 +245,7 @@ export default function Semestres() {
                     autoComplete="off"
                   />
                   <div className="columna" style={{ gap: 4 }}>
-                    <span className="chico texto-2" style={{ fontWeight: 600 }}>
+                    <span className="text-[13px] font-medium">
                       Tipo de periodo
                     </span>
                     <Segmentado

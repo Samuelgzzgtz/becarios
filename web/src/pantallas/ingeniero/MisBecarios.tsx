@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { ArrowLeftRight, CalendarDays, CalendarRange, Info, ScanFace, UserX } from 'lucide-react'
+import { Info, UserX } from 'lucide-react'
 import { progresoEquipo } from '../../datos/repositorios'
 import { requerirUsuario } from '../../datos/sesion'
 import { horasDeMeta } from '../../lib/formato'
@@ -52,23 +52,16 @@ export default function MisBecarios() {
                         <p className="titulo-m recortar">{p.nombre}</p>
                         <p className="chico texto-2">Matrícula {p.matricula}</p>
                       </div>
-                      {enRiesgo(p) ? <Badge texto="Ritmo bajo" tono="alerta" /> : <Badge texto="Activo" tono="exito" />}
+                      {enRiesgo(p) && <Badge texto="Ritmo bajo" tono="alerta" />}
                     </div>
                     <FilaProgreso etiqueta="Semana" horas={p.horas_semana} meta={meta} ritmoEsperado={ritmo} />
                     <p className="chico texto-2">Mes: {horasDeMeta(p.horas_mes, p.meta_mensual)}</p>
-                    <div className="envolver" style={{ marginTop: 12 }}>
-                      <Boton chico variante="secundario" icono={CalendarDays} onClick={() => ir('asistencias')}>
-                        Asistencias
-                      </Boton>
-                      <Boton chico variante="secundario" icono={CalendarRange} onClick={() => ir('modalidad')}>
-                        Modalidad
-                      </Boton>
-                      <Boton chico variante="secundario" icono={ScanFace} onClick={() => ir('enrolamiento')}>
-                        Enrolar
-                      </Boton>
-                      <Boton chico variante="secundario" icono={ArrowLeftRight} onClick={() => ir('transferir')}>
-                        Transferir
-                      </Boton>
+                    {/* Acciones de texto en una sola fila (cuatro botones grises se volvían dos renglones). */}
+                    <div className="-mx-1 -mb-2 mt-1 flex justify-between">
+                      <Boton variante="texto" onClick={() => ir('asistencias')}>Asistencias</Boton>
+                      <Boton variante="texto" onClick={() => ir('modalidad')}>Modalidad</Boton>
+                      <Boton variante="texto" onClick={() => ir('enrolamiento')}>Enrolar</Boton>
+                      <Boton variante="texto" onClick={() => ir('transferir')}>Transferir</Boton>
                     </div>
                   </Tarjeta>
                 )

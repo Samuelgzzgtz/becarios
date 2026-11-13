@@ -93,7 +93,8 @@ export function EncabezadoUsuario({ usuario, detalle }: { usuario: Usuario; deta
         <p className="titulo-m recortar">{usuario.nombre}</p>
         <p className="chico texto-2 recortar">{detalle ?? `Matrícula ${usuario.matricula}`}</p>
       </div>
-      <Badge texto={etiquetaEstadoUsuario[usuario.estado]} tono={tonoEstadoUsuario[usuario.estado]} />
+      {/* El estado solo se marca cuando es la excepción (inactivo o egresado). */}
+      {usuario.estado !== 'activo' && <Badge texto={etiquetaEstadoUsuario[usuario.estado]} tono={tonoEstadoUsuario[usuario.estado]} />}
     </div>
   )
 }
