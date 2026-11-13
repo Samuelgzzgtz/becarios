@@ -228,17 +228,18 @@ function textoDistancia(m: number): string {
 
 /**
  * Esquema de un registro fuera de zona: el círculo es la zona y el punto, dónde se
- * registró. Solo representa la DISTANCIA (escala logarítmica, de 3 a 20 px fuera del
- * borde): no tenemos el rumbo, así que el punto va siempre en la misma dirección.
+ * registró. Solo representa la DISTANCIA (escala logarítmica, de 2 a 34 px fuera del
+ * borde, tope en 2 km): no tenemos el rumbo, así que el punto va siempre en la misma
+ * dirección. La zona es chica y está en la esquina para que el recorrido se note.
  */
 function EsquemaDistancia({ metros }: { metros: number }) {
-  const r = 13
-  const fuera = 3 + 17 * Math.min(1, Math.log10(1 + metros / 25) / Math.log10(1 + 2000 / 25))
-  const angulo = (-35 * Math.PI) / 180
+  const r = 9
+  const fuera = 2 + 32 * Math.min(1, Math.log10(1 + metros / 25) / Math.log10(1 + 2000 / 25))
+  const angulo = (-30 * Math.PI) / 180
   return (
     <svg className="size-14 shrink-0 rounded-md bg-fondo" viewBox="0 0 56 56" aria-hidden>
-      <circle cx={20} cy={32} r={r} fill="var(--dato-c)" stroke="var(--dato)" strokeWidth={1} />
-      <circle cx={20 + (r + fuera) * Math.cos(angulo)} cy={32 + (r + fuera) * Math.sin(angulo)} r={3.5} fill="var(--peligro)" />
+      <circle cx={12} cy={42} r={r} fill="var(--dato-c)" stroke="var(--dato)" strokeWidth={1} />
+      <circle cx={12 + (r + fuera) * Math.cos(angulo)} cy={42 + (r + fuera) * Math.sin(angulo)} r={3.5} fill="var(--peligro)" />
     </svg>
   )
 }
