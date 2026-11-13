@@ -11,8 +11,21 @@ import { enRiesgo, horasEsperadasSemana, type ProgresoBecario } from '../../lib/
 import { Avatar, BarraProgreso, EstadoVacio, Pantalla, SegunEstado, TarjetaIndicador } from '../../ui/componentes'
 import { useAlReanudar, useCarga } from '../../ui/hooks'
 
-/** Filas del equipo en el panel; el resto, en "Becarios". */
+/** Filas del equipo en el panel (los atrasados siempre se muestran todos); el resto, en "Becarios". */
 const MAXIMO_FILAS = 6
+
+/** Avance contra lo esperado a hoy (1 = al ritmo); sin meta o sin días terminados, contra la meta. */
+function avance(b: ProgresoBecario): number {
+  const esperadas = horasEsperadasSemana(b)
+  if (esperadas > 0) return b.horas_semana / esperadas
+  const meta = b.meta_semanal ?? 0
+  return meta > 0 ? b.horas_semana / meta : 1
+}
+
+/** Primero los atrasados (enRiesgo), del más lejos de lo esperado al más cerca; luego los demás, igual. */
+function ordenEquipo(equipo: ProgresoBecario[]): ProgresoBecario[] {
+  return [...equipo].sort((a, b) => Number(enRiesgo(b)) - Number(enRiesgo(a)) || avance(a) - avance(b))
+}
 
 /**
  * Una sola llamada para el equipo (progreso_equipo, M-09). "Atrasados" compara
@@ -51,17 +64,20 @@ export default function PanelIngeniero() {
     <Pantalla titulo="Mi equipo" subtitulo={datos ? `${plural(datos.equipo.length, 'becario', 'becarios')} · ${fecha}` : fecha}>
       <SegunEstado estado={estado} onReintentar={recargar}>
         {(d) => {
-          // Del más atrasado al más adelantado: los que necesitan atención quedan arriba.
-          const orden = [...d.equipo].sort((a, b) => a.horas_semana - b.horas_semana)
+          const orden = ordenEquipo(d.equipo)
+          const visibles = orden.slice(0, Math.max(MAXIMO_FILAS, d.riesgo.length))
           return (
             <>
-              {(d.porRevisar ?? 0) > 0 && (
+              {/* Si no se pudo contar (null), la fila se queda con "–" para no esconder lo pendiente. */}
+              {d.porRevisar !== 0 && (
                 <div className="fila rounded-lg bg-superficie py-3 pr-3 pl-4">
                   <span className="crece">
                     <span className="block font-medium">
-                      {plural(d.porRevisar ?? 0, 'registro espera', 'registros esperan')} revisión
+                      {d.porRevisar == null ? 'Registros por revisar: –' : `${plural(d.porRevisar, 'registro espera', 'registros esperan')} revisión`}
                     </span>
-                    <span className="block text-[13px] text-texto-2">No suman horas hasta que los revises</span>
+                    <span className="block text-[13px] text-texto-2">
+                      {d.porRevisar == null ? 'No se pudo contar; ábrelo para verlos' : 'No suman horas hasta que los revises'}
+                    </span>
                   </span>
                   <Button onClick={() => navegar('/ingeniero/revisar')}>
                     Revisar
@@ -78,8 +94,8 @@ export default function PanelIngeniero() {
                 />
                 <TarjetaIndicador valor={entero(d.riesgo.length)} etiqueta="Atrasados" alerta={d.riesgo.length > 0} onClick={() => navegar('/ingeniero/becarios')} />
                 <TarjetaIndicador
-                  valor={!d.ventana ? '–' : d.ventana.abierta ? plural(Math.max(d.ventana.dias_restantes, 0), 'día', 'días') : 'Cerrada'}
-                  etiqueta={d.ventana?.abierta ? 'Para el SIASE' : 'Ventana SIASE'}
+                  valor={!d.ventana ? '–' : !d.ventana.abierta ? 'Cerrada' : d.ventana.dias_restantes <= 0 ? 'Hoy' : plural(d.ventana.dias_restantes, 'día', 'días')}
+                  etiqueta={!d.ventana?.abierta ? 'Ventana SIASE' : d.ventana.dias_restantes <= 0 ? 'Cierra el SIASE' : 'Para el SIASE'}
                   alerta={d.ventana?.abierta === true}
                   onClick={() => navegar('/ingeniero/siase')}
                 />
@@ -93,10 +109,10 @@ export default function PanelIngeniero() {
                     <h2 className="crece font-medium">Horas de la semana</h2>
                     <span className="text-xs text-texto-2">marca: lo esperado a hoy</span>
                   </div>
-                  {orden.slice(0, MAXIMO_FILAS).map((b) => (
+                  {visibles.map((b) => (
                     <FilaBecario key={b.becario_id} becario={b} onAbrir={() => navegar(`/ingeniero/becario/${b.becario_id}/asistencias`)} />
                   ))}
-                  {d.equipo.length > MAXIMO_FILAS && (
+                  {d.equipo.length > visibles.length && (
                     <div className="flex justify-center border-t border-regla">
                       <Button variant="link" className="text-texto-2" onClick={() => navegar('/ingeniero/becarios')}>
                         Ver los {entero(d.equipo.length)}
