@@ -6,9 +6,10 @@
 // .deleted) y esta función lo refleja en usuarios con la RPC
 // sincronizar_usuario_clerk.
 //
-// El perfil se elige con organizaciones de Clerk: agregar a alguien a
-// "ingenieros" o "administradores" (slug) le da ese perfil; quien no está en
-// ninguna es becario. Esta función lo escribe en el public metadata con la API
+// El perfil se elige con organizaciones de Clerk: cada organización que da un
+// perfil lo declara en su public metadata ({ "perfil": "ingeniero" } o
+// "administrador"); agregar a alguien a ella le da ese perfil y quien no está
+// en ninguna es becario. Esta función lo escribe en el public metadata con la API
 // de Clerk (CLERK_SECRET_KEY) y el user.updated que sigue sincroniza la base.
 // Así el perfil vive solo en Clerk y Ban/Unban siguen funcionando.
 //
@@ -42,7 +43,7 @@ interface UsuarioClerk {
 }
 
 interface MembresiaClerk {
-  organization: { slug: string | null };
+  organization: { public_metadata: Record<string, unknown> | null };
   public_user_data: { user_id: string };
 }
 
@@ -52,14 +53,18 @@ interface EventoClerk {
   data: UsuarioClerk | MembresiaClerk | { id: string; deleted?: boolean };
 }
 
-// Si alguien está en las dos, gana administrador. Otras organizaciones se ignoran.
-const PERFIL_POR_ORGANIZACION: Record<string, string> = { administradores: "administrador", ingenieros: "ingeniero" };
-
 function respuesta(cuerpo: unknown, status = 200): Response {
   return new Response(JSON.stringify(cuerpo), { status, headers: { "Content-Type": "application/json" } });
 }
 
 const texto = (v: unknown) => (typeof v === "string" && v.trim() ? v.trim() : null);
+
+// Si alguien está en las dos, gana administrador. Organizaciones sin perfil se ignoran.
+const PERFILES_DE_ORGANIZACION = ["administrador", "ingeniero"];
+const perfilDe = (m: MembresiaClerk) => {
+  const p = texto(m.organization.public_metadata?.perfil);
+  return p && PERFILES_DE_ORGANIZACION.includes(p) ? p : null;
+};
 
 async function apiClerk(ruta: string, init?: RequestInit): Promise<Response> {
   const clave = Deno.env.get("CLERK_SECRET_KEY");
@@ -82,8 +87,8 @@ async function escribirPerfil(usuarioId: string): Promise<void> {
   const r = await apiClerk(`/users/${usuarioId}/organization_memberships?limit=100`);
   if (r.status === 404) return;
   const { data } = (await r.json()) as { data: MembresiaClerk[] };
-  const perfiles = data.map((m) => PERFIL_POR_ORGANIZACION[m.organization.slug ?? ""]);
-  const perfil = ["administrador", "ingeniero"].find((p) => perfiles.includes(p)) ?? "becario";
+  const perfiles = data.map(perfilDe);
+  const perfil = PERFILES_DE_ORGANIZACION.find((p) => perfiles.includes(p)) ?? "becario";
   // PATCH /metadata mezcla: conserva matricula, coordinacion y estado.
   await apiClerk(`/users/${usuarioId}/metadata`, { method: "PATCH", body: JSON.stringify({ public_metadata: { perfil } }) });
 }
@@ -126,7 +131,7 @@ Deno.serve(async (req: Request) => {
 
   if (evento.type === "organizationMembership.created" || evento.type === "organizationMembership.deleted") {
     const m = evento.data as MembresiaClerk;
-    if (!Object.hasOwn(PERFIL_POR_ORGANIZACION, m.organization.slug ?? "")) return respuesta({ ok: true, ignorado: m.organization.slug });
+    if (!perfilDe(m)) return respuesta({ ok: true, ignorado: evento.type });
     await escribirPerfil(m.public_user_data.user_id);
     return respuesta({ ok: true });
   }

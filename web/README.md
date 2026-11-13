@@ -51,9 +51,9 @@ de la misma red usa el despliegue de Vercel (o un túnel HTTPS).
 1. Clerk Dashboard → **Users → Create user** (o **Invite**), con su correo institucional.
    Al crearse queda como **becario**: el webhook le escribe `{ "perfil": "becario" }` en el
    public metadata.
-2. **Ingeniero o administrador:** ya con cuenta, agrégalo a la organización **Ingenieros**
-   (slug `ingenieros`) o **Administradores** (slug `administradores`) con **Add member**. Si está
-   en las dos, gana administrador; al sacarlo de la organización vuelve a becario.
+2. **Ingeniero o administrador:** ya con cuenta, agrégalo a la organización **Ingenieros** o
+   **Administradores** con **Add member** y rol **member**. Si está en las dos, gana
+   administrador; al sacarlo de la organización vuelve a becario.
    Opcional en **Metadata → Public**: `"matricula"`, `"coordinacion"` y `"estado": "egresado"`.
    No edites `perfil` a mano: la próxima vez que cambie su organización se recalcula.
 3. **Quitar acceso:** botón **Ban user** (se conserva su historial). Para devolverlo: **Unban**.
@@ -64,10 +64,12 @@ de la misma red usa el despliegue de Vercel (o un túnel HTTPS).
 1. **Clerk** (clerk.com) → crea la aplicación "DocenCheck" con **Email + Password** y **Microsoft**.
    - **Configure → Restrictions → Sign-up mode: Restricted** (solo entran las cuentas que tú creas o invitas;
      si no, cualquiera que se registre entraría como becario).
-   - **Organizations:** crea `ingenieros` y `administradores` desde el Dashboard, deja permitidas
-     las cuentas personales (los becarios no pertenecen a ninguna organización) y desactiva que
-     los usuarios creen organizaciones. Agrega a todos con rol **member**: un `org:admin` podría
-     invitar a cualquiera a la organización y darle ese perfil.
+   - **Organizations:** crea **Ingenieros** y **Administradores** y pon en su public metadata
+     `{ "perfil": "ingeniero" }` y `{ "perfil": "administrador" }`; esa metadata, no el nombre,
+     es lo que da el perfil. Deja permitidas las cuentas personales (los becarios no pertenecen a
+     ninguna organización), desactiva que los usuarios creen organizaciones y sube el límite de
+     miembros (el plan gratis permite 20). Agrega a todos con rol **member**: un `org:admin`
+     podría invitar a cualquiera a la organización y darle ese perfil.
    - **Al activar esto por primera vez:** agrega a cada ingeniero y administrador que ya existía
      a su organización. Su perfil hoy vive solo en el metadata y se recalcularía como becario
      con su siguiente cambio de organización.
@@ -90,7 +92,7 @@ de la misma red usa el despliegue de Vercel (o un túnel HTTPS).
    mediante `guardar_secreto_webhook_clerk` usando únicamente `service_role`.
    Guarda también la **Secret key** de Clerk (Configure → API keys) como `CLERK_SECRET_KEY`:
    el webhook la usa para escribir el perfil.
-5. **Primer administrador:** crea tu usuario en Clerk y agrégalo a `administradores`.
+5. **Primer administrador:** crea tu usuario en Clerk y agrégalo a **Administradores**.
 
 La función `admin-crear-usuario` se retiró del repositorio (creaba cuentas de Supabase Auth);
 bórrala del proyecto de Supabase si sigue desplegada.
