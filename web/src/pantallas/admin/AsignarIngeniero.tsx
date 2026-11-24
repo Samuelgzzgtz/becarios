@@ -3,7 +3,22 @@ import { useParams } from 'react-router-dom'
 import { CircleAlert, HardHat, Save } from 'lucide-react'
 import { asignarBecario, ingenieroAsignadoDe, listarPorPerfil, usuario as obtenerUsuario } from '../../datos/repositorios'
 import { mensajeAmigable } from '../../lib/errores'
-import { Avatar, AvisoBanner, Badge, Boton, Dialogo, EncabezadoSeccion, EstadoVacio, Pantalla, SegunEstado, Tarjeta, useVolver } from '../../ui/componentes'
+import { coincideBusqueda } from '../../lib/formato'
+import {
+  Avatar,
+  AvisoBanner,
+  Badge,
+  Boton,
+  BuscadorPersonas,
+  Dialogo,
+  EncabezadoSeccion,
+  EstadoVacio,
+  Pantalla,
+  SegunEstado,
+  SinCoincidencias,
+  Tarjeta,
+  useVolver
+} from '../../ui/componentes'
 import { useAvisos } from '../../ui/avisos'
 import { useCarga } from '../../ui/hooks'
 
@@ -28,6 +43,7 @@ export default function AsignarIngeniero() {
   const [confirmando, setConfirmando] = useState(false)
   const [guardando, setGuardando] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [busqueda, setBusqueda] = useState('')
 
   useEffect(() => {
     if (datos) setSeleccionado(datos.actual)
@@ -89,8 +105,11 @@ export default function AsignarIngeniero() {
             </Tarjeta>
             <EncabezadoSeccion titulo="Elige un ingeniero" />
             {d.ingenieros.length === 0 && <EstadoVacio titulo="No hay ingenieros activos" mensaje="Da de alta un ingeniero primero." icono={HardHat} />}
+            <BuscadorPersonas personas={d.ingenieros.length} valor={busqueda} onCambio={setBusqueda} placeholder="Buscar ingeniero" />
+            {/* El elegido sigue a la vista aunque no coincida, para no perder la selección. */}
+            {!d.ingenieros.some((i) => coincideBusqueda(busqueda, i.nombre, i.coordinacion)) && <SinCoincidencias busqueda={busqueda} />}
             <div role="radiogroup" aria-label="Ingenieros" className="columna" style={{ gap: 8 }}>
-              {d.ingenieros.map((i) => {
+              {d.ingenieros.filter((i) => i.id === seleccionado || coincideBusqueda(busqueda, i.nombre, i.coordinacion)).map((i) => {
                 const marcado = i.id === seleccionado
                 return (
                   <label key={i.id} className={`tarjeta fila${marcado ? ' seleccionada' : ''}`} style={{ cursor: 'pointer', padding: '10px 14px' }}>

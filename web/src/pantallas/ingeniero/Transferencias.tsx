@@ -1,12 +1,14 @@
+import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { ArrowLeftRight } from 'lucide-react'
 import { transferenciasDelEquipo } from '../../datos/repositorios'
 import { requerirUsuario } from '../../datos/sesion'
-import { EstadoVacio, Pantalla, SegunEstado, useVolver } from '../../ui/componentes'
+import { BuscadorPersonas, EstadoVacio, Pantalla, SegunEstado, SinCoincidencias, useVolver } from '../../ui/componentes'
 import { useAlReanudar, useCarga } from '../../ui/hooks'
-import { TarjetaTransferencia } from '../compartido/Transferencia'
+import { TarjetaTransferencia, coincideTransferencia } from '../compartido/Transferencia'
 
 export default function Transferencias() {
+  const [busqueda, setBusqueda] = useState('')
   const navegar = useNavigate()
   const volver = useVolver('/ingeniero')
   const { estado, recargar } = useCarga(
@@ -29,7 +31,15 @@ export default function Transferencias() {
               onAccion={() => navegar('/ingeniero/becarios', { replace: true })}
             />
           ) : (
-            lista.map((d) => <TarjetaTransferencia key={d.transferencia.id ?? d.transferencia.created_at} detalle={d} />)
+            <>
+              <BuscadorPersonas personas={lista.length} valor={busqueda} onCambio={setBusqueda} placeholder="Buscar por becario o ingeniero" />
+              {!lista.some((d) => coincideTransferencia(d, busqueda)) && <SinCoincidencias busqueda={busqueda} />}
+              {lista
+                .filter((d) => coincideTransferencia(d, busqueda))
+                .map((d) => (
+                  <TarjetaTransferencia key={d.transferencia.id ?? d.transferencia.created_at} detalle={d} />
+                ))}
+            </>
           )
         }
       </SegunEstado>

@@ -90,6 +90,7 @@ export default function SolicitarTransferencia() {
                 <p className="texto-2">La coordinación revisará la solicitud y, si la aprueba, el becario pasará al ingeniero elegido.</p>
                 <Desplegable
                   etiqueta="Transferir a"
+                  personas={d.ingenieros.length}
                   opciones={d.ingenieros}
                   seleccionado={destino}
                   textoDe={(u) => (u.coordinacion ? `${u.nombre} · ${u.coordinacion}` : u.nombre)}

@@ -73,3 +73,12 @@ export function ritmoMes(f: Fecha = hoy()): number {
 export function vaAlRitmo(progreso: number, ritmoEsperado: number | null | undefined): boolean {
   return progreso >= 1 || ritmoEsperado == null || progreso >= ritmoEsperado * 0.8
 }
+
+/** Texto para comparar en búsquedas: sin acentos ni mayúsculas ("García" = "garcia"). */
+const paraBuscar = (t: string) => t.normalize('NFD').replace(/\p{Diacritic}/gu, '').toLowerCase().trim()
+
+/** true si [busqueda] está vacía o aparece en alguno de los textos. */
+export function coincideBusqueda(busqueda: string, ...textos: (string | null | undefined)[]): boolean {
+  const b = paraBuscar(busqueda)
+  return !b || textos.some((t) => t != null && paraBuscar(t).includes(b))
+}

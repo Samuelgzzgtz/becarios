@@ -1,17 +1,13 @@
-import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { ArrowLeftRight, BadgeCheck, KeyRound, Building, CalendarDays, ChevronRight, HardHat, IdCard, LogOut } from 'lucide-react'
-import * as asistencias from '../../datos/asistencias'
 import { indicadores, ingenieroDe, periodoActivo, progresoEquipo } from '../../datos/repositorios'
-import { abrirPerfilClerk, cerrarSesion, sesionActiva } from '../../datos/sesion'
-import { plural } from '../../lib/formato'
+import { abrirPerfilClerk, sesionActiva } from '../../datos/sesion'
 import { enRiesgo, type Usuario } from '../../lib/modelos'
 import {
   Avatar,
   Badge,
   Boton,
   CuadriculaDos,
-  Dialogo,
   Divisor,
   EncabezadoSeccion,
   FilaInfo,
@@ -24,6 +20,7 @@ import {
 } from '../../ui/componentes'
 import { etiquetaEstadoUsuario, etiquetaPerfil, tonoEstadoUsuario } from '../../ui/estadosVisuales'
 import { useCarga } from '../../ui/hooks'
+import { useCerrarSesion } from '../../ui/cerrarSesion'
 
 interface DatosCuenta {
   usuario: Usuario
@@ -64,52 +61,20 @@ export default function MiCuenta({ conVolver = false }: { conVolver?: boolean })
   const navegar = useNavigate()
   const volver = useVolver('/admin/mas')
   const { estado, datos, recargar } = useCarga(cargar, [], 'No se pudo cargar tu cuenta.')
-  const [cerrando, setCerrando] = useState(false)
-  const [pendientes, setPendientes] = useState<number | null>(null)
-
-  async function terminarCierre() {
-    // La cola es del usuario que se va: no debe pasar al siguiente que entre en este teléfono (A-12).
-    if (datos) await asistencias.descartarPendientes(datos.usuario.id).catch(() => undefined)
-    await cerrarSesion()
-    navegar('/login', { replace: true })
-  }
-
-  /**
-   * Funciona aunque la cuenta no haya cargado o no haya red (A-11/A-12). Antes de
-   * borrar algo intenta subir la cola offline; si aún quedan registros, pide confirmación.
-   */
-  async function pedirCierre() {
-    if (cerrando) return
-    setCerrando(true)
-    const id = datos?.usuario.id
-    if (id && (await asistencias.pendientesSinSubir(id)) > 0) {
-      await asistencias.sincronizarPendientes().catch(() => undefined)
-      const restantes = await asistencias.pendientesSinSubir(id)
-      if (restantes > 0) {
-        setPendientes(restantes)
-        setCerrando(false)
-        return
-      }
-    }
-    await terminarCierre()
-  }
+  const sesion = useCerrarSesion()
 
   return (
-    <Pantalla titulo="Mi cuenta" onVolver={conVolver ? volver : null}>
-      {pendientes != null && (
-        <Dialogo
-          titulo="Tienes registros sin subir"
-          mensaje={`${plural(pendientes, 'registro de asistencia no se ha', 'registros de asistencia no se han')} podido subir por falta de conexión. Si cierras sesión ahora se perderán. Conéctate a internet y espera a que se suban, o confirma para salir de todos modos.`}
-          textoConfirmar="Salir y descartarlos"
-          destructivo
-          onConfirmar={() => {
-            setPendientes(null)
-            setCerrando(true)
-            void terminarCierre()
-          }}
-          onCancelar={() => setPendientes(null)}
-        />
-      )}
+    <Pantalla
+      titulo="Mi cuenta"
+      onVolver={conVolver ? volver : null}
+      // Junto al título, a la vista sin bajar, aunque la cuenta no haya cargado (A-12).
+      accionHeader={
+        <Boton chico variante="destructivo-borde" icono={LogOut} cargando={sesion.cerrando} onClick={sesion.pedir}>
+          Cerrar sesión
+        </Boton>
+      }
+    >
+      {sesion.dialogo}
 
       <SegunEstado estado={estado} onReintentar={recargar} tarjetas={2}>
         {(d) => {
@@ -194,10 +159,6 @@ export default function MiCuenta({ conVolver = false }: { conVolver?: boolean })
         </Tarjeta>
       )}
 
-      {/* Siempre visible, aunque la cuenta no haya cargado (A-12). */}
-      <Boton variante="destructivo-borde" icono={LogOut} ancho cargando={cerrando} onClick={pedirCierre}>
-        Cerrar sesión
-      </Boton>
       <p className="chico texto-2" style={{ textAlign: 'center' }}>
         Pasalista · FIME UANL
       </p>

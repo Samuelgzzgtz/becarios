@@ -14,6 +14,8 @@ const buttonVariants = cva(
         default: "bg-primary text-primary-foreground hover:bg-primary/90",
         destructive: "bg-destructive text-white hover:bg-destructive/90 dark:text-[#0a0a0a]",
         "destructive-soft": "bg-peligro-c text-peligro hover:bg-peligro-c/80",
+        // Registrar salida: verde claro para distinguirla de la entrada.
+        "success-soft": "bg-dato-c text-dato hover:bg-dato-c/80",
         secondary: "bg-secondary text-secondary-foreground hover:bg-secondary/80",
         ghost: "hover:bg-accent hover:text-accent-foreground",
         link: "text-foreground underline decoration-control underline-offset-[3px] hover:decoration-current",

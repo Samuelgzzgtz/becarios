@@ -4,19 +4,21 @@ import { firmar, porFirmarAntesDe, reportesDelMes, urlParaVer } from '../../dato
 import { requerirUsuario } from '../../datos/sesion'
 import { mensajeAmigable } from '../../lib/errores'
 import { fechaHora, mesActual, mesLargo, parsearMes, sumarMeses } from '../../lib/fechas'
-import { plural } from '../../lib/formato'
+import { coincideBusqueda, plural } from '../../lib/formato'
 import type { EstadoReporteSiase } from '../../lib/modelos'
 import {
   Avatar,
   AvisoBanner,
   Badge,
   Boton,
+  BuscadorPersonas,
   Dialogo,
   EncabezadoSeccion,
   EstadoVacio,
   Pantalla,
   SegunEstado,
   SelectorMes,
+  SinCoincidencias,
   Tarjeta,
   abrirUrl
 } from '../../ui/componentes'
@@ -32,6 +34,7 @@ export default function ReportesSiaseEquipo() {
   const [mes, setMes] = useState(mesActual)
   const [procesando, setProcesando] = useState<Set<string>>(new Set())
   const [accion, setAccion] = useState<AccionPendiente | null>(null)
+  const [busqueda, setBusqueda] = useState('')
 
   const { estado, recargar } = useCarga(
     async () => {
@@ -93,9 +96,14 @@ export default function ReportesSiaseEquipo() {
 
       <SegunEstado estado={estado} onReintentar={recargar}>
         {(d) => {
-          const porRevisar = d.delMes.filter((r) => r.estado === 'subido' && r.reporte_id).map((r) => r.reporte_id!)
+          const anteriores = d.anteriores.filter((p) => p.reporte.id && coincideBusqueda(busqueda, p.becario?.nombre, p.becario?.matricula))
+          const delMes = d.delMes.filter((r) => coincideBusqueda(busqueda, r.nombre, r.matricula))
+          // "Confirmar todos" solo abarca lo que se ve con la búsqueda.
+          const porRevisar = delMes.filter((r) => r.estado === 'subido' && r.reporte_id).map((r) => r.reporte_id!)
           return (
             <>
+              <BuscadorPersonas personas={d.delMes.length} valor={busqueda} onCambio={setBusqueda} />
+              {d.delMes.length > 0 && delMes.length === 0 && anteriores.length === 0 && <SinCoincidencias busqueda={busqueda} />}
               {porRevisar.length > 0 && (
                 <AvisoBanner
                   titulo={`${plural(porRevisar.length, 'reporte espera', 'reportes esperan')} tu revisión`}
@@ -107,12 +115,10 @@ export default function ReportesSiaseEquipo() {
                 />
               )}
 
-              {d.anteriores.length > 0 && (
+              {anteriores.length > 0 && (
                 <>
                   <EncabezadoSeccion titulo="Pendientes de meses anteriores" />
-                  {d.anteriores
-                    .filter((p) => p.reporte.id)
-                    .map((p) => {
+                  {anteriores.map((p) => {
                       const id = p.reporte.id!
                       return (
                         <Tarjeta key={`ant-${id}`}>
@@ -140,7 +146,7 @@ export default function ReportesSiaseEquipo() {
                 <EstadoVacio titulo="No tienes becarios activos" mensaje="Cuando tengas becarios asignados verás aquí sus reportes." icono={UserX} />
               )}
 
-              {d.delMes.map((r) => {
+              {delMes.map((r) => {
                 const id = r.reporte_id
                 const ocupado = id != null && procesando.has(id)
                 const puedeRevisar = r.estado === 'subido' && id != null

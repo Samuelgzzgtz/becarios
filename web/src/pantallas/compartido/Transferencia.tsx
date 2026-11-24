@@ -1,6 +1,7 @@
 import type { ReactNode } from 'react'
 import { ArrowRight, Clock } from 'lucide-react'
 import { fechaHora } from '../../lib/fechas'
+import { coincideBusqueda } from '../../lib/formato'
 import type { TransferenciaDetalle } from '../../lib/modelos'
 import { Avatar, Badge, Tarjeta } from '../../ui/componentes'
 import { etiquetaTransferencia, tonoTransferencia } from '../../ui/estadosVisuales'
@@ -39,3 +40,7 @@ export function TarjetaTransferencia({ detalle, children }: { detalle: Transfere
     </Tarjeta>
   )
 }
+
+/** Búsqueda en una lista de transferencias: becario, matrícula o cualquiera de los dos ingenieros. */
+export const coincideTransferencia = (d: TransferenciaDetalle, busqueda: string) =>
+  coincideBusqueda(busqueda, d.becario?.nombre, d.becario?.matricula, d.origen?.nombre, d.destino?.nombre)

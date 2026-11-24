@@ -173,8 +173,14 @@ const BUCKET_SIASE = 'siase'
 
 /** Tamaño máximo de archivo (M-12). */
 export const TAMANO_MAXIMO_REPORTE = 10 * 1024 * 1024
-/** Los mismos tipos que acepta el bucket (0025): nada que el navegador pueda ejecutar, como SVG. */
-export const TIPOS_REPORTE = ['application/pdf', 'image/png', 'image/jpeg']
+/** Formato establecido (0027): solo el PDF de SIASE, igual que el bucket. */
+export const TIPOS_REPORTE = ['application/pdf']
+
+/** Un PDF real empieza con "%PDF-"; así no pasa una foto o cualquier archivo renombrado a .pdf. */
+export async function esPdf(archivo: Blob): Promise<boolean> {
+  const inicio = new Uint8Array(await archivo.slice(0, 5).arrayBuffer())
+  return String.fromCharCode(...inicio) === '%PDF-'
+}
 
 /** Un reporte que espera firma, con el nombre del becario (A-03). */
 export interface ReportePorFirmar {
@@ -228,7 +234,9 @@ function nombreSeguro(nombre: string): string {
 export async function subirReporte(becarioId: string, periodoId: string, mes: Fecha, archivo: File): Promise<string> {
   if (archivo.size > TAMANO_MAXIMO_REPORTE) throw new ErrorDeNegocio('El archivo pesa más de 10 MB. Reduce su tamaño e intenta de nuevo.')
   if (archivo.size === 0) throw new ErrorDeNegocio('El archivo elegido está vacío.')
-  if (!TIPOS_REPORTE.includes(archivo.type)) throw new ErrorDeNegocio('Sube el reporte en PDF, PNG o JPG.')
+  if (!TIPOS_REPORTE.includes(archivo.type) || !(await esPdf(archivo))) {
+    throw new ErrorDeNegocio('Sube el reporte en PDF, tal como lo descargas de SIASE. No se aceptan fotos ni capturas.')
+  }
 
   const existente = await reporteDelMes(becarioId, mes)
   if (existente && !permiteSubir(existente.estado)) {
@@ -518,13 +526,17 @@ export function configAsistenciaActual(): ConfigAsistencia {
 export async function configAsistencia(): Promise<ConfigAsistencia> {
   try {
     const fila = await q(
-      supabase.from('config_asistencia').select('jornada_maxima_horas, atraso_maximo_minutos, tolerancia_minutos').maybeSingle<ConfigAsistencia>()
+      supabase
+        .from('config_asistencia')
+        .select('jornada_maxima_horas, atraso_maximo_minutos, tolerancia_minutos, turno_minimo_minutos')
+        .maybeSingle<ConfigAsistencia>()
     )
     const config: ConfigAsistencia = fila
       ? {
           jornada_maxima_horas: Number(fila.jornada_maxima_horas),
           atraso_maximo_minutos: Number(fila.atraso_maximo_minutos),
-          tolerancia_minutos: Number(fila.tolerancia_minutos)
+          tolerancia_minutos: Number(fila.tolerancia_minutos),
+          turno_minimo_minutos: Number(fila.turno_minimo_minutos)
         }
       : CONFIG_POR_OMISION
     configCargada = config
@@ -534,8 +546,9 @@ export async function configAsistencia(): Promise<ConfigAsistencia> {
     if (!esErrorDeRed(e)) throw e
     const copia = (await cache.configAsistencia()) ?? configCargada
     if (copia) {
-      configCargada = copia
-      return copia
+      // Una copia guardada antes de 0027 no trae el turno mínimo.
+      configCargada = { ...CONFIG_POR_OMISION, ...copia }
+      return configCargada
     }
     throw e
   }
@@ -546,20 +559,17 @@ export async function jornadaMaximaHoras(): Promise<number> {
   return (await configAsistencia().catch(() => configAsistenciaActual())).jornada_maxima_horas
 }
 
-export function guardarConfigAsistencia(jornadaMaxima: number, atrasoMaximoMinutos: number, toleranciaMinutos: number): Promise<void> {
+export function guardarConfigAsistencia(c: ConfigAsistencia): Promise<void> {
   return ejecutar(
     supabase.rpc('guardar_config_asistencia', {
-      p_jornada_maxima: jornadaMaxima,
-      p_atraso_maximo_minutos: atrasoMaximoMinutos,
-      p_tolerancia_minutos: toleranciaMinutos
+      p_jornada_maxima: c.jornada_maxima_horas,
+      p_atraso_maximo_minutos: c.atraso_maximo_minutos,
+      p_tolerancia_minutos: c.tolerancia_minutos,
+      p_turno_minimo_minutos: c.turno_minimo_minutos
     })
   ).then(() => {
-    configCargada = {
-      jornada_maxima_horas: jornadaMaxima,
-      atraso_maximo_minutos: atrasoMaximoMinutos,
-      tolerancia_minutos: toleranciaMinutos
-    }
-    return cache.guardarConfigAsistencia(configCargada)
+    configCargada = c
+    return cache.guardarConfigAsistencia(c)
   })
 }
 

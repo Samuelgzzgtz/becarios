@@ -108,17 +108,17 @@ describe('normalizarPuntaje', () => {
 
 describe('validación de reglas y zonas', () => {
   it('reglas válidas', () => {
-    const r = validarReglas({ jornada: '9,5', atraso: '60', tolerancia: '5' })
+    const r = validarReglas({ jornada: '9,5', atraso: '60', tolerancia: '5', turno: '0' })
     expect(r.errores).toEqual({})
     expect(r.jornada).toBe(9.5)
   })
   it('marca cada campo fuera de rango', () => {
-    const r = validarReglas({ jornada: '25', atraso: '0', tolerancia: '61' })
-    expect(Object.keys(r.errores).sort()).toEqual(['atraso', 'jornada', 'tolerancia'])
+    const r = validarReglas({ jornada: '25', atraso: '0', tolerancia: '61', turno: '241' })
+    expect(Object.keys(r.errores).sort()).toEqual(['atraso', 'jornada', 'tolerancia', 'turno'])
   })
   it('rechaza decimales de más y texto', () => {
-    expect(validarReglas({ jornada: '9.55', atraso: '60', tolerancia: '5' }).errores.jornada).toBeDefined()
-    expect(validarReglas({ jornada: 'abc', atraso: '6.5', tolerancia: '' }).errores).toHaveProperty('tolerancia')
+    expect(validarReglas({ jornada: '9.55', atraso: '60', tolerancia: '5', turno: '30' }).errores.jornada).toBeDefined()
+    expect(validarReglas({ jornada: 'abc', atraso: '6.5', tolerancia: '', turno: '30' }).errores).toHaveProperty('tolerancia')
   })
   it('zona válida y límites del radio y de las coordenadas', () => {
     expect(validarZona({ nombre: 'FIME', radio: '150', latitud: '25.725', longitud: '-100.313' }).errores).toEqual({})

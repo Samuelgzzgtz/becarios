@@ -143,7 +143,7 @@ export async function reiniciarAsistencias(db: PGlite) {
     truncate public.asistencias, public.bitacora_asistencias, public.geocercas, public.horarios_modalidad;
     alter table public.bitacora_asistencias enable trigger user;
     update public.config_asistencia
-      set jornada_maxima_horas = 10, atraso_maximo_minutos = 60, tolerancia_minutos = 5;
+      set jornada_maxima_horas = 10, atraso_maximo_minutos = 60, tolerancia_minutos = 5, turno_minimo_minutos = 30;
   `)
 }
 

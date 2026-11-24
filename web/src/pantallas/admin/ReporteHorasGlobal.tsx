@@ -1,9 +1,24 @@
 import { useState } from 'react'
 import { Users } from 'lucide-react'
 import { listarPorPerfil, progresoEquipo } from '../../datos/repositorios'
-import { entero, plural, ritmoMes } from '../../lib/formato'
+import { coincideBusqueda, entero, plural, ritmoMes } from '../../lib/formato'
 import { enRiesgo, horasEsperadasSemana, type ProgresoBecario } from '../../lib/modelos'
-import { Badge, CuadriculaDos, Divisor, EncabezadoSeccion, EstadoVacio, FilaProgreso, Pantalla, Segmentado, SegunEstado, Tarjeta, TarjetaIndicador, useVolver } from '../../ui/componentes'
+import {
+  Badge,
+  BuscadorPersonas,
+  CuadriculaDos,
+  Divisor,
+  EncabezadoSeccion,
+  EstadoVacio,
+  FilaProgreso,
+  Pantalla,
+  Segmentado,
+  SegunEstado,
+  SinCoincidencias,
+  Tarjeta,
+  TarjetaIndicador,
+  useVolver
+} from '../../ui/componentes'
 import { useAlReanudar, useCarga } from '../../ui/hooks'
 
 /** Una sola llamada para todos los becarios activos (M-09), agrupados por ingeniero. */
@@ -17,13 +32,14 @@ export default function ReporteHorasGlobal() {
   const { estado, recargar } = useCarga(cargar, [], 'No se pudo cargar el reporte global.')
   useAlReanudar(recargar)
   const [periodo, setPeriodo] = useState(0)
+  const [busqueda, setBusqueda] = useState('')
 
   return (
     <Pantalla titulo="Reporte de horas" subtitulo="Todos los becarios activos" onVolver={volver}>
       <SegunEstado estado={estado} onReintentar={recargar}>
         {({ filas, nombres }) => {
           const grupos = new Map<string | null, ProgresoBecario[]>()
-          for (const f of filas) grupos.set(f.ingeniero_id ?? null, [...(grupos.get(f.ingeniero_id ?? null) ?? []), f])
+          for (const f of filas.filter((x) => coincideBusqueda(busqueda, x.nombre, x.matricula))) grupos.set(f.ingeniero_id ?? null, [...(grupos.get(f.ingeniero_id ?? null) ?? []), f])
           const ordenados = [...grupos.entries()].sort(([a], [b]) =>
             a == null ? 1 : b == null ? -1 : (nombres.get(a) ?? '').localeCompare(nombres.get(b) ?? '')
           )
@@ -35,7 +51,8 @@ export default function ReporteHorasGlobal() {
                 <TarjetaIndicador valor={entero(riesgo)} etiqueta="Con ritmo bajo" alerta={riesgo > 0} detalle="esta semana" />
               </CuadriculaDos>
               <Segmentado opciones={['Semana', 'Mes', 'Semestre']} seleccionado={periodo} onSeleccionar={setPeriodo} etiqueta="Periodo" />
-              {filas.length === 0 && <EstadoVacio titulo="Sin becarios activos" icono={Users} />}
+              <BuscadorPersonas personas={filas.length} valor={busqueda} onCambio={setBusqueda} />
+              {filas.length === 0 ? <EstadoVacio titulo="Sin becarios activos" icono={Users} /> : grupos.size === 0 && <SinCoincidencias busqueda={busqueda} />}
               {ordenados.map(([ingenieroId, becarios]) => (
                 <Tarjeta key={ingenieroId ?? 'sin'}>
                   <EncabezadoSeccion

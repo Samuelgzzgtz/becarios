@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { Building, HardHat } from 'lucide-react'
-import { plural } from '../../lib/formato'
+import { coincideBusqueda, plural } from '../../lib/formato'
 import { Badge, Buscador, EstadoVacio, Pantalla, SegunEstado, Tarjeta } from '../../ui/componentes'
 import { useAlReanudar } from '../../ui/hooks'
 import { AvisoCuentasClerk, EncabezadoUsuario, FiltroEstadoUsuarios, useAsignaciones, useListaUsuarios } from './usuarios'
@@ -21,8 +21,7 @@ export default function Ingenieros() {
       <FiltroEstadoUsuarios actual={lista.filtro} onCambiar={lista.setFiltro} />
       <SegunEstado estado={lista.estado} onReintentar={lista.recargar}>
         {(todos) => {
-          const b = busqueda.trim().toLowerCase()
-          const filtrados = todos.filter((u) => !b || u.nombre.toLowerCase().includes(b) || u.matricula.toLowerCase().includes(b))
+          const filtrados = todos.filter((u) => coincideBusqueda(busqueda, u.nombre, u.matricula))
           if (filtrados.length === 0) {
             return <EstadoVacio titulo={todos.length === 0 ? 'No hay ingenieros en esta lista' : 'Sin coincidencias'} icono={HardHat} />
           }

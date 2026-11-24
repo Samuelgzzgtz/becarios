@@ -4,7 +4,7 @@ import { GraduationCap } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
 import { cn } from '@/lib/utils'
-import { entero, plural } from '../../lib/formato'
+import { coincideBusqueda, entero, plural } from '../../lib/formato'
 import { enRiesgo, type Usuario } from '../../lib/modelos'
 import { Badge, Buscador, Desplegable, EstadoVacio, HorasDeMeta, Pantalla, SegunEstado } from '../../ui/componentes'
 import { etiquetaEstadoUsuario, tonoEstadoUsuario } from '../../ui/estadosVisuales'
@@ -48,6 +48,7 @@ export default function Becarios() {
               <Desplegable
                 etiqueta="Ingeniero asesor"
                 etiquetaOculta
+                personas={asignaciones.ingenieros.length}
                 opciones={opcionesIng}
                 seleccionado={opcionesIng.find((o) => claveIng(o) === claveIng(filtroIng)) ?? opcionesIng[0]}
                 textoDe={(f) => (f.tipo === 'todos' ? 'Todos los ingenieros' : f.tipo === 'sin_asignar' ? 'Sin ingeniero' : f.nombre)}
@@ -72,10 +73,9 @@ export default function Becarios() {
 
       <SegunEstado estado={lista.estado} onReintentar={lista.recargar}>
         {(todos) => {
-          const b = busqueda.trim().toLowerCase()
           const filtrados = todos.filter(
             (u) =>
-              (!b || u.nombre.toLowerCase().includes(b) || u.matricula.toLowerCase().includes(b)) &&
+              coincideBusqueda(busqueda, u.nombre, u.matricula) &&
               (filtroIng.tipo === 'todos' ||
                 (filtroIng.tipo === 'sin_asignar' && u.estado === 'activo' && asignaciones.conocida && !asignaciones.ingenieroDe(u.id)) ||
                 (filtroIng.tipo === 'de' && asignaciones.ingenieroDe(u.id) === filtroIng.id))

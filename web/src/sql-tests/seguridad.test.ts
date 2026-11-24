@@ -210,7 +210,7 @@ describe('reportes SIASE', () => {
   it('el bucket limita tamaño y tipo de archivo', async () => {
     await sinSesion(db)
     expect(await filas(`select file_size_limit, allowed_mime_types from storage.buckets where id = 'siase'`)).toEqual([
-      { file_size_limit: 10485760, allowed_mime_types: ['application/pdf', 'image/png', 'image/jpeg'] },
+      { file_size_limit: 10485760, allowed_mime_types: ['application/pdf'] },
     ])
   })
 
