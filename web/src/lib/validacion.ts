@@ -7,18 +7,20 @@ export const aDecimal = (t: string) => {
 }
 export const aEntero = (t: string) => (/^\d+$/.test(t.trim()) ? Number(t.trim()) : null)
 
-export type CampoRegla = 'jornada' | 'atraso' | 'tolerancia'
+export type CampoRegla = 'jornada' | 'atraso' | 'tolerancia' | 'turno'
 
 export function validarReglas(f: Record<CampoRegla, string>) {
   const errores: Partial<Record<CampoRegla, string>> = {}
   const jornada = aDecimal(f.jornada)
   const atraso = aEntero(f.atraso)
   const tolerancia = aEntero(f.tolerancia)
+  const turno = aEntero(f.turno)
   if (jornada == null || jornada < 1 || jornada > 24) errores.jornada = 'Escribe un número de horas entre 1 y 24'
   else if (Math.round(jornada * 10) / 10 !== jornada) errores.jornada = 'Usa máximo un decimal (por ejemplo 9.5)'
   if (atraso == null || atraso < 1 || atraso > 1440) errores.atraso = 'Escribe minutos enteros entre 1 y 1440'
   if (tolerancia == null || tolerancia < 1 || tolerancia > 60) errores.tolerancia = 'Escribe minutos enteros entre 1 y 60'
-  return { errores, jornada, atraso, tolerancia }
+  if (turno == null || turno > 240) errores.turno = 'Escribe minutos enteros entre 0 y 240'
+  return { errores, jornada, atraso, tolerancia, turno }
 }
 
 export type CampoZona = 'nombre' | 'radio' | 'latitud' | 'longitud'

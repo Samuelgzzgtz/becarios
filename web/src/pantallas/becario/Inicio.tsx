@@ -4,19 +4,21 @@ import { CircleAlert, CloudUpload, ScanFace, TriangleAlert } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { cn } from '@/lib/utils'
 import * as asistencias from '../../datos/asistencias'
-import { enrolamientoPropio, estadoVentana, horasPorAprobar, jornadaMaximaHoras, modalidadDeHoyEn, progresoDe, semanaConRespaldo } from '../../datos/repositorios'
+import { configAsistencia, configAsistenciaActual, enrolamientoPropio, estadoVentana, horasPorAprobar, jornadaMaximaHoras, modalidadDeHoyEn, progresoDe, semanaConRespaldo } from '../../datos/repositorios'
 import { requerirUsuario, usuarioEnMemoria } from '../../datos/sesion'
 import { mensajeAmigable } from '../../lib/errores'
-import { capitalizar, diaCompleto, diaMesLargo, fechaDeTexto, hoy, lunesDe, mesActual, mesLargo, nombreDia, sumarDias, type Fecha } from '../../lib/fechas'
+import { capitalizar, diaCompleto, diaMesLargo, fechaDeTexto, hora, hoy, lunesDe, mesActual, mesLargo, nombreDia, sumarDias, type Fecha } from '../../lib/fechas'
 import { horas, numeroHoras, plural, primerNombre } from '../../lib/formato'
-import { diasLaborales, horasPorDia, type Anomalia, type EstadoVentanaSiase, type ModalidadTrabajo, type ProgresoHoras, type TipoAsistencia } from '../../lib/modelos'
-import { AvisoBanner, Boton, Esqueleto, EstadoError, HorasDeMeta, Pantalla, etiquetaModalidad } from '../../ui/componentes'
+import { diasLaborales, horasPorDia, salidaPermitidaDesde, type Anomalia, type EstadoVentanaSiase, type ModalidadTrabajo, type ProgresoHoras } from '../../lib/modelos'
+import { AvisoBanner, Boton, Esqueleto, EstadoError, HorasDeMeta, Pantalla, etiquetaModalidad, useAhora } from '../../ui/componentes'
 import { useAlReanudar, useCarga } from '../../ui/hooks'
 
 interface Hoy {
   modalidad: ModalidadTrabajo
   configurada: boolean
-  proximo: TipoAsistencia
+  proximo: asistencias.Proximo
+  /** Turno mínimo en minutos (0027). */
+  minimo: number
 }
 
 interface DatosInicio {
@@ -29,7 +31,7 @@ interface DatosInicio {
   turnosAbiertos: Anomalia[]
   /** Horas del semestre que sumarán cuando se aprueben; 0 si no se pudo consultar. */
   porAprobar: number
-  /** Horas por día de lunes a viernes de esta semana (igual que Mi reporte de horas); null si no se pudo consultar. */
+  /** Horas por día de esta semana, de lunes a domingo (igual que Mi reporte de horas); null si no se pudo consultar. */
   semana: Map<Fecha, number> | null
   /** Días del horario (dia_semana, 0 = domingo) para lo esperado, como lo calcula el ingeniero; null si no se pudo consultar. */
   horario: number[] | null
@@ -49,8 +51,8 @@ async function cargar(): Promise<DatosInicio> {
       (datos) => ({ ok: true as const, datos }),
       (e) => ({ ok: false as const, mensaje: mensajeAmigable(e, 'No se pudo cargar tu progreso.') })
     ),
-    Promise.all([horarioSemana, asistencias.siguienteTipo(usuario.id)]).then(
-      ([dias, proximo]) => ({ ok: true as const, datos: { ...modalidadDeHoyEn(dias), proximo } }),
+    Promise.all([horarioSemana, asistencias.siguienteTipo(usuario.id), configAsistencia().catch(() => configAsistenciaActual())]).then(
+      ([dias, proximo, config]) => ({ ok: true as const, datos: { ...modalidadDeHoyEn(dias), proximo, minimo: config.turno_minimo_minutos } }),
       (e) => ({ ok: false as const, mensaje: mensajeAmigable(e, 'No se pudo cargar la información de hoy.') })
     ),
     estadoVentana().catch(() => null),
@@ -59,7 +61,7 @@ async function cargar(): Promise<DatosInicio> {
       () => [] as Anomalia[]
     ),
     horasPorAprobar(usuario.id).then((h) => h.horas_semestre, () => 0),
-    Promise.all([asistencias.historialEntreFechas(usuario.id, lunes, sumarDias(lunes, 4)), jornadaMaximaHoras()]).then(
+    Promise.all([asistencias.historialEntreFechas(usuario.id, lunes, sumarDias(lunes, 6)), jornadaMaximaHoras()]).then(
       ([h, tope]) => horasPorDia(h, tope),
       () => null
     ),
@@ -97,10 +99,13 @@ export default function InicioBecario() {
   }, [])
 
   const hoyOk = datos?.hoy.ok ? datos.hoy.datos : null
-  // Los turnos sin salida de lunes a viernes de esta semana se marcan en la tira de días (si se
-  // dibuja); los demás (fin de semana, días anteriores o sin tira), con su propio aviso.
+  const ahora = useAhora(10_000)
+  const salida = hoyOk?.proximo.tipo === 'salida'
+  const salidaDesde = hoyOk ? salidaPermitidaDesde(hoyOk.proximo.entrada, hoyOk.minimo, ahora) : null
+  // Los turnos sin salida de los días de la tira de esta semana se marcan ahí (si se dibuja);
+  // los demás (días fuera de la tira, días anteriores o sin tira), con su propio aviso.
   const conTira = datos?.progreso.ok === true && datos.semana != null
-  const diasTira = new Set(Array.from({ length: 5 }, (_, i) => sumarDias(lunesDe(), i)))
+  const diasTira = new Set(Array.from({ length: columnasSemana(datos?.horario ?? null) }, (_, i) => sumarDias(lunesDe(), i)))
   const enTira = (t: Anomalia) => conTira && diasTira.has(t.fecha)
   const abiertosSemana = new Set((datos?.turnosAbiertos ?? []).filter(enTira).map((t) => t.fecha))
   const abiertosAparte = (datos?.turnosAbiertos ?? []).filter((t) => !enTira(t))
@@ -114,9 +119,10 @@ export default function InicioBecario() {
       {estado.tipo === 'error' && <EstadoError mensaje={estado.mensaje} onReintentar={recargar} />}
 
       <div className="columna gap-2">
-        <Boton icono={ScanFace} ancho onClick={() => navegar('/becario/registrar')}>
-          {hoyOk?.proximo === 'salida' ? 'Registrar salida' : hoyOk?.proximo === 'entrada' ? 'Registrar entrada' : 'Registrar asistencia'}
+        <Boton icono={ScanFace} ancho variante={salida ? 'salida' : 'primario'} deshabilitado={salidaDesde != null} onClick={() => navegar('/becario/registrar')}>
+          {salidaDesde ? `Salida disponible a las ${hora(salidaDesde)}` : salida ? 'Registrar salida' : hoyOk ? 'Registrar entrada' : 'Registrar asistencia'}
         </Boton>
+        {salidaDesde && <p className="chico texto-2">Tu turno debe durar al menos {plural(hoyOk!.minimo, 'minuto', 'minutos')}.</p>}
         {hoyOk && !hoyOk.configurada && <p className="chico texto-2">Tu ingeniero no ha definido este día; se registrará como presencial.</p>}
       </div>
 
@@ -223,11 +229,14 @@ function FilaSiase({ ventana, onAbrir }: { ventana: EstadoVentanaSiase; onAbrir:
   )
 }
 
-const DIAS = ['Lun', 'Mar', 'Mié', 'Jue', 'Vie']
+const DIAS = ['Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb', 'Dom']
+
+/** Lunes a viernes siempre; sábado y domingo solo si están en el horario (desde 0027 el sábado lo está por omisión). */
+const columnasSemana = (horario: number[] | null) => (horario?.includes(0) ? 7 : horario?.includes(6) ? 6 : 5)
 
 /**
  * La semana del becario: el total como cifra grande, lo que ya debería llevar y una
- * columna por día de lunes a viernes contra la marca punteada de las horas diarias.
+ * columna por día (lunes a viernes, más el fin de semana de su horario) contra la marca punteada de las horas diarias.
  * Lo esperado usa los días laborales de su horario, igual que su ingeniero
  * (diasLaborales y horasEsperadasSemana); sin horario cargado no se afirma un número.
  * Hoy va con contorno punteado y un día con entrada sin salida, rayado en ámbar con la
@@ -240,9 +249,9 @@ function PanelSemana(props: { progreso: ProgresoHoras; porDia: Map<Fecha, number
   const ultimoTerminado = laborales?.terminados.at(-1)
   const lunes = lunesDe()
   const h = hoy()
-  const dias = DIAS.map((nombre, i) => {
+  const dias = DIAS.slice(0, columnasSemana(props.horario)).map((nombre, i) => {
     const fecha = sumarDias(lunes, i)
-    const dow = i + 1
+    const dow = (i + 1) % 7
     return {
       nombre,
       dow,
@@ -271,7 +280,7 @@ function PanelSemana(props: { progreso: ProgresoHoras; porDia: Map<Fecha, number
       )}
 
       {props.porDia && (
-        <div className="mt-[18px] grid grid-cols-5 gap-2">
+        <div className="mt-[18px] grid gap-2" style={{ gridTemplateColumns: `repeat(${dias.length}, minmax(0, 1fr))` }}>
           {dias.map((d) => (
             <div
               key={d.fecha}

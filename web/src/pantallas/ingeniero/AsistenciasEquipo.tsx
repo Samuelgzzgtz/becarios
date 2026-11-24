@@ -51,6 +51,7 @@ export default function AsistenciasEquipo() {
       <Boton variante="texto" onClick={() => navegar('/ingeniero/historial-cambios')}>Ver historial de cambios</Boton>
       <Desplegable
         etiqueta="Becario"
+        personas={becarios?.length ?? 0}
         opciones={[TODO_EL_EQUIPO, ...(becarios ?? [])]}
         seleccionado={becario}
         textoDe={(b) => (b.matricula ? `${b.nombre} · ${b.matricula}` : b.nombre)}

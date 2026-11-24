@@ -59,7 +59,8 @@ export const explicacionMotivo: Record<MotivoRevision, string> = {
   fuera_de_zona: 'Se registró fuera de las zonas permitidas.',
   revision_humana: 'Autorregistro pendiente de revisión humana; la coincidencia facial del cliente no acredita identidad.',
   sin_rostro: 'Se registró sin verificación facial.',
-  modalidad_distinta: 'La modalidad no coincide con el horario de ese día.'
+  modalidad_distinta: 'La modalidad no coincide con el horario de ese día.',
+  salida_temprana: 'La salida se registró muy poco después de la entrada.'
 }
 
 export const EXPLICACION_POR_REVISAR = 'No suma horas hasta que un ingeniero lo apruebe.'
@@ -74,7 +75,8 @@ export const etiquetaAnomalia: Record<TipoAnomalia, string> = {
   fuera_de_zona: 'Fuera de zona',
   revision_humana: 'Revisión humana',
   sin_rostro: 'Sin verificación facial',
-  modalidad_distinta: 'Modalidad distinta'
+  modalidad_distinta: 'Modalidad distinta',
+  salida_temprana: 'Salida temprana'
 }
 
 /** Cómo se resuelve cada anomalía: aprobar el registro, o corregirlo agregando/ajustando registros. */

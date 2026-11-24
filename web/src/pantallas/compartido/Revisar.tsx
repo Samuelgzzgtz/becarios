@@ -4,10 +4,10 @@ import { Button } from '@/components/ui/button'
 import { anomalias, aprobarAsistencia, aprobarAsistencias } from '../../datos/asistencias'
 import { mensajeAmigable } from '../../lib/errores'
 import { capitalizar, diaCompleto, fechaCorta, hora, parsear } from '../../lib/fechas'
-import { entero, horas as formatoHoras, numeroHoras, plural } from '../../lib/formato'
+import { coincideBusqueda, entero, horas as formatoHoras, numeroHoras, plural } from '../../lib/formato'
 import type { Anomalia, TipoAnomalia } from '../../lib/modelos'
 import { useAvisos } from '../../ui/avisos'
-import { Avatar, Badge, Boton, Chip, Dialogo, EstadoVacio, Pantalla, SegunEstado, useVolver, type Tono } from '../../ui/componentes'
+import { Avatar, Badge, Boton, BuscadorPersonas, Chip, Dialogo, EstadoVacio, Pantalla, SegunEstado, SinCoincidencias, useVolver, type Tono } from '../../ui/componentes'
 import { anomaliaSeAprueba, etiquetaAnomalia } from '../../ui/estadosVisuales'
 import { useAlReanudar, useCarga } from '../../ui/hooks'
 
@@ -21,7 +21,8 @@ const TONOS: Record<TipoAnomalia, Tono> = {
   fuera_de_zona: 'peligro',
   revision_humana: 'neutro',
   sin_rostro: 'alerta',
-  modalidad_distinta: 'neutro'
+  modalidad_distinta: 'neutro',
+  salida_temprana: 'alerta'
 }
 
 /** Solo la revisión humana simple se aprueba en lote (igual que aprobar_asistencias); lo demás, uno por uno. */
@@ -85,6 +86,7 @@ export default function Revisar(props: {
   const [aprobarTodos, setAprobarTodos] = useState(false)
   const [aprobando, setAprobando] = useState(false)
   const [filtro, setFiltro] = useState<TipoAnomalia | null>(null)
+  const [busqueda, setBusqueda] = useState('')
   const idsLote = new Set(estado.tipo === 'listo' && !props.soloLectura ? estado.datos.filter(seApruebaEnLote).map((a) => a.asistencia_id) : [])
 
   async function aprobar(a: Anomalia) {
@@ -136,9 +138,10 @@ export default function Revisar(props: {
       titulo="Por revisar"
       subtitulo={estado.tipo === 'listo' ? plural(estado.datos.length, 'registro', 'registros') : 'Registros que necesitan tu atención'}
       onVolver={volver}
-      // Aprobar en lote solo con "Todos": con un motivo filtrado aprobaría registros que no se ven.
+      // Aprobar en lote solo con "Todos" y sin búsqueda: si no, aprobaría registros que no se ven.
       barraAccion={
         activo == null &&
+        !busqueda.trim() &&
         idsLote.size > 1 && (
           <Boton ancho icono={CheckCircle2} cargando={aprobando} onClick={() => setAprobarTodos(true)}>
             Aprobar todos ({entero(idsLote.size)})
@@ -183,11 +186,14 @@ export default function Revisar(props: {
         <p className="chico texto-2">Mostrando los primeros {entero(MAXIMO_FILAS)}, los más antiguos. Al resolverlos aparecerán los demás.</p>
       )}
       <SegunEstado estado={estado} onReintentar={recargar}>
-        {(lista) =>
-          lista.length === 0 ? (
+        {(lista) => {
+          const visibles = lista.filter((a) => (activo == null || a.tipo === activo) && coincideBusqueda(busqueda, a.becario_nombre))
+          return lista.length === 0 ? (
             <EstadoVacio titulo="Todo en orden" mensaje="No hay registros por revisar en este semestre." icono={CheckCircle2} />
           ) : (
             <>
+              <BuscadorPersonas personas={new Set(lista.map((a) => a.becario_id)).size} valor={busqueda} onCambio={setBusqueda} placeholder="Buscar becario" />
+              {visibles.length === 0 && <SinCoincidencias busqueda={busqueda} />}
               {tipos.length > 1 && (
                 <div className="chips" role="group" aria-label="Filtrar por motivo">
                   <Chip texto={`Todos · ${entero(lista.length)}`} activo={activo == null} onClick={() => setFiltro(null)} />
@@ -197,25 +203,23 @@ export default function Revisar(props: {
                 </div>
               )}
               <section className="rounded-lg bg-superficie px-4" aria-label="Registros por revisar">
-                {lista
-                  .filter((a) => activo == null || a.tipo === activo)
-                  .map((a) => {
-                    const asignar = props.rutaAsignar?.(a.becario_id)
-                    return (
-                      <FilaAnomalia
-                        key={`${a.tipo}-${a.asistencia_id}`}
-                        a={a}
-                        ocupado={aprobando}
-                        onAprobar={props.soloLectura ? undefined : () => setAAprobar(a)}
-                        onCorregir={() => props.onNavegar(props.rutaBecario(a.becario_id))}
-                        onAsignar={asignar ? () => props.onNavegar(asignar) : undefined}
-                      />
-                    )
-                  })}
+                {visibles.map((a) => {
+                  const asignar = props.rutaAsignar?.(a.becario_id)
+                  return (
+                    <FilaAnomalia
+                      key={`${a.tipo}-${a.asistencia_id}`}
+                      a={a}
+                      ocupado={aprobando}
+                      onAprobar={props.soloLectura ? undefined : () => setAAprobar(a)}
+                      onCorregir={() => props.onNavegar(props.rutaBecario(a.becario_id))}
+                      onAsignar={asignar ? () => props.onNavegar(asignar) : undefined}
+                    />
+                  )
+                })}
               </section>
             </>
           )
-        }
+        }}
       </SegunEstado>
     </Pantalla>
   )

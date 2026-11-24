@@ -8,7 +8,7 @@ export type EstadoReporteSiase = 'pendiente' | 'subido' | 'confirmado' | 'exclui
 export type EstadoTransferencia = 'pendiente' | 'aprobada' | 'rechazada'
 export type OrigenAsistencia = 'en_linea' | 'cola' | 'manual'
 export type RevisionAsistencia = 'ok' | 'por_revisar' | 'aprobada'
-export type MotivoRevision = 'atraso_cola' | 'reloj_adelantado' | 'sin_ubicacion' | 'fuera_de_zona' | 'revision_humana' | 'sin_rostro' | 'modalidad_distinta'
+export type MotivoRevision = 'atraso_cola' | 'reloj_adelantado' | 'sin_ubicacion' | 'fuera_de_zona' | 'revision_humana' | 'sin_rostro' | 'modalidad_distinta' | 'salida_temprana'
 export type TipoAnomalia =
   | 'turno_abierto'
   | 'jornada_larga'
@@ -19,12 +19,15 @@ export type TipoAnomalia =
   | 'revision_humana'
   | 'sin_rostro'
   | 'modalidad_distinta'
+  | 'salida_temprana'
 
 /** Reglas de asistencia (tabla config_asistencia, 0021). */
 export interface ConfigAsistencia {
   jornada_maxima_horas: number
   atraso_maximo_minutos: number
   tolerancia_minutos: number
+  /** Minutos mínimos entre la entrada y la salida del mismo día (0027); 0 = sin mínimo. */
+  turno_minimo_minutos: number
 }
 
 /** Jornada máxima por omisión (la misma que el valor inicial en SQL) mientras no cargue la configuración. */
@@ -32,7 +35,8 @@ export const JORNADA_MAXIMA_POR_OMISION = 10
 export const CONFIG_POR_OMISION: ConfigAsistencia = {
   jornada_maxima_horas: JORNADA_MAXIMA_POR_OMISION,
   atraso_maximo_minutos: 60,
-  tolerancia_minutos: 5
+  tolerancia_minutos: 5,
+  turno_minimo_minutos: 30
 }
 
 /** Zona de registro (tabla geocercas, 0021). */
@@ -295,6 +299,16 @@ export function siguienteTipoSegun(
   dia: Fecha = hoy()
 ): TipoAsistencia {
   return ultimoTipo === 'entrada' && ultimoInstante != null && fechaLocal(ultimoInstante) === dia ? 'salida' : 'entrada'
+}
+
+/**
+ * Desde cuándo se puede registrar la salida (turno mínimo, 0027); null si ya se puede
+ * o no hay mínimo. El servidor marca para revisión la que llegue antes.
+ */
+export function salidaPermitidaDesde(entrada: Date | null, minimoMinutos: number, ahora: Date = new Date()): Date | null {
+  if (!entrada || minimoMinutos <= 0) return null
+  const desde = new Date(entrada.getTime() + minimoMinutos * 60_000)
+  return desde > ahora ? desde : null
 }
 
 /** La columna es numeric(5,4) con CHECK 0..1: la similitud coseno puede salir negativa o con muchos decimales. */

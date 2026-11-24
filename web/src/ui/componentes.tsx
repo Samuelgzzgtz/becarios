@@ -27,7 +27,7 @@ import { Textarea } from '@/components/ui/textarea'
 import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group'
 import { cn } from '@/lib/utils'
 import { MENSAJE_SIN_CONEXION } from '../lib/errores'
-import { iniciales, numeroHoras, vaAlRitmo } from '../lib/formato'
+import { coincideBusqueda, iniciales, numeroHoras, vaAlRitmo } from '../lib/formato'
 import type { ModalidadTrabajo, TipoAsistencia } from '../lib/modelos'
 import type { Estado } from './hooks'
 
@@ -179,11 +179,12 @@ export function Divisor() {
 // Botones
 // ===========================================================================
 
-type Variante = 'primario' | 'secundario' | 'destructivo' | 'destructivo-borde' | 'texto'
+type Variante = 'primario' | 'secundario' | 'salida' | 'destructivo' | 'destructivo-borde' | 'texto'
 
 const VARIANTE = {
   primario: 'default',
   secundario: 'secondary',
+  salida: 'success-soft',
   destructivo: 'destructive',
   'destructivo-borde': 'destructive-soft',
   texto: 'link'
@@ -651,14 +652,21 @@ export function Desplegable<T>(props: {
   ayuda?: string | null
   deshabilitado?: boolean
   etiquetaOculta?: boolean
+  /** Lista de personas: con más de dos se puede buscar en ella antes de elegir. */
+  personas?: number
 }) {
   const id = useId()
+  const [busqueda, setBusqueda] = useState('')
   const clave = props.seleccionado != null ? props.claveDe(props.seleccionado) : ''
+  const buscable = props.personas != null && conBuscador(props.personas, busqueda)
+  // La opción elegida se queda aunque no coincida, para que el select no cambie solo.
+  const opciones = buscable ? props.opciones.filter((o) => props.claveDe(o) === clave || coincideBusqueda(busqueda, props.textoDe(o))) : props.opciones
   return (
     <div className="flex min-w-0 flex-col gap-1.5">
       <label htmlFor={id} className={cn(ETIQUETA, props.etiquetaOculta && 'sr-only')}>
         {props.etiqueta}
       </label>
+      {buscable && <Buscador valor={busqueda} onCambio={setBusqueda} placeholder="Buscar en la lista" />}
       <NativeSelect
         id={id}
         value={clave}
@@ -672,7 +680,7 @@ export function Desplegable<T>(props: {
         }}
       >
         {props.seleccionado == null && <NativeSelectOption value="">{props.placeholder ?? 'Elige una opción'}</NativeSelectOption>}
-        {props.opciones.map((o) => (
+        {opciones.map((o) => (
           <NativeSelectOption key={props.claveDe(o)} value={props.claveDe(o)}>
             {props.textoDe(o)}
           </NativeSelectOption>
@@ -754,6 +762,19 @@ export function SelectorMes(props: { nombre: string; puedeSiguiente: boolean; on
       <BotonIcono icono={ChevronRight} etiqueta="Mes siguiente" onClick={props.onSiguiente} deshabilitado={!props.puedeSiguiente} className="bg-superficie" />
     </div>
   )
+}
+
+/** Una lista con más de dos personas lleva buscador (pedido de la coordinación). */
+export const conBuscador = (personas: number, busqueda = '') => personas > 2 || busqueda !== ''
+
+/** Buscador de una lista de personas: solo aparece si [conBuscador]. */
+export function BuscadorPersonas(props: { personas: number; valor: string; onCambio: (v: string) => void; placeholder?: string }) {
+  if (!conBuscador(props.personas, props.valor)) return null
+  return <Buscador valor={props.valor} onCambio={props.onCambio} placeholder={props.placeholder ?? 'Buscar por nombre o matrícula'} />
+}
+
+export function SinCoincidencias({ busqueda }: { busqueda: string }) {
+  return <EstadoVacio titulo="Sin coincidencias" mensaje={`Nadie coincide con "${busqueda.trim()}".`} />
 }
 
 export function Buscador(props: { valor: string; onCambio: (v: string) => void; placeholder: string }) {

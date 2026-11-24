@@ -1,3 +1,4 @@
+import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { ChevronRight } from 'lucide-react'
 import { Button } from '@/components/ui/button'
@@ -6,9 +7,9 @@ import { contarAnomalias, historialEquipo } from '../../datos/asistencias'
 import { estadoVentana, progresoEquipo } from '../../datos/repositorios'
 import { requerirUsuario } from '../../datos/sesion'
 import { diaCompleto, fechaLocal, hoy } from '../../lib/fechas'
-import { entero, numeroHoras, plural } from '../../lib/formato'
+import { coincideBusqueda, entero, numeroHoras, plural } from '../../lib/formato'
 import { enRiesgo, horasEsperadasSemana, type ProgresoBecario } from '../../lib/modelos'
-import { Avatar, BarraProgreso, EstadoVacio, Pantalla, SegunEstado, TarjetaIndicador } from '../../ui/componentes'
+import { Avatar, BarraProgreso, BuscadorPersonas, EstadoVacio, Pantalla, SegunEstado, SinCoincidencias, TarjetaIndicador } from '../../ui/componentes'
 import { useAlReanudar, useCarga } from '../../ui/hooks'
 
 /** Filas del equipo en el panel (los atrasados siempre se muestran todos); el resto, en "Becarios". */
@@ -58,6 +59,7 @@ export default function PanelIngeniero() {
   const navegar = useNavigate()
   const { estado, datos, recargar } = useCarga(cargar, [], 'No se pudo cargar el panel.')
   useAlReanudar(recargar)
+  const [busqueda, setBusqueda] = useState('')
   const fecha = diaCompleto(hoy()).toLowerCase()
 
   return (
@@ -65,7 +67,10 @@ export default function PanelIngeniero() {
       <SegunEstado estado={estado} onReintentar={recargar}>
         {(d) => {
           const orden = ordenEquipo(d.equipo)
-          const visibles = orden.slice(0, Math.max(MAXIMO_FILAS, d.riesgo.length))
+          // Con búsqueda se buscan en todo el equipo, no solo en las primeras filas.
+          const visibles = busqueda.trim()
+            ? orden.filter((b) => coincideBusqueda(busqueda, b.nombre, b.matricula))
+            : orden.slice(0, Math.max(MAXIMO_FILAS, d.riesgo.length))
           return (
             <>
               {/* Si no se pudo contar (null), la fila se queda con "–" para no esconder lo pendiente. */}
@@ -109,10 +114,14 @@ export default function PanelIngeniero() {
                     <h2 className="crece font-medium">Horas de la semana</h2>
                     <span className="text-xs text-texto-2">marca: lo esperado a hoy</span>
                   </div>
+                  <div className="pt-2">
+                    <BuscadorPersonas personas={d.equipo.length} valor={busqueda} onCambio={setBusqueda} />
+                  </div>
+                  {visibles.length === 0 && <SinCoincidencias busqueda={busqueda} />}
                   {visibles.map((b) => (
                     <FilaBecario key={b.becario_id} becario={b} onAbrir={() => navegar(`/ingeniero/becario/${b.becario_id}/asistencias`)} />
                   ))}
-                  {d.equipo.length > visibles.length && (
+                  {!busqueda.trim() && d.equipo.length > visibles.length && (
                     <div className="flex justify-center border-t border-regla">
                       <Button variant="link" className="text-texto-2" onClick={() => navegar('/ingeniero/becarios')}>
                         Ver los {entero(d.equipo.length)}

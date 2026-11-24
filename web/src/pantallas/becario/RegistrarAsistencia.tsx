@@ -1,14 +1,14 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
-import { ArrowLeft, Check, CircleAlert, CloudOff, MapPin, RefreshCw, ScanFace } from 'lucide-react'
+import { ArrowLeft, Check, CircleAlert, Clock, CloudOff, MapPin, RefreshCw, ScanFace } from 'lucide-react'
 import * as asistencias from '../../datos/asistencias'
-import { enrolamientoPropio, modalidadDeHoy } from '../../datos/repositorios'
+import { configAsistencia, configAsistenciaActual, enrolamientoPropio, modalidadDeHoy } from '../../datos/repositorios'
 import { requerirUsuario } from '../../datos/sesion'
 import { MARGEN_CASI, UMBRAL_COINCIDENCIA, verificar } from '../../facial/comparar'
 import { NOMBRE_MODELO_ANDROID, capturarCuadro, prepararMotor, variantesConGiros } from '../../facial/rostro'
 import { ErrorDeNegocio, MENSAJE_SIN_CONEXION, esErrorDeRed, mensajeAmigable } from '../../lib/errores'
 import { fechaCorta, hoy, hora } from '../../lib/fechas'
 import { ubicacionOpcional } from '../../lib/ubicacion'
-import type { ModalidadTrabajo, TipoAsistencia } from '../../lib/modelos'
+import { salidaPermitidaDesde, type ModalidadTrabajo, type TipoAsistencia } from '../../lib/modelos'
 import {
   Boton,
   IconoSinConfigurar,
@@ -33,7 +33,9 @@ type EstadoRegistro =
 interface InfoHoy {
   modalidad: ModalidadTrabajo
   configurada: boolean
-  proximo: TipoAsistencia
+  proximo: asistencias.Proximo
+  /** Turno mínimo en minutos (0027). */
+  minimo: number
 }
 
 export default function RegistrarAsistencia() {
@@ -49,8 +51,12 @@ export default function RegistrarAsistencia() {
   const cargarInfo = useCallback(async () => {
     try {
       const u = await requerirUsuario()
-      const [m, proximo] = await Promise.all([modalidadDeHoy(u.id), asistencias.siguienteTipo(u.id)])
-      setInfo({ modalidad: m.modalidad, configurada: m.configurada, proximo })
+      const [m, proximo, config] = await Promise.all([
+        modalidadDeHoy(u.id),
+        asistencias.siguienteTipo(u.id),
+        configAsistencia().catch(() => configAsistenciaActual())
+      ])
+      setInfo({ modalidad: m.modalidad, configurada: m.configurada, proximo, minimo: config.turno_minimo_minutos })
       await enrolamientoPropio(u.id).catch(() => undefined)
     } catch {
       // La pantalla sigue usable; el error real se muestra al intentar registrar.
@@ -98,7 +104,9 @@ export default function RegistrarAsistencia() {
     error: 'No se pudo verificar'
   }[estado.tipo]
   // Tras registrar, el título dice lo que se registró (info ya apunta al siguiente).
-  const tipo = estado.tipo === 'exito' ? estado.registro : info?.proximo
+  const tipo = estado.tipo === 'exito' ? estado.registro : info?.proximo.tipo
+  // Turno mínimo: la salida se habilita a los N minutos de la entrada; useAhora la libera sola.
+  const salidaDesde = estado.tipo !== 'exito' && info ? salidaPermitidaDesde(info.proximo.entrada, info.minimo, ahora) : null
 
   if (camara.error) {
     return (
@@ -169,6 +177,9 @@ export default function RegistrarAsistencia() {
               resultado={null}
             />
           )}
+          {salidaDesde && info && (
+            <FilaCheque icono={Clock} titulo={`Turno mínimo de ${info.minimo} min`} detalle={`Podrás registrar tu salida a las ${hora(salidaDesde)}`} resultado={null} />
+          )}
           {!enLinea && estado.tipo !== 'exito' && (
             <FilaCheque icono={CloudOff} titulo="Sin conexión" detalle="Se guarda en el teléfono y se sube al volver la red" resultado={null} />
           )}
@@ -197,10 +208,19 @@ export default function RegistrarAsistencia() {
           ) : null}
         </div>
         {(estado.tipo === 'listo' || estado.tipo === 'procesando') && (
-          <Boton ancho icono={ScanFace} cargando={estado.tipo === 'procesando'} deshabilitado={!camara.lista} onClick={capturarYRegistrar}>
+          <Boton
+            ancho
+            icono={ScanFace}
+            variante={tipo === 'salida' ? 'salida' : 'primario'}
+            cargando={estado.tipo === 'procesando'}
+            deshabilitado={!camara.lista || salidaDesde != null}
+            onClick={capturarYRegistrar}
+          >
             {estado.tipo === 'procesando'
               ? 'Verificando…'
-              : tipo
+              : salidaDesde
+                ? `Salida disponible a las ${hora(salidaDesde)}`
+                : tipo
                 ? `Registrar ${etiquetaTipo(tipo).toLowerCase()} a las ${hora(ahora)}`
                 : 'Verificar y registrar'}
           </Boton>
@@ -241,6 +261,14 @@ function Resultado(props: { titulo: string; mensaje: string; error?: boolean; ch
 /** [cuadro] toma un cuadro nuevo de la cámara cada vez que se llama (ver verificar). */
 async function registrar(cuadro: () => ReturnType<typeof variantesConGiros>): Promise<EstadoRegistro> {
   const usuario = await requerirUsuario()
+  const config = await configAsistencia().catch(() => configAsistenciaActual())
+  const antesDeTiempo = (p: asistencias.Proximo): EstadoRegistro | null => {
+    const desde = salidaPermitidaDesde(p.entrada, config.turno_minimo_minutos)
+    return desde && { tipo: 'error', mensaje: `Tu turno debe durar al menos ${config.turno_minimo_minutos} minutos. Podrás registrar tu salida a las ${hora(desde)}.` }
+  }
+  // Antes de abrir la verificación, para no pedir el rostro en balde.
+  const bloqueo = antesDeTiempo(await asistencias.siguienteTipo(usuario.id))
+  if (bloqueo) return bloqueo
   const enrolamiento = await enrolamientoPropio(usuario.id)
   if (!enrolamiento) {
     return { tipo: 'error', mensaje: 'Todavía no tienes biometría facial registrada. Pide a tu ingeniero que te enrole.' }
@@ -271,7 +299,11 @@ async function registrar(cuadro: () => ReturnType<typeof variantesConGiros>): Pr
   }
   const similitud = resultado.similitud
 
-  const tipo = await asistencias.siguienteTipo(usuario.id)
+  // Se vuelve a decidir justo antes de guardar (pudo registrar en otro teléfono mientras tanto).
+  const proximo = await asistencias.siguienteTipo(usuario.id)
+  const tardio = antesDeTiempo(proximo)
+  if (tardio) return tardio
+  const { tipo } = proximo
   const { modalidad } = await modalidadDeHoy(usuario.id)
   const lugar = await ubicacion
   const subida = await asistencias.registrar(usuario.id, tipo, modalidad, lugar?.latitud ?? null, lugar?.longitud ?? null, similitud)

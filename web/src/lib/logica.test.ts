@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest'
 import { coincide, promediar, similitudCoseno, verificar, type Deteccion } from '../facial/comparar'
 import { ErrorDeNegocio, MENSAJE_SIN_CONEXION, mensajeAmigable } from './errores'
 import { aInstante, diaSemana, fechaLocal, inicioDia, lunesDe, mesLargo, parsear, sumarMeses } from './fechas'
-import { diasLaborales, enRiesgo, horasPorDia, permiteSubir, siguienteTipoSegun, type Asistencia, type ProgresoBecario, type TipoAsistencia } from './modelos'
+import { diasLaborales, enRiesgo, horasPorDia, permiteSubir, salidaPermitidaDesde, siguienteTipoSegun, type Asistencia, type ProgresoBecario, type TipoAsistencia } from './modelos'
 
 /* Mismos casos que LogicaNegocioTest.kt de la app Android retirada (está en el historial de git). */
 
@@ -53,6 +53,14 @@ describe('reglas de negocio', () => {
     expect(siguienteTipoSegun('entrada', parsear(local('2026-10-20', '09:00')), hoy)).toBe('salida')
     expect(siguienteTipoSegun('salida', parsear(local('2026-10-20', '09:00')), hoy)).toBe('entrada')
     expect(siguienteTipoSegun(null, null, hoy)).toBe('entrada')
+  })
+
+  it('turno mínimo: la salida se habilita a los N minutos de la entrada', () => {
+    const entrada = new Date('2026-10-20T14:00:00Z')
+    expect(salidaPermitidaDesde(entrada, 30, new Date('2026-10-20T14:10:00Z'))).toEqual(new Date('2026-10-20T14:30:00Z'))
+    expect(salidaPermitidaDesde(entrada, 30, new Date('2026-10-20T14:30:00Z'))).toBeNull()
+    expect(salidaPermitidaDesde(entrada, 0, new Date('2026-10-20T14:10:00Z'))).toBeNull()
+    expect(salidaPermitidaDesde(null, 30)).toBeNull()
   })
 
   it('M-09: el lunes temprano (0 días laborales terminados) nadie está en riesgo', () => {

@@ -33,6 +33,8 @@ en "Warnings que se dejaron a propósito" más abajo.
 | `0024_contencion_auditoria.sql` | Todo autorregistro requiere revisión humana; baja local independiente de Clerk |
 | `0025_revision_y_velocidad.sql` | Jornada larga confirmada aparte, aprobación por lote, evidencia y pendientes del periodo, ids del cliente, RLS más barata (ver abajo) |
 | `0026_aprueba_el_ingeniero.sql` | Solo el ingeniero asignado aprueba, corrige y resuelve solicitudes; el administrador solo consulta |
+| `0027_pedidos_coordinacion.sql` | Turno mínimo entre entrada y salida (salida temprana por revisar), horario por omisión de lunes a viernes presencial |
+| `0028_siase_solo_pdf.sql` | El reporte SIASE solo en PDF; se aplica junto con la web que lo explica |
 
 Se aplican **en orden**. (`0006` ya no incluye el bloque de `pg_cron` comentado que
 trae el archivo en disco.) **0012–0016 se aplicaron al proyecto `rcvpowylehewvsxquhip`

@@ -3,8 +3,25 @@ import { ClipboardCheck, ExternalLink, Inbox, PenLine } from 'lucide-react'
 import { firmar, porFirmarAntesDe, reportesDelMes, urlParaVer } from '../../datos/repositorios'
 import { mensajeAmigable } from '../../lib/errores'
 import { mesActual, mesLargo, parsearMes, sumarMeses } from '../../lib/fechas'
-import { plural } from '../../lib/formato'
-import { AvisoBanner, Badge, Boton, BotonIcono, Chip, Dialogo, EncabezadoSeccion, EstadoVacio, Pantalla, SegunEstado, SelectorMes, Tarjeta, abrirUrl, useVolver } from '../../ui/componentes'
+import { coincideBusqueda, plural } from '../../lib/formato'
+import {
+  AvisoBanner,
+  Badge,
+  Boton,
+  BotonIcono,
+  BuscadorPersonas,
+  Chip,
+  Dialogo,
+  EncabezadoSeccion,
+  EstadoVacio,
+  Pantalla,
+  SegunEstado,
+  SelectorMes,
+  SinCoincidencias,
+  Tarjeta,
+  abrirUrl,
+  useVolver
+} from '../../ui/componentes'
 import { useAvisos } from '../../ui/avisos'
 import { etiquetaSiase, tonoSiase } from '../../ui/estadosVisuales'
 import { useAlReanudar, useCarga } from '../../ui/hooks'
@@ -18,6 +35,7 @@ export default function FirmasSiase() {
   const [soloPendientes, setSoloPendientes] = useState(false)
   const [firmando, setFirmando] = useState(false)
   const [confirmando, setConfirmando] = useState(false)
+  const [busqueda, setBusqueda] = useState('')
 
   const { estado, datos, recargar } = useCarga(
     async () => {
@@ -30,7 +48,8 @@ export default function FirmasSiase() {
   )
   useAlReanudar(() => !firmando && recargar())
 
-  const firmables = (datos?.filas ?? []).filter((f) => f.estado === 'subido' && f.reporte_id)
+  // Solo se selecciona y firma lo que coincide con la búsqueda: nada oculto entra en el lote.
+  const firmables = (datos?.filas ?? []).filter((f) => f.estado === 'subido' && f.reporte_id && coincideBusqueda(busqueda, f.nombre, f.matricula))
   const seleccionados = firmables.filter((f) => seleccion.has(f.reporte_id!)).map((f) => f.reporte_id!)
 
   /** El resultado se informa siempre (A-08). */
@@ -92,7 +111,9 @@ export default function FirmasSiase() {
 
       <SegunEstado estado={estado} onReintentar={recargar}>
         {(d) => {
-          const filas = soloPendientes ? d.filas.filter((f) => f.estado === 'subido' && f.reporte_id) : d.filas
+          const delFiltro = soloPendientes ? d.filas.filter((f) => f.estado === 'subido' && f.reporte_id) : d.filas
+          const filas = delFiltro.filter((f) => coincideBusqueda(busqueda, f.nombre, f.matricula))
+          const anteriores = d.anteriores.filter((p) => p.reporte.id && coincideBusqueda(busqueda, p.becario?.nombre, p.becario?.matricula))
           const todos = firmables.length > 0 && seleccionados.length === firmables.length
           return (
             <>
@@ -104,6 +125,7 @@ export default function FirmasSiase() {
                   icono={ClipboardCheck}
                 />
               )}
+              <BuscadorPersonas personas={d.filas.length} valor={busqueda} onCambio={setBusqueda} />
               <div className="fila">
                 {firmables.length > 0 ? (
                   <label className="fila crece" style={{ gap: 8, cursor: 'pointer', minHeight: 44 }}>
@@ -125,12 +147,10 @@ export default function FirmasSiase() {
                 <Chip texto="Solo por firmar" activo={soloPendientes} onClick={() => setSoloPendientes((v) => !v)} />
               </div>
 
-              {d.anteriores.length > 0 && (
+              {anteriores.length > 0 && (
                 <>
                   <EncabezadoSeccion titulo="Pendientes de meses anteriores" />
-                  {d.anteriores
-                    .filter((p) => p.reporte.id)
-                    .map((p) => (
+                  {anteriores.map((p) => (
                       <Tarjeta key={`ant-${p.reporte.id}`}>
                         <div className="fila">
                           <div className="crece">
@@ -150,7 +170,8 @@ export default function FirmasSiase() {
                 </>
               )}
 
-              {filas.length === 0 && (
+              {filas.length === 0 && delFiltro.length > 0 && <SinCoincidencias busqueda={busqueda} />}
+              {delFiltro.length === 0 && (
                 <EstadoVacio
                   titulo={soloPendientes ? 'No hay reportes por firmar' : 'No hay becarios activos'}
                   mensaje={soloPendientes ? `Todo lo entregado en ${mesLargo(mes)} ya está revisado.` : null}

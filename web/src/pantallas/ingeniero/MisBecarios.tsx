@@ -3,9 +3,9 @@ import { useNavigate } from 'react-router-dom'
 import { Info, UserX } from 'lucide-react'
 import { progresoEquipo } from '../../datos/repositorios'
 import { requerirUsuario } from '../../datos/sesion'
-import { horasDeMeta } from '../../lib/formato'
+import { coincideBusqueda, horasDeMeta } from '../../lib/formato'
 import { enRiesgo, horasEsperadasSemana, type ProgresoBecario } from '../../lib/modelos'
-import { Avatar, AvisoBanner, Badge, Boton, Buscador, EstadoVacio, FilaProgreso, Pantalla, SegunEstado, Tarjeta } from '../../ui/componentes'
+import { Avatar, AvisoBanner, Badge, Boton, BuscadorPersonas, EstadoVacio, FilaProgreso, Pantalla, SegunEstado, SinCoincidencias, Tarjeta } from '../../ui/componentes'
 import { useAlReanudar, useCarga } from '../../ui/hooks'
 
 async function cargar(): Promise<ProgresoBecario[]> {
@@ -23,8 +23,7 @@ export default function MisBecarios() {
     <Pantalla titulo="Mis becarios" subtitulo="Avance de la semana y acciones">
       <SegunEstado estado={estado} onReintentar={recargar}>
         {(becarios) => {
-          const b = busqueda.trim().toLowerCase()
-          const filtrados = becarios.filter((x) => !b || x.nombre.toLowerCase().includes(b) || x.matricula.toLowerCase().includes(b))
+          const filtrados = becarios.filter((x) => coincideBusqueda(busqueda, x.nombre, x.matricula))
           return (
             <>
               <AvisoBanner
@@ -34,11 +33,11 @@ export default function MisBecarios() {
                 textoAccion="Ver mis transferencias"
                 onAccion={() => navegar('/ingeniero/transferencias')}
               />
-              {becarios.length > 4 && <Buscador valor={busqueda} onCambio={setBusqueda} placeholder="Buscar por nombre o matrícula" />}
+              <BuscadorPersonas personas={becarios.length} valor={busqueda} onCambio={setBusqueda} />
               {becarios.length === 0 ? (
                 <EstadoVacio titulo="Todavía no tienes becarios asignados" mensaje="Cuando la coordinación te asigne becarios aparecerán aquí." icono={UserX} />
               ) : filtrados.length === 0 ? (
-                <EstadoVacio titulo="Sin coincidencias" mensaje={`Nadie coincide con "${busqueda}".`} />
+                <SinCoincidencias busqueda={busqueda} />
               ) : null}
               {filtrados.map((p) => {
                 const meta = p.meta_semanal

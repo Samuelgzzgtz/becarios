@@ -1,7 +1,6 @@
 import { useRef, useState } from 'react'
 import { CalendarDays, ExternalLink, FileUp, Info, Paperclip } from 'lucide-react'
 import {
-  TAMANO_MAXIMO_REPORTE,
   TIPOS_REPORTE,
   estadoVentana,
   historialSiaseDe,
@@ -11,7 +10,7 @@ import {
   urlParaVer
 } from '../../datos/repositorios'
 import { requerirUsuario } from '../../datos/sesion'
-import { ErrorDeNegocio, mensajeAmigable } from '../../lib/errores'
+import { mensajeAmigable } from '../../lib/errores'
 import { diaMesLargo, fechaDeTexto, mesActual, mesLargo, parsearMes } from '../../lib/fechas'
 import { plural } from '../../lib/formato'
 import { permiteSubir, type EstadoReporteSiase, type EstadoVentanaSiase } from '../../lib/modelos'
@@ -61,7 +60,7 @@ export default function ReporteSiaseBecario() {
   })
 
   return (
-    <Pantalla titulo="Reporte mensual SIASE" subtitulo="Entrega tu captura o PDF de SIASE">
+    <Pantalla titulo="Reporte mensual SIASE" subtitulo="Entrega el PDF de tu reporte de SIASE">
       <SegunEstado estado={estado} onReintentar={recargar}>
         {(d) => {
           const estadoMes: EstadoReporteSiase = d.delMes?.estado ?? 'pendiente'
@@ -84,7 +83,6 @@ export default function ReporteSiaseBecario() {
             setMensaje(null)
             setArchivoElegido(archivo.name)
             try {
-              if (archivo.size > TAMANO_MAXIMO_REPORTE) throw new ErrorDeNegocio('El archivo pesa más de 10 MB. Reduce su tamaño e intenta de nuevo.')
               await subirReporte(d.becarioId, d.periodo.id, mesActual(), archivo)
               avisos.exito(`Reporte "${archivo.name}" subido. Tu ingeniero lo revisará.`)
               recargar()
@@ -159,9 +157,9 @@ export default function ReporteSiaseBecario() {
                   <>
                     <FileUp size={40} color={puedeSubir ? 'var(--texto)' : 'var(--texto-2)'} aria-hidden />
                     <span className="titulo-s" style={{ color: puedeSubir ? 'var(--texto)' : 'var(--texto-2)' }}>
-                      {estadoMes === 'subido' ? 'Reemplazar el reporte entregado' : 'Subir captura o PDF de SIASE'}
+                      {estadoMes === 'subido' ? 'Reemplazar el reporte entregado' : 'Subir el PDF de SIASE'}
                     </span>
-                    <span className="chico texto-2">PDF, JPG o PNG · máximo 10 MB</span>
+                    <span className="chico texto-2">Solo PDF · máximo 10 MB</span>
                   </>
                 )}
               </button>

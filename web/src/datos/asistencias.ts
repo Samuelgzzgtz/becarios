@@ -110,7 +110,8 @@ async function subirCola(): Promise<ResultadoSincronizacion> {
   let subidas = 0
   let rechazadas = 0
   let pendientes = 0
-  for (const p of await porSubirDe(uid)) {
+  const cola = await porSubirDe(uid)
+  for (const [i, p] of cola.entries()) {
     try {
       await ejecutar(
         supabase.from('asistencias').insert({
@@ -133,7 +134,10 @@ async function subirCola(): Promise<ResultadoSincronizacion> {
         subidas++
       } else if (esErrorDeRed(e) || esErrorDeSesion(e)) {
         await actualizarPendiente({ ...p, intentos: p.intentos + 1 })
-        pendientes++
+        // Se detiene para no subir fuera de orden: una salida antes de su entrada
+        // no se compararía con el turno mínimo (0027). Lo demás espera al siguiente intento.
+        pendientes += cola.length - i
+        break
       } else {
         await actualizarPendiente({ ...p, intentos: p.intentos + 1, error: mensajeAmigable(e, 'El servidor rechazó este registro.') })
         rechazadas++
@@ -208,11 +212,17 @@ export async function localesComoUi(becarioId: string, desde?: Fecha | null, has
     }))
 }
 
+/** Qué toca registrar ahora; si es salida, [entrada] es la hora de la entrada abierta de hoy. */
+export interface Proximo {
+  tipo: TipoAsistencia
+  entrada: Date | null
+}
+
 /**
  * Qué toca registrar ahora (auditoría C-04): decide por DÍA LOCAL, mirando lo
  * subido y lo que sigue en cola. Sin red usa el último registro guardado (C-02).
  */
-export async function siguienteTipo(becarioId: string): Promise<TipoAsistencia> {
+export async function siguienteTipo(becarioId: string): Promise<Proximo> {
   const candidatos: { tipo: TipoAsistencia; instante: Date }[] = []
   try {
     const ultimo = (await historial(becarioId, 1))[0]
@@ -231,7 +241,8 @@ export async function siguienteTipo(becarioId: string): Promise<TipoAsistencia> 
     if (instante) candidatos.push({ tipo: p.tipo, instante })
   }
   const ultimo = candidatos.sort((a, b) => b.instante.getTime() - a.instante.getTime())[0]
-  return siguienteTipoSegun(ultimo?.tipo, ultimo?.instante)
+  const tipo = siguienteTipoSegun(ultimo?.tipo, ultimo?.instante)
+  return { tipo, entrada: tipo === 'salida' ? ultimo.instante : null }
 }
 
 // ---------------------------------------------------------------------------

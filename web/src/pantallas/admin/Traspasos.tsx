@@ -4,10 +4,10 @@ import { resolverTransferencia, transferenciasPendientes } from '../../datos/rep
 import { mensajeAmigable } from '../../lib/errores'
 import { plural } from '../../lib/formato'
 import type { TransferenciaDetalle } from '../../lib/modelos'
-import { Boton, Dialogo, EstadoVacio, Pantalla, SegunEstado } from '../../ui/componentes'
+import { Boton, BuscadorPersonas, Dialogo, EstadoVacio, Pantalla, SegunEstado, SinCoincidencias } from '../../ui/componentes'
 import { useAvisos } from '../../ui/avisos'
 import { useAlReanudar, useCarga } from '../../ui/hooks'
-import { TarjetaTransferencia } from '../compartido/Transferencia'
+import { TarjetaTransferencia, coincideTransferencia } from '../compartido/Transferencia'
 
 export default function Traspasos() {
   const avisos = useAvisos()
@@ -15,6 +15,7 @@ export default function Traspasos() {
   useAlReanudar(recargar)
   const [procesando, setProcesando] = useState<Set<string>>(new Set())
   const [confirmacion, setConfirmacion] = useState<{ detalle: TransferenciaDetalle; aprobar: boolean } | null>(null)
+  const [busqueda, setBusqueda] = useState('')
 
   /** La RPC transaccional aprueba (y reasigna) o rechaza, con bloqueo de fila en el servidor (C-06). */
   async function resolver() {
@@ -73,7 +74,10 @@ export default function Traspasos() {
               icono={ArrowLeftRight}
             />
           ) : (
-            lista.map((d) => {
+            <>
+              <BuscadorPersonas personas={lista.length} valor={busqueda} onCambio={setBusqueda} placeholder="Buscar por becario o ingeniero" />
+              {!lista.some((d) => coincideTransferencia(d, busqueda)) && <SinCoincidencias busqueda={busqueda} />}
+              {lista.filter((d) => coincideTransferencia(d, busqueda)).map((d) => {
               const ocupado = !!d.transferencia.id && procesando.has(d.transferencia.id)
               return (
                 <TarjetaTransferencia key={d.transferencia.id ?? d.transferencia.created_at} detalle={d}>
@@ -87,7 +91,8 @@ export default function Traspasos() {
                   </div>
                 </TarjetaTransferencia>
               )
-            })
+            })}
+            </>
           )
         }
       </SegunEstado>

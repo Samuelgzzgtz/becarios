@@ -8,25 +8,28 @@ import { ErrorUbicacion, leerUbicacion, redondearGrados } from '../../lib/ubicac
 import { useAvisos } from '../../ui/avisos'
 import { Badge, Boton, CampoTexto, Dialogo, EncabezadoSeccion, SegunEstado, Tarjeta } from '../../ui/componentes'
 import { useCarga } from '../../ui/hooks'
-import { validarReglas, validarZona } from '../../lib/validacion'
+import { validarReglas, validarZona, type CampoRegla } from '../../lib/validacion'
 
 // ===========================================================================
 // Reglas de asistencia
 // ===========================================================================
 
-type CampoRegla = 'jornada' | 'atraso' | 'tolerancia'
-
 export function TarjetaReglas() {
   const avisos = useAvisos()
   const { estado, datos, recargar } = useCarga(configAsistencia, [], 'No se pudieron cargar las reglas de asistencia.')
-  const [f, setF] = useState<Record<CampoRegla, string>>({ jornada: '', atraso: '', tolerancia: '' })
+  const [f, setF] = useState<Record<CampoRegla, string>>({ jornada: '', atraso: '', tolerancia: '', turno: '' })
   const [errores, setErrores] = useState<Partial<Record<CampoRegla, string>>>({})
   const [falla, setFalla] = useState<string | null>(null)
   const [guardando, setGuardando] = useState(false)
 
   useEffect(() => {
     if (!datos) return
-    setF({ jornada: String(datos.jornada_maxima_horas), atraso: String(datos.atraso_maximo_minutos), tolerancia: String(datos.tolerancia_minutos) })
+    setF({
+      jornada: String(datos.jornada_maxima_horas),
+      atraso: String(datos.atraso_maximo_minutos),
+      tolerancia: String(datos.tolerancia_minutos),
+      turno: String(datos.turno_minimo_minutos)
+    })
   }, [datos])
 
   const cambiar = (c: CampoRegla) => (v: string) => {
@@ -45,7 +48,12 @@ export function TarjetaReglas() {
     setGuardando(true)
     setFalla(null)
     try {
-      await guardarConfigAsistencia(r.jornada!, r.atraso!, r.tolerancia!)
+      await guardarConfigAsistencia({
+        jornada_maxima_horas: r.jornada!,
+        atraso_maximo_minutos: r.atraso!,
+        tolerancia_minutos: r.tolerancia!,
+        turno_minimo_minutos: r.turno!
+      })
       avisos.exito('Reglas de asistencia guardadas.')
       recargar()
     } catch (e) {
@@ -69,6 +77,15 @@ export function TarjetaReglas() {
               error={errores.jornada}
               ayuda="Una jornada más larga que esto no suma horas hasta que un ingeniero la apruebe."
               sufijo={<span className="texto-2">horas</span>}
+            />
+            <CampoTexto
+              etiqueta="Turno mínimo"
+              valor={f.turno}
+              onCambio={cambiar('turno')}
+              modoTeclado="numeric"
+              error={errores.turno}
+              ayuda="Tiempo mínimo entre la entrada y la salida. Antes de eso la app no deja registrar la salida. En 0 no hay mínimo."
+              sufijo={<span className="texto-2">min</span>}
             />
             <CampoTexto
               etiqueta="Atraso máximo"

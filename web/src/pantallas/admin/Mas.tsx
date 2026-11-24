@@ -1,10 +1,12 @@
 import { useNavigate } from 'react-router-dom'
-import { ChevronRight, CircleUser } from 'lucide-react'
+import { ChevronRight, CircleUser, LogOut } from 'lucide-react'
 import { EncabezadoSeccion, Pantalla } from '../../ui/componentes'
+import { useCerrarSesion } from '../../ui/cerrarSesion'
 import { HERRAMIENTAS_ADMIN, type Herramienta } from '../../ui/navegacion'
 
 /** Pestaña "Más" del administrador en el teléfono: el resto de las herramientas, agrupadas (en escritorio están en la barra lateral). */
 export default function MasAdmin() {
+  const sesion = useCerrarSesion()
   return (
     <Pantalla titulo="Más herramientas" subtitulo="Reportes, periodos y configuración">
       {HERRAMIENTAS_ADMIN.map((g) => (
@@ -15,7 +17,17 @@ export default function MasAdmin() {
       ))}
       <section className="columna gap-1">
         <EncabezadoSeccion titulo="Cuenta" />
-        <Accesos accesos={[{ titulo: 'Mi cuenta', detalle: 'Tus datos y cerrar sesión', icono: CircleUser, ruta: '/admin/cuenta' }]} />
+        <Accesos accesos={[{ titulo: 'Mi cuenta', detalle: 'Tus datos y seguridad', icono: CircleUser, ruta: '/admin/cuenta' }]} />
+        <button
+          type="button"
+          onClick={sesion.pedir}
+          disabled={sesion.cerrando}
+          className="fila w-full rounded-lg bg-superficie px-4 py-3 text-left text-peligro disabled:opacity-50"
+        >
+          <LogOut className="size-[18px] shrink-0" strokeWidth={1.75} aria-hidden />
+          <span className="crece font-medium">Cerrar sesión</span>
+        </button>
+        {sesion.dialogo}
       </section>
     </Pantalla>
   )

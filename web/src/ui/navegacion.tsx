@@ -18,6 +18,7 @@ import {
   House,
   LayoutDashboard,
   LayoutGrid,
+  LogOut,
   SlidersHorizontal,
   Users
 } from 'lucide-react'
@@ -27,7 +28,8 @@ import { indicadores } from '../datos/repositorios'
 import { usuarioAutenticado, usuarioEnMemoria } from '../datos/sesion'
 import { entero } from '../lib/formato'
 import type { Perfil, Usuario } from '../lib/modelos'
-import { Logo, type Icono } from './componentes'
+import { useCerrarSesion } from './cerrarSesion'
+import { BotonIcono, Logo, type Icono } from './componentes'
 import { useAlReanudar, useCarga, useEnLinea } from './hooks'
 
 interface Destino {
@@ -156,6 +158,7 @@ function BarraLateralAdmin() {
     '/admin/revisar': datos?.porRevisar || null,
     '/admin/siase': datos?.siase_por_firmar || null
   }
+  const sesion = useCerrarSesion()
   const principales = DESTINOS.administrador.filter((d) => d.ruta !== '/admin/mas')
   const enlace = (d: { ruta: string; texto: string; icono: Icono }, fin = false) => {
     const I = d.icono
@@ -198,7 +201,12 @@ function BarraLateralAdmin() {
           </div>
         ))}
       </nav>
-      <div className="mt-auto pt-6">{enlace({ ruta: '/admin/cuenta', texto: 'Mi cuenta', icono: CircleUser })}</div>
+      {/* Cerrar sesión a un toque, junto a Mi cuenta. */}
+      <div className="mt-auto flex items-center gap-1 pt-6">
+        <div className="min-w-0 flex-1">{enlace({ ruta: '/admin/cuenta', texto: 'Mi cuenta', icono: CircleUser })}</div>
+        <BotonIcono icono={LogOut} etiqueta="Cerrar sesión" onClick={sesion.pedir} deshabilitado={sesion.cerrando} className="size-8 text-texto-2" />
+      </div>
+      {sesion.dialogo}
     </aside>
   )
 }
