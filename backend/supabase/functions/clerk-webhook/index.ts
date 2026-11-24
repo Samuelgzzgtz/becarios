@@ -1,9 +1,17 @@
 // Webhook de Clerk → tabla public.usuarios (migración 0018).
 //
 // El panel de "cuentas y accesos" vive en el Dashboard de Clerk: ahí se crean
-// o invitan usuarios, se les pone el perfil en el public metadata y se bloquean.
-// Clerk avisa aquí cada cambio (user.created / user.updated / user.deleted) y
-// esta función lo refleja en usuarios con la RPC sincronizar_usuario_clerk.
+// o invitan usuarios, se les da perfil con organizaciones y se bloquean.
+// Clerk avisa aquí cada cambio (user.* y organizationMembership.created /
+// .deleted) y esta función lo refleja en usuarios con la RPC
+// sincronizar_usuario_clerk.
+//
+// El perfil se elige con organizaciones de Clerk: cada organización que da un
+// perfil lo declara en su public metadata ({ "perfil": "ingeniero" } o
+// "administrador"); agregar a alguien a ella le da ese perfil y quien no está
+// en ninguna es becario. Esta función lo escribe en el public metadata con la API
+// de Clerk (CLERK_SECRET_KEY) y el user.updated que sigue sincroniza la base.
+// Así el perfil vive solo en Clerk y Ban/Unban siguen funcionando.
 //
 // public_metadata que entiende (todo opcional salvo perfil para dar acceso):
 //   { "perfil": "becario" | "ingeniero" | "administrador",
@@ -34,10 +42,15 @@ interface UsuarioClerk {
   public_metadata: Record<string, unknown> | null;
 }
 
+interface MembresiaClerk {
+  organization: { public_metadata: Record<string, unknown> | null };
+  public_user_data: { user_id: string };
+}
+
 interface EventoClerk {
   timestamp: number;
   type: string;
-  data: UsuarioClerk | { id: string; deleted?: boolean };
+  data: UsuarioClerk | MembresiaClerk | { id: string; deleted?: boolean };
 }
 
 function respuesta(cuerpo: unknown, status = 200): Response {
@@ -45,6 +58,40 @@ function respuesta(cuerpo: unknown, status = 200): Response {
 }
 
 const texto = (v: unknown) => (typeof v === "string" && v.trim() ? v.trim() : null);
+
+// Si alguien está en las dos, gana administrador. Organizaciones sin perfil se ignoran.
+const PERFILES_DE_ORGANIZACION = ["administrador", "ingeniero"];
+const perfilDe = (m: MembresiaClerk) => {
+  const p = texto(m.organization.public_metadata?.perfil);
+  return p && PERFILES_DE_ORGANIZACION.includes(p) ? p : null;
+};
+
+async function apiClerk(ruta: string, init?: RequestInit): Promise<Response> {
+  const clave = Deno.env.get("CLERK_SECRET_KEY");
+  if (!clave) throw new Error("Falta CLERK_SECRET_KEY.");
+  const r = await fetch(`https://api.clerk.com/v1${ruta}`, {
+    ...init,
+    headers: { Authorization: `Bearer ${clave}`, "Content-Type": "application/json" }
+  });
+  // 404: el usuario ya se borró; no hay perfil que escribir.
+  if (!r.ok && r.status !== 404) throw new Error(`Clerk respondió ${r.status} en ${ruta}.`);
+  return r;
+}
+
+// Recalcula el perfil con las organizaciones actuales, así el orden en que
+// lleguen los eventos no importa. Si dos cambios del mismo usuario llegan casi
+// juntos, el último PATCH puede ganar con datos viejos: se corrige con el
+// siguiente cambio de organización. Un error lanzado aquí responde 500 y Clerk
+// reintenta.
+async function escribirPerfil(usuarioId: string): Promise<void> {
+  const r = await apiClerk(`/users/${usuarioId}/organization_memberships?limit=100`);
+  if (r.status === 404) return;
+  const { data } = (await r.json()) as { data: MembresiaClerk[] };
+  const perfiles = data.map(perfilDe);
+  const perfil = PERFILES_DE_ORGANIZACION.find((p) => perfiles.includes(p)) ?? "becario";
+  // PATCH /metadata mezcla: conserva matricula, coordinacion y estado.
+  await apiClerk(`/users/${usuarioId}/metadata`, { method: "PATCH", body: JSON.stringify({ public_metadata: { perfil } }) });
+}
 
 Deno.serve(async (req: Request) => {
   if (req.method !== "POST") return respuesta({ error: "Método no permitido." }, 405);
@@ -77,8 +124,15 @@ Deno.serve(async (req: Request) => {
   }
 
   if (evento.type === "user.deleted") {
-    const { error } = await supabase.rpc("desactivar_usuario_clerk", { p_clerk_id: evento.data.id, p_actualizado_en: evento.timestamp });
+    const { error } = await supabase.rpc("desactivar_usuario_clerk", { p_clerk_id: (evento.data as { id: string }).id, p_actualizado_en: evento.timestamp });
     if (error) return respuesta({ error: error.message }, 500);
+    return respuesta({ ok: true });
+  }
+
+  if (evento.type === "organizationMembership.created" || evento.type === "organizationMembership.deleted") {
+    const m = evento.data as MembresiaClerk;
+    if (!perfilDe(m)) return respuesta({ ok: true, ignorado: evento.type });
+    await escribirPerfil(m.public_user_data.user_id);
     return respuesta({ ok: true });
   }
 
@@ -107,5 +161,8 @@ Deno.serve(async (req: Request) => {
   });
   // Un error 500 hace que Clerk reintente el envío.
   if (error) return respuesta({ error: error.message }, 500);
+
+  // Cuenta nueva sin perfil: se le escribe (becario si no está en una organización).
+  if (evento.type === "user.created" && !texto(meta.perfil)) await escribirPerfil(u.id);
   return respuesta({ ok: true, usuario: data });
 });
