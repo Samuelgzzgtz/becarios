@@ -4,7 +4,7 @@ import { SignIn, useAuth } from '@clerk/react'
 import { CircleAlert, LogOut, RefreshCw, UserLock } from 'lucide-react'
 import { cerrarSesion, refrescar, sesionActiva } from '../datos/sesion'
 import { ErrorDeNegocio, mensajeAmigable } from '../lib/errores'
-import { AvisoBanner, Boton, IconoCircular, Logo, Tarjeta } from '../ui/componentes'
+import { AvisoBanner, Boton, Logo, Tarjeta } from '../ui/componentes'
 import { PantallaCompleta, rutaInicial } from '../ui/navegacion'
 
 /**
@@ -58,18 +58,19 @@ export default function Login() {
   if (estado === 'verificando') return <PantallaCompleta texto="Verificando tu sesión…" />
 
   return (
-    <div style={{ minHeight: '100dvh', background: 'var(--fondo)' }}>
-      <header className="marca">
-        <Logo tamano={88} />
-        <h1 style={{ fontSize: '1.9rem', marginTop: 16 }}>Pasalista</h1>
-        <p style={{ color: 'var(--sobre-header-2)' }}>Control de becarios · FIME UANL</p>
+    <div className="min-h-dvh bg-fondo">
+      {/* La marca sobre el fondo, sin encabezado de color. */}
+      <header className="flex flex-col items-center gap-1 px-6 pt-[calc(48px+var(--seguro-arriba))] text-center">
+        <Logo tamano={56} />
+        <h1 className="mt-3 text-2xl font-semibold tracking-[-0.01em]">Pasalista</h1>
+        <p className="text-texto-2">Control de becarios · FIME UANL</p>
       </header>
 
-      <main style={{ padding: '24px 16px', maxWidth: 480, margin: '0 auto' }} className="columna">
+      <main className="columna mx-auto max-w-[480px] px-4 py-6">
         {estado === 'sin_acceso' || estado === 'fallo' ? (
           <Tarjeta>
             <div className="columna" style={{ alignItems: 'center', textAlign: 'center', gap: 12, padding: 8 }}>
-              <IconoCircular icono={UserLock} tono="alerta" tamano={56} />
+              <UserLock className="size-7 text-alerta" strokeWidth={1.75} aria-hidden />
               <h2 className="titulo-m">{estado === 'fallo' ? 'No se pudo entrar' : 'Todavía no tienes acceso'}</h2>
               <p className="texto-2">{error ?? 'Tu cuenta aún no tiene acceso a Pasalista.'}</p>
               <Boton

@@ -48,29 +48,40 @@ export async function becariosSinIngenieroActivo(): Promise<Set<string>> {
 }
 
 /**
- * Quién supervisa a quién (progreso_equipo trae el ingeniero de cada becario
- * activo), para filtrar becarios por ingeniero y contar becarios por ingeniero.
+ * Quién supervisa a quién (progreso_equipo trae el ingeniero y las horas de cada becario
+ * activo), para filtrar becarios por ingeniero, contar becarios por ingeniero y mostrar su avance.
  * Si falla, las listas siguen funcionando sin esa información.
+ * [ingenieroDe] y [nombreIngeniero] solo cuentan ingenieros activos: un becario asignado a uno
+ * inactivo queda "Sin ingeniero" (nadie puede aprobarle, 0026). [becariosDe] cuenta todas las
+ * asignaciones, para que un ingeniero dado de baja no aparezca sin becarios.
  */
 export function useAsignaciones() {
   const carga = useCarga(
     async () => {
-      const [ingenieros, equipo] = await Promise.all([listar('ingeniero').catch(() => []), progresoEquipo().catch(() => null)])
-      return { ingenieros, ingenieroDe: equipo ? new Map(equipo.map((b) => [b.becario_id, b.ingeniero_id ?? null])) : null }
+      const [ingenieros, equipo] = await Promise.all([listar('ingeniero').catch(() => null), progresoEquipo().catch(() => null)])
+      return {
+        ingenieros: ingenieros ?? [],
+        // Sin la lista de ingenieros activos no se puede saber quién está sin ingeniero.
+        ingenieroDe: equipo && ingenieros ? new Map(equipo.map((b) => [b.becario_id, b.ingeniero_id ?? null])) : null,
+        progreso: new Map((equipo ?? []).map((b) => [b.becario_id, b]))
+      }
     },
     [],
     ''
   )
   useAlReanudar(carga.recargar)
   const d = carga.datos
+  const ingenieroActivo = (becarioId: string) => {
+    const id = d?.ingenieroDe?.get(becarioId)
+    return id ? d?.ingenieros.find((i) => i.id === id) : undefined
+  }
   return {
     ingenieros: d?.ingenieros ?? [],
     conocida: !!d?.ingenieroDe && d.ingenieroDe.size > 0,
-    ingenieroDe: (becarioId: string) => d?.ingenieroDe?.get(becarioId) ?? null,
-    nombreIngeniero: (becarioId: string) => {
-      const id = d?.ingenieroDe?.get(becarioId)
-      return id ? (d?.ingenieros.find((i) => i.id === id)?.nombre ?? null) : null
-    },
+    ingenieroDe: (becarioId: string) => ingenieroActivo(becarioId)?.id ?? null,
+    nombreIngeniero: (becarioId: string) => ingenieroActivo(becarioId)?.nombre ?? null,
+    /** Horas de la semana y del semestre (solo becarios activos con ingeniero); null si no hay. */
+    progresoDe: (becarioId: string) => d?.progreso.get(becarioId) ?? null,
     becariosDe: (ingenieroId: string) => (d?.ingenieroDe ? [...d.ingenieroDe.values()].filter((v) => v === ingenieroId).length : 0),
     recargar: carga.recargar
   }
@@ -87,20 +98,26 @@ export function EncabezadoUsuario({ usuario, detalle }: { usuario: Usuario; deta
         <p className="titulo-m recortar">{usuario.nombre}</p>
         <p className="chico texto-2 recortar">{detalle ?? `Matrícula ${usuario.matricula}`}</p>
       </div>
-      <Badge texto={etiquetaEstadoUsuario[usuario.estado]} tono={tonoEstadoUsuario[usuario.estado]} />
+      {/* El estado solo se marca cuando es la excepción (inactivo o egresado). */}
+      {usuario.estado !== 'activo' && <Badge texto={etiquetaEstadoUsuario[usuario.estado]} tono={tonoEstadoUsuario[usuario.estado]} />}
     </div>
   )
 }
 
 
-const ESTADOS: (EstadoUsuario | null)[] = ['activo', 'inactivo', null]
+/** Filtro de estado de las listas de usuarios; null = todos. */
+export const OPCIONES_ESTADO: { estado: EstadoUsuario | null; texto: string }[] = [
+  { estado: 'activo', texto: 'Activos' },
+  { estado: 'inactivo', texto: 'Inactivos' },
+  { estado: null, texto: 'Todos' }
+]
 
 export function FiltroEstadoUsuarios(props: { actual: EstadoUsuario | null; onCambiar: (e: EstadoUsuario | null) => void }) {
   return (
     <Segmentado
-      opciones={['Activos', 'Inactivos', 'Todos']}
-      seleccionado={ESTADOS.indexOf(props.actual)}
-      onSeleccionar={(i) => props.onCambiar(ESTADOS[i])}
+      opciones={OPCIONES_ESTADO.map((o) => o.texto)}
+      seleccionado={OPCIONES_ESTADO.findIndex((o) => o.estado === props.actual)}
+      onSeleccionar={(i) => props.onCambiar(OPCIONES_ESTADO[i].estado)}
       etiqueta="Estado de la cuenta"
     />
   )

@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { useParams } from 'react-router-dom'
-import { CircleAlert, HardHat, Hourglass, NotebookText, Send } from 'lucide-react'
+import { CircleAlert, Hourglass, Send } from 'lucide-react'
 import { otrosIngenieros, solicitarTransferencia, transferenciaPendienteDe, usuario as obtenerUsuario } from '../../datos/repositorios'
 import { requerirUsuario } from '../../datos/sesion'
 import { mensajeAmigable } from '../../lib/errores'
@@ -95,7 +95,6 @@ export default function SolicitarTransferencia() {
                   textoDe={(u) => (u.coordinacion ? `${u.nombre} · ${u.coordinacion}` : u.nombre)}
                   claveDe={(u) => u.id}
                   onSeleccionar={(u) => (setDestino(u), setError(null))}
-                  icono={HardHat}
                   placeholder="Elige un ingeniero"
                   error={intento && !destino ? 'Elige el ingeniero destino' : null}
                   ayuda={d.ingenieros.length === 0 ? 'No hay otros ingenieros activos' : null}
@@ -108,7 +107,6 @@ export default function SolicitarTransferencia() {
                   textoDe={(m) => m}
                   claveDe={(m) => m}
                   onSeleccionar={(m) => (setMotivo(m), setError(null))}
-                  icono={NotebookText}
                   placeholder="Elige un motivo"
                   error={intento && !textoMotivo ? 'Elige o escribe el motivo' : null}
                   deshabilitado={bloqueado}

@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { HardHat, TrendingDown, UserX, Users } from 'lucide-react'
+import { Users } from 'lucide-react'
 import { listarPorPerfil, progresoEquipo } from '../../datos/repositorios'
 import { entero, plural, ritmoMes } from '../../lib/formato'
 import { enRiesgo, horasEsperadasSemana, type ProgresoBecario } from '../../lib/modelos'
@@ -31,8 +31,8 @@ export default function ReporteHorasGlobal() {
           return (
             <>
               <CuadriculaDos>
-                <TarjetaIndicador valor={entero(filas.length)} etiqueta="Becarios supervisados" icono={Users} />
-                <TarjetaIndicador valor={entero(riesgo)} etiqueta="Con ritmo bajo" icono={TrendingDown} alerta={riesgo > 0} detalle="esta semana" />
+                <TarjetaIndicador valor={entero(filas.length)} etiqueta="Becarios supervisados" />
+                <TarjetaIndicador valor={entero(riesgo)} etiqueta="Con ritmo bajo" alerta={riesgo > 0} detalle="esta semana" />
               </CuadriculaDos>
               <Segmentado opciones={['Semana', 'Mes', 'Semestre']} seleccionado={periodo} onSeleccionar={setPeriodo} etiqueta="Periodo" />
               {filas.length === 0 && <EstadoVacio titulo="Sin becarios activos" icono={Users} />}
@@ -40,7 +40,6 @@ export default function ReporteHorasGlobal() {
                 <Tarjeta key={ingenieroId ?? 'sin'}>
                   <EncabezadoSeccion
                     titulo={ingenieroId == null ? 'Sin ingeniero asignado' : (nombres.get(ingenieroId) ?? 'Ingeniero')}
-                    icono={ingenieroId == null ? UserX : HardHat}
                   />
                   <p className="chico texto-2">{plural(becarios.length, 'becario', 'becarios')}</p>
                   {[...becarios]

@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { LocateFixed, MapPin, Plus, Power, Ruler, Save, Trash2 } from 'lucide-react'
+import { LocateFixed, Plus, Power, Save, Trash2 } from 'lucide-react'
 import { configAsistencia, eliminarGeocerca, geocercas, guardarConfigAsistencia, guardarGeocerca } from '../../datos/repositorios'
 import { mensajeAmigable } from '../../lib/errores'
 import { plural } from '../../lib/formato'
@@ -57,7 +57,7 @@ export function TarjetaReglas() {
 
   return (
     <Tarjeta>
-      <EncabezadoSeccion titulo="Reglas de asistencia" icono={Ruler} />
+      <EncabezadoSeccion titulo="Reglas de asistencia" />
       <SegunEstado estado={estado} onReintentar={recargar} tarjetas={1}>
         {() => (
           <div className="columna" style={{ gap: 10 }}>
@@ -185,7 +185,7 @@ export function TarjetaZonas() {
 
   return (
     <Tarjeta>
-      <EncabezadoSeccion titulo="Zonas de registro" icono={MapPin} />
+      <EncabezadoSeccion titulo="Zonas de registro" />
       {aQuitar && (
         <Dialogo
           titulo="Quitar zona"
@@ -214,7 +214,7 @@ export function TarjetaZonas() {
                 <p className="chico texto-2">{plural(lista.filter((z) => z.activa).length, 'zona activa', 'zonas activas')} de {lista.length}.</p>
                 <ul className="columna" style={{ gap: 8, listStyle: 'none', padding: 0, margin: 0 }}>
                   {lista.map((g) => (
-                    <li key={g.id} className="columna" style={{ gap: 6, padding: '8px 0', borderTop: '1px solid var(--borde)' }}>
+                    <li key={g.id} className="columna" style={{ gap: 6, padding: '8px 0', borderTop: '1px solid var(--regla)' }}>
                       <div className="fila" style={{ flexWrap: 'wrap' }}>
                         <span className="titulo-s crece">{g.nombre}</span>
                         <Badge texto={g.activa ? 'Activa' : 'Inactiva'} tono={g.activa ? 'exito' : 'neutro'} />
@@ -234,7 +234,7 @@ export function TarjetaZonas() {
               </>
             )}
 
-            <div className="columna" style={{ gap: 10, borderTop: '1px solid var(--borde)', paddingTop: 12 }}>
+            <div className="columna" style={{ gap: 10, borderTop: '1px solid var(--regla)', paddingTop: 12 }}>
               <h3 className="titulo-s">Agregar zona</h3>
               <CampoTexto etiqueta="Nombre" valor={f.nombre} onCambio={cambiar('nombre')} placeholder="Por ejemplo: Edificio de Sistemas" error={errores.nombre} />
               <CampoTexto

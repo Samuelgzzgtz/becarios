@@ -84,8 +84,13 @@ export async function semanaConRespaldo(becarioId: string): Promise<DiaHorario[]
 
 /** dia_semana en la tabla usa 0 = domingo; el día se calcula en hora de Monterrey (A-06). */
 export async function modalidadDeHoy(becarioId: string): Promise<ModalidadHoy> {
+  return modalidadDeHoyEn(await semanaConRespaldo(becarioId))
+}
+
+/** La modalidad de hoy dentro de un horario ya cargado (Inicio lo pide una sola vez). */
+export function modalidadDeHoyEn(semana: DiaHorario[]): ModalidadHoy {
   const dia = diaSemana()
-  const fila = (await semanaConRespaldo(becarioId)).find((d) => d.dia_semana === dia)
+  const fila = semana.find((d) => d.dia_semana === dia)
   return { modalidad: fila?.modalidad ?? 'presencial', configurada: fila != null }
 }
 

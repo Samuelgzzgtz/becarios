@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { CalendarDays, CheckCircle2, CircleAlert, Save, Trophy } from 'lucide-react'
+import { CheckCircle2, CircleAlert, Save } from 'lucide-react'
 import { guardarConfiguracion, metasGlobales, ventanaConfig } from '../../datos/repositorios'
 import { mensajeAmigable } from '../../lib/errores'
 import { AvisoBanner, Boton, CampoTexto, EncabezadoSeccion, Pantalla, SegunEstado, Tarjeta, useVolver } from '../../ui/componentes'
@@ -102,7 +102,7 @@ export default function Configuracion() {
           <>
             {mensaje && <AvisoBanner texto={mensaje.texto} tono={mensaje.exito ? 'exito' : 'peligro'} icono={mensaje.exito ? CheckCircle2 : CircleAlert} />}
             <Tarjeta>
-              <EncabezadoSeccion titulo="Metas requeridas" icono={Trophy} />
+              <EncabezadoSeccion titulo="Metas requeridas" />
               <p className="chico texto-2" style={{ marginBottom: 8 }}>
                 Horas que cada becario debe cumplir. Acepta decimales (20.5 o 20,5).
               </p>
@@ -113,7 +113,7 @@ export default function Configuracion() {
               </div>
             </Tarjeta>
             <Tarjeta>
-              <EncabezadoSeccion titulo="Ventana SIASE" icono={CalendarDays} />
+              <EncabezadoSeccion titulo="Ventana SIASE" />
               <p className="chico texto-2" style={{ marginBottom: 8 }}>
                 Días del mes en que los becarios pueden subir su reporte.
               </p>

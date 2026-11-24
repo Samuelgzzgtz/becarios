@@ -52,14 +52,12 @@ export default function Traspasos() {
   return (
     <Pantalla
       titulo="Traspasos"
-      etiqueta="Administrador"
       subtitulo={datos ? (datos.length === 0 ? 'Sin solicitudes pendientes' : plural(datos.length, 'solicitud pendiente', 'solicitudes pendientes')) : 'Solicitudes de cambio de ingeniero'}
     >
       {c && (
         <Dialogo
           titulo={c.aprobar ? 'Aprobar traspaso' : 'Rechazar traspaso'}
           mensaje={c.aprobar ? `${becario} pasará de ${origen} a ${destino}.` : `Se rechazará la solicitud para mover a ${becario} de ${origen} a ${destino}.`}
-          icono={c.aprobar ? ArrowLeftRight : undefined}
           textoConfirmar={c.aprobar ? 'Aprobar' : 'Rechazar'}
           destructivo={!c.aprobar}
           onConfirmar={resolver}

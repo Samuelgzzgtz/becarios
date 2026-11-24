@@ -1,7 +1,8 @@
 import { useEffect, useRef, useState, type ReactNode, type RefObject } from 'react'
 import { Camera, CheckCircle2, CircleAlert, ScanFace, SwitchCamera } from 'lucide-react'
 import { mensajeAmigable } from '../lib/errores'
-import { Boton, IconoCircular } from './componentes'
+import { cn } from '@/lib/utils'
+import { Boton } from './componentes'
 
 export type EstadoGuia = 'buscando' | 'verificando' | 'exito' | 'error'
 
@@ -57,7 +58,10 @@ export function useCamara(frontal: boolean): { video: RefObject<HTMLVideoElement
   return { video, lista, error, reintentar: () => setIntento((n) => n + 1) }
 }
 
-/** Fondo negro, video, óvalo guía y chip de estado (como el escáner de la app Android). */
+/**
+ * Fondo negro, video, óvalo guía y chip de estado (como el escáner de la app Android).
+ * [pantallaCompleta]: ocupa todo su contenedor, sin esquinas ni alto máximo (Registrar asistencia).
+ */
 export function MarcoCamara(props: {
   video: RefObject<HTMLVideoElement | null>
   espejo: boolean
@@ -66,22 +70,55 @@ export function MarcoCamara(props: {
   pie?: string | null
   alCambiarCamara?: () => void
   frontal?: boolean
+  pantallaCompleta?: boolean
 }) {
   const IconoChip = props.guia === 'exito' ? CheckCircle2 : props.guia === 'error' ? CircleAlert : ScanFace
   return (
-    <div className="marco-camara">
-      <video ref={props.video} className={props.espejo ? 'espejo' : undefined} playsInline muted autoPlay aria-label="Vista de la cámara" />
-      <div className={`guia-rostro ${props.guia}`} aria-hidden>
+    <div
+      className={cn(
+        'relative overflow-hidden bg-[var(--escaner)]',
+        props.pantallaCompleta ? 'absolute inset-0' : 'min-h-[300px] max-h-[58dvh] flex-1 rounded-lg'
+      )}
+    >
+      <video
+        ref={props.video}
+        className={cn('absolute inset-0 block size-full object-cover', props.espejo && '-scale-x-100')}
+        playsInline
+        muted
+        autoPlay
+        aria-label="Vista de la cámara"
+      />
+      {/* En pantalla completa el óvalo queda entre el chip de estado y el pie, y se achica si la hoja de abajo crece. */}
+      <div
+        className={cn(
+          'guia-rostro pointer-events-none absolute grid place-items-center',
+          props.pantallaCompleta ? 'completa inset-x-0 top-[calc(132px+var(--seguro-arriba))] bottom-16' : 'inset-0',
+          props.guia
+        )}
+        aria-hidden
+      >
         <div className="ovalo" />
       </div>
-      <div className="chip-camara" role="status" aria-live="polite">
-        {props.guia === 'verificando' ? <span className="giro" style={{ width: 14, height: 14 }} /> : <IconoChip size={16} />}
+      <div
+        className={cn(
+          'absolute left-1/2 flex -translate-x-1/2 items-center gap-1.5 rounded-full bg-black/60 px-3.5 py-1.5 text-[13px] font-medium whitespace-nowrap text-white',
+          props.pantallaCompleta ? 'top-[calc(84px+var(--seguro-arriba))]' : 'top-4'
+        )}
+        role="status"
+        aria-live="polite"
+      >
+        {props.guia === 'verificando' ? <span className="giro size-3.5" /> : <IconoChip className="size-4" />}
         {props.textoEstado}
       </div>
-      {props.pie && <p className="pie-camara">{props.pie}</p>}
+      {props.pie && <p className={cn('absolute inset-x-0 px-4 text-center text-[13px] text-white', props.pantallaCompleta ? 'bottom-8' : 'bottom-3.5')}>{props.pie}</p>}
       {props.alCambiarCamara && (
-        <button className="boton-icono boton-camara" onClick={props.alCambiarCamara} aria-label={props.frontal ? 'Usar cámara trasera' : 'Usar cámara frontal'}>
-          <SwitchCamera size={22} />
+        <button
+          type="button"
+          className="absolute right-3 bottom-3 grid size-11 place-items-center rounded-full bg-black/55 text-white"
+          onClick={props.alCambiarCamara}
+          aria-label={props.frontal ? 'Usar cámara trasera' : 'Usar cámara frontal'}
+        >
+          <SwitchCamera className="size-5" />
         </button>
       )}
     </div>
@@ -91,11 +128,13 @@ export function MarcoCamara(props: {
 /** Cuando la cámara no abre (permiso negado, sin cámara, sin HTTPS). */
 export function PanelErrorCamara(props: { mensaje: string; explicacion: string; onReintentar: () => void; onVolver: () => void; acciones?: ReactNode }) {
   return (
-    <div className="columna" style={{ alignItems: 'center', textAlign: 'center', padding: '24px 8px', gap: 12 }}>
-      <IconoCircular icono={Camera} tono="neutro" tamano={64} />
+    <div className="columna items-center gap-3 px-2 py-6 text-center">
+      <Camera className="size-7 text-texto-2" strokeWidth={1.75} aria-hidden />
       <p className="titulo-m">Se necesita la cámara</p>
-      <p className="texto-2">{props.explicacion}</p>
-      <p className="banner tono-peligro" role="alert">{props.mensaje}</p>
+      <p className="text-texto-2">{props.explicacion}</p>
+      <p className="w-full rounded-lg bg-peligro-c px-4 py-3 text-left text-peligro" role="alert">
+        {props.mensaje}
+      </p>
       <Boton icono={Camera} onClick={props.onReintentar} ancho>
         Permitir cámara
       </Boton>

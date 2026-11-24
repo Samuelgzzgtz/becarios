@@ -59,7 +59,7 @@ export default function Correcciones() {
       <SegunEstado estado={carga.estado} onReintentar={carga.recargar}>{datos => <>
         {datos.usuario.perfil === 'becario' && !formulario && <Boton onClick={() => setFormulario(datos.usuario.id)}>Solicitar corrección</Boton>}
         {datos.filas.length === 0 && <p>No hay solicitudes {soloPendientes ? 'pendientes' : 'en esta página'}.</p>}
-        {datos.filas.map(s => <section key={s.id} className="columna" style={{ borderBottom: '1px solid var(--borde)', paddingBottom: 16 }}>
+        {datos.filas.length > 0 && <div className="rounded-lg bg-superficie px-4">{datos.filas.map(s => <section key={s.id} className="columna gap-1 border-t border-regla py-3.5 first:border-t-0">
           <h2 className="titulo-s">{accionesCorreccion[s.accion]} · {datos.nombres.get(s.becario_id) ?? 'Becario'}</h2>
           <p>Estado: {s.estado === 'pendiente' ? 'Pendiente' : s.estado === 'aprobada' ? 'Aprobada' : 'Rechazada'} · Solicitada el {fechaHora(s.created_at)}</p>
           <Instantanea etiqueta="Registro original" valor={s.antes} />
@@ -74,7 +74,7 @@ export default function Correcciones() {
             <Boton deshabilitado={ocupado} onClick={() => { setRespuesta(''); setResolucion({ solicitud: s, aprobar: true }) }}>Aprobar</Boton>
             <Boton variante="secundario" deshabilitado={ocupado} onClick={() => { setRespuesta(''); setResolucion({ solicitud: s, aprobar: false }) }}>Rechazar</Boton>
           </div>}
-        </section>)}
+        </section>)}</div>}
         <div className="fila"><Boton variante="texto" deshabilitado={pagina === 0} onClick={() => setPagina(p => p - 1)}>Anterior</Boton><span>Página {pagina + 1}</span><Boton variante="texto" deshabilitado={!datos.hayMas} onClick={() => setPagina(p => p + 1)}>Siguiente</Boton></div>
       </>}</SegunEstado>
       {resolucion && <Dialogo titulo={resolucion.aprobar ? 'Aprobar corrección y horas' : 'Rechazar solicitud'} mensaje={resolucion.aprobar ? resolucion.solicitud.accion === 'eliminar' ? 'Se eliminará el registro y se recalcularán las horas. El cambio quedará en el historial.' : 'La asistencia quedará manual y aprobada. Si es una salida, podrá contar horas por encima del máximo de jornada. Comprueba también la entrada correspondiente. El cambio quedará en el historial.' : 'La asistencia no cambiará. Explica al becario el motivo del rechazo.'} textoConfirmar={ocupado ? 'Guardando…' : 'Confirmar'} confirmarHabilitado={!ocupado && respuesta.trim().length >= 5 && respuesta.trim().length <= 500} onConfirmar={resolverActual} onCancelar={() => { if (!ocupado) setResolucion(null) }}>

@@ -155,7 +155,8 @@ export function horaLocal24(instante: Date): string {
 // Formateo (solo presentación)
 // ---------------------------------------------------------------------------
 
-const capitalizar = (s: string) => (s ? s.charAt(0).toLocaleUpperCase(LOCALE) + s.slice(1) : s)
+/** "lunes" → "Lunes" (con las reglas de mayúsculas del español). */
+export const capitalizar = (s: string) => (s ? s.charAt(0).toLocaleUpperCase(LOCALE) + s.slice(1) : s)
 const sinPuntos = (s: string) => s.replace(/\./g, '')
 
 const fmtCortaFecha = new Intl.DateTimeFormat(LOCALE, { timeZone: 'UTC', weekday: 'short', day: 'numeric', month: 'short' })

@@ -137,7 +137,6 @@ export default function Semestres() {
         <Dialogo
           titulo="Semestre cerrado"
           mensaje={`${resultado.becarios_cumplidos} de ${resultado.becarios_activos} becarios cumplieron su meta semestral. El periodo "${resultado.periodo_nuevo}" ya está activo.`}
-          icono={CalendarCheck}
           textoConfirmar="Entendido"
           textoCancelar="Cerrar"
           onConfirmar={() => {
@@ -161,10 +160,7 @@ export default function Semestres() {
               <Tarjeta>
                 <div className="fila">
                   <IconoCircular icono={CalendarDays} tono={periodo ? 'exito' : 'peligro'} />
-                  <div className="crece">
-                    <p className="chico texto-2">Periodo actual</p>
-                    <p className="titulo-m">{periodo?.nombre ?? 'Ninguno activo'}</p>
-                  </div>
+                  <p className="titulo-m crece">{periodo ? `Periodo ${periodo.nombre}` : 'Ningún periodo activo'}</p>
                   <Badge texto={periodo ? 'Activo' : 'Sin periodo'} tono={periodo ? 'exito' : 'peligro'} />
                 </div>
                 {ini && termina && restantes != null && (
@@ -245,15 +241,16 @@ export default function Semestres() {
                     autoComplete="off"
                   />
                   <div className="columna" style={{ gap: 4 }}>
-                    <span className="chico texto-2" style={{ fontWeight: 600 }}>
+                    <span className="text-[13px] font-medium">
                       Tipo de periodo
                     </span>
                     <Segmentado
-                      opciones={['AD (agosto-diciembre)', 'EJ (enero-junio)']}
+                      opciones={TIPOS}
                       seleccionado={Math.max(0, TIPOS.indexOf(tipo))}
                       onSeleccionar={(i) => setTipo(TIPOS[i])}
                       etiqueta="Tipo de periodo"
                     />
+                    <span className="text-[13px] text-texto-2">AD: agosto a diciembre. EJ: enero a junio.</span>
                   </div>
                   <CampoTexto etiqueta="Fecha de inicio" tipo="date" valor={inicio} onCambio={(v) => (setInicio(v), setMensaje(null))} />
                   <CampoTexto

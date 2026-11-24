@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { CheckCircle2, CircleAlert, Download, Table } from 'lucide-react'
+import { CheckCircle2, CircleAlert, Download } from 'lucide-react'
 import { exportarAsistenciasCsv } from '../../datos/repositorios'
 import { mensajeAmigable } from '../../lib/errores'
 import { hoy, lunesDe, mesActual, sumarDias, sumarMeses } from '../../lib/fechas'
@@ -103,7 +103,7 @@ export default function Exportar() {
         </div>
       </Tarjeta>
       <Tarjeta>
-        <EncabezadoSeccion titulo="Qué incluye el archivo" icono={Table} />
+        <EncabezadoSeccion titulo="Qué incluye el archivo" />
         <p className="chico texto-2" style={{ marginBottom: 8 }}>
           Una fila por registro, con fecha y hora de Monterrey. Incluye becarios dados de baja.
         </p>

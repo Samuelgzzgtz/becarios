@@ -93,20 +93,30 @@ function PuenteClerk() {
 const CLERK_PUBLISHABLE_KEY = import.meta.env.VITE_CLERK_PUBLISHABLE_KEY as string | undefined
 if (!CLERK_PUBLISHABLE_KEY) throw new Error('Falta VITE_CLERK_PUBLISHABLE_KEY (ver web/.env.example).')
 
-/** Colores de Pasalista para las pantallas de Clerk (login, perfil). */
-const APARIENCIA = {
-  variables: {
-    colorPrimary: '#1E7145',
-    colorText: '#1A1A1A',
-    colorTextSecondary: '#5F6B66',
-    borderRadius: '12px',
-    fontFamily: 'Inter, Roboto, system-ui, sans-serif'
-  },
-  elements: {
-    formButtonPrimary: { borderRadius: '999px', minHeight: '48px', fontSize: '0.95rem' },
-    card: { boxShadow: 'none' }
+/**
+ * Pasalista en las pantallas de Clerk (login, perfil): botón principal casi negro (claro en
+ * modo oscuro, donde Clerk también cambia a oscuro), IBM Plex Sans y controles de 6 px.
+ * El esquema se lee al cargar la app.
+ */
+function apariencia(oscuro: boolean) {
+  return {
+    variables: {
+      colorPrimary: oscuro ? '#ededed' : '#141414',
+      colorPrimaryForeground: oscuro ? '#0a0a0a' : '#ffffff',
+      colorForeground: oscuro ? '#ededed' : '#0a0a0a',
+      colorMutedForeground: oscuro ? '#a3a3a3' : '#626862',
+      colorBackground: oscuro ? '#1a1a1a' : '#ffffff',
+      borderRadius: '6px',
+      fontFamily: "'IBM Plex Sans Variable', system-ui, sans-serif"
+    },
+    elements: {
+      formButtonPrimary: { minHeight: '44px', fontSize: '0.95rem' },
+      card: { boxShadow: 'none' }
+    }
   }
 }
+
+const APARIENCIA = apariencia(window.matchMedia('(prefers-color-scheme: dark)').matches)
 
 function ConRouter() {
   const navegar = useNavigate()

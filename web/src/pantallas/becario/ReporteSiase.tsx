@@ -1,5 +1,5 @@
 import { useRef, useState } from 'react'
-import { CalendarDays, ExternalLink, FileUp, History, Info, Paperclip } from 'lucide-react'
+import { CalendarDays, ExternalLink, FileUp, Info, Paperclip } from 'lucide-react'
 import {
   TAMANO_MAXIMO_REPORTE,
   TIPOS_REPORTE,
@@ -17,7 +17,7 @@ import { plural } from '../../lib/formato'
 import { permiteSubir, type EstadoReporteSiase, type EstadoVentanaSiase } from '../../lib/modelos'
 import { AvisoBanner, Badge, Boton, Divisor, EncabezadoSeccion, IconoCircular, Pantalla, SegunEstado, Tarjeta, abrirUrl } from '../../ui/componentes'
 import { useAvisos } from '../../ui/avisos'
-import { etiquetaSiase, iconoSiase, tonoSiase } from '../../ui/estadosVisuales'
+import { etiquetaSiase, tonoSiase } from '../../ui/estadosVisuales'
 import { useAlReanudar, useCarga } from '../../ui/hooks'
 
 async function cargar() {
@@ -122,7 +122,7 @@ export default function ReporteSiaseBecario() {
               <Tarjeta>
                 <div className="fila">
                   <p className="titulo-m crece">Tu reporte</p>
-                  <Badge texto={etiquetaSiase[estadoMes]} tono={tonoSiase[estadoMes]} icono={iconoSiase[estadoMes]} />
+                  <Badge texto={etiquetaSiase[estadoMes]} tono={tonoSiase[estadoMes]} />
                 </div>
                 {estadoMes !== 'excluido' && estadoMes !== 'sin_reporte' && (
                   <Etapas actual={estadoMes === 'pendiente' ? 0 : estadoMes === 'subido' ? 1 : 3} />
@@ -157,7 +157,7 @@ export default function ReporteSiaseBecario() {
                   </>
                 ) : (
                   <>
-                    <FileUp size={40} color={puedeSubir ? 'var(--primario)' : 'var(--texto-2)'} aria-hidden />
+                    <FileUp size={40} color={puedeSubir ? 'var(--texto)' : 'var(--texto-2)'} aria-hidden />
                     <span className="titulo-s" style={{ color: puedeSubir ? 'var(--texto)' : 'var(--texto-2)' }}>
                       {estadoMes === 'subido' ? 'Reemplazar el reporte entregado' : 'Subir captura o PDF de SIASE'}
                     </span>
@@ -190,7 +190,7 @@ export default function ReporteSiaseBecario() {
               )}
 
               <Tarjeta>
-                <EncabezadoSeccion titulo="Historial de reportes" icono={History} />
+                <EncabezadoSeccion titulo="Historial de reportes" />
                 {d.historial.length === 0 && <p className="texto-2" style={{ marginTop: 8 }}>Aún no hay reportes anteriores.</p>}
                 {d.historial.map((r, i) => (
                   <div key={r.id ?? r.mes}>

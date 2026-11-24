@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { useLocation } from 'react-router-dom'
 import { Download, Share } from 'lucide-react'
+import { Button } from '@/components/ui/button'
 
 /*
  * En el navegador, Safari y Chrome muestran su barra (en iPhone, abajo). Esa barra
@@ -63,21 +64,27 @@ export default function AvisoInstalar() {
   }
 
   return (
-    <div className="instalar" role="status">
-      <div className="banner tono-info">
-        {esIos() ? <Share size={20} /> : <Download size={20} />}
-        <div>
-          <p className="titulo">Úsala como app, sin la barra del navegador</p>
-          <p>
+    <div className="fixed top-[calc(8px+var(--seguro-arriba))] left-1/2 z-[55] w-[min(94vw,520px)] -translate-x-1/2" role="status">
+      <div className="flex items-start gap-3 rounded-lg bg-superficie px-4 py-3.5 shadow-[0_6px_20px_rgba(0,0,0,0.14)]">
+        {esIos() ? <Share className="mt-0.5 size-[18px] shrink-0 text-texto-2" aria-hidden /> : <Download className="mt-0.5 size-[18px] shrink-0 text-texto-2" aria-hidden />}
+        <div className="min-w-0 flex-1">
+          <p className="font-medium">Úsala como app, sin la barra del navegador</p>
+          <p className="text-[13px] text-texto-2">
             {esIos()
               ? 'Toca Compartir y luego «Agregar a pantalla de inicio». Ábrela desde el ícono.'
               : evento
                 ? 'Instálala y ábrela desde el ícono de tu pantalla de inicio.'
                 : 'Abre el menú ⋮ y elige «Instalar app» o «Agregar a pantalla de inicio».'}
           </p>
-          <div className="acciones">
-            {evento && <button onClick={() => void instalar()}>Instalar</button>}
-            <button onClick={descartar}>Ahora no</button>
+          <div className="-mb-2 flex gap-4">
+            {evento && (
+              <Button variant="link" className="px-0" onClick={() => void instalar()}>
+                Instalar
+              </Button>
+            )}
+            <Button variant="link" className="px-0 text-texto-2" onClick={descartar}>
+              Ahora no
+            </Button>
           </div>
         </div>
       </div>
