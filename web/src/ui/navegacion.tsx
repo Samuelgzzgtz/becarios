@@ -113,7 +113,7 @@ function BarraNavegacion({ destinos, className }: { destinos: Destino[]; classNa
                 end={i === 0}
                 replace
                 className={({ isActive }) =>
-                  cn('flex h-full flex-col items-center justify-center gap-1 text-[11px] no-underline', isActive ? 'font-semibold text-texto' : 'text-texto-2')
+                  cn('flex h-full flex-col items-center justify-center gap-1 text-[11px] no-underline', isActive ? 'font-semibold text-primario' : 'text-texto-2')
                 }
               >
                 <I className="size-5" strokeWidth={1.75} aria-hidden />
@@ -171,7 +171,7 @@ function BarraLateralAdmin() {
         className={({ isActive }) =>
           cn(
             'flex h-9 items-center gap-2.5 rounded-md px-2 text-[13px] no-underline transition-colors',
-            isActive ? 'bg-activo-nav font-medium text-texto' : 'text-texto-2 hover:text-texto'
+            isActive ? 'bg-activo-nav font-medium text-primario' : 'text-texto-2 hover:text-texto'
           )
         }
       >

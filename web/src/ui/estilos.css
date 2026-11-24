@@ -1,9 +1,9 @@
 /*
- * Sistema visual de Pasalista: "libro mayor acromático". El cromo va en tinta y gris;
- * el único color de datos es el verde FIME, sobre las horas trabajadas. El ámbar marca
- * lo atrasado o lo que pide acción; el rojo, lo fuera de zona y los errores.
- * Fondo salvia, superficies blancas sin borde ni sombra (solo un paso de tono), botón
- * principal casi negro. IBM Plex Sans con cifras tabulares, empaquetada con la app (PWA
+ * Sistema visual de Pasalista: el verde FIME es la identidad (botón principal, pestaña
+ * activa, lo aprobado) y el dato de horas trabajadas. El ámbar marca lo atrasado o lo
+ * que pide acción; el rojo, lo fuera de zona y los errores; el azul, los avisos
+ * informativos. El resto del cromo va en tinta y gris.
+ * Fondo salvia, superficies blancas sin borde ni sombra (solo un paso de tono). IBM Plex Sans con cifras tabulares, empaquetada con la app (PWA
  * sin red: nada de Google Fonts).
  *
  * Tailwind v4 + shadcn/ui: los componentes de src/components/ui leen las variables de
@@ -38,6 +38,11 @@
   --texto-2: #626862;
   --tinta: #141414;
   --sobre-tinta: #ffffff;
+  --primario: #1e7145;
+  --sobre-primario: #ffffff;
+  --info: #1f5f99;
+  --info-c: #e6eef8;
+  --sobre-info-c: #1f4f7f;
   --dato: #1e7145;
   --dato-c: #e1efe5;
   --sobre-dato-c: #14532d;
@@ -73,8 +78,8 @@
   --card-foreground: var(--texto);
   --popover: var(--superficie);
   --popover-foreground: var(--texto);
-  --primary: var(--tinta);
-  --primary-foreground: var(--sobre-tinta);
+  --primary: var(--primario);
+  --primary-foreground: var(--sobre-primario);
   --secondary: var(--elevado);
   --secondary-foreground: var(--texto);
   --muted: var(--elevado);
@@ -103,6 +108,11 @@
     --texto-2: #a3a3a3;
     --tinta: #ededed;
     --sobre-tinta: #0a0a0a;
+    --primario: #7fd3a2;
+    --sobre-primario: #0a0a0a;
+    --info: #8db8e8;
+    --info-c: #16263a;
+    --sobre-info-c: #c4dbf3;
     --dato: #7fd3a2;
     --dato-c: #183324;
     --sobre-dato-c: #b6e8c9;
@@ -132,6 +142,11 @@
   --color-texto-2: var(--texto-2);
   --color-tinta: var(--tinta);
   --color-sobre-tinta: var(--sobre-tinta);
+  --color-primario: var(--primario);
+  --color-sobre-primario: var(--sobre-primario);
+  --color-info: var(--info);
+  --color-info-c: var(--info-c);
+  --color-sobre-info-c: var(--sobre-info-c);
   --color-dato: var(--dato);
   --color-dato-c: var(--dato-c);
   --color-sobre-dato-c: var(--sobre-dato-c);
@@ -345,7 +360,7 @@
   .casilla {
     width: 20px;
     height: 20px;
-    accent-color: var(--tinta);
+    accent-color: var(--primario);
     flex-shrink: 0;
   }
 
@@ -459,8 +474,8 @@
   }
 
   .etapa.hecha .punto {
-    background: var(--tinta);
-    color: var(--sobre-tinta);
+    background: var(--primario);
+    color: var(--sobre-primario);
   }
 
   .etapa.actual {
@@ -479,7 +494,7 @@
   }
 
   .etapa.hecha:not(:last-child)::after {
-    background: var(--tinta);
+    background: var(--primario);
   }
 
   /* ---- Enrolamiento: fotos tomadas ------------------------------------- */
