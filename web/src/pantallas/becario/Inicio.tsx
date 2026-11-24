@@ -4,7 +4,7 @@ import { CircleAlert, CloudUpload, ScanFace, TriangleAlert } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { cn } from '@/lib/utils'
 import * as asistencias from '../../datos/asistencias'
-import { enrolamientoPropio, estadoVentana, horasPorAprobar, jornadaMaximaHoras, modalidadDeHoy, progresoDe, semanaConRespaldo } from '../../datos/repositorios'
+import { enrolamientoPropio, estadoVentana, horasPorAprobar, jornadaMaximaHoras, modalidadDeHoyEn, progresoDe, semanaConRespaldo } from '../../datos/repositorios'
 import { requerirUsuario, usuarioEnMemoria } from '../../datos/sesion'
 import { mensajeAmigable } from '../../lib/errores'
 import { capitalizar, diaCompleto, diaMesLargo, fechaDeTexto, hoy, lunesDe, mesActual, mesLargo, nombreDia, sumarDias, type Fecha } from '../../lib/fechas'
@@ -42,13 +42,15 @@ async function cargar(): Promise<DatosInicio> {
   if ((await asistencias.pendientesSinSubir(usuario.id)) > 0) await asistencias.sincronizarPendientes().catch(() => undefined)
 
   const lunes = lunesDe()
+  // El horario se pide una vez: de ahí salen la modalidad de hoy y los días laborales.
+  const horarioSemana = semanaConRespaldo(usuario.id)
   const [progreso, datosHoy, ventana, turnosAbiertos, porAprobar, semana, horario] = await Promise.all([
     progresoDe(usuario.id).then(
       (datos) => ({ ok: true as const, datos }),
       (e) => ({ ok: false as const, mensaje: mensajeAmigable(e, 'No se pudo cargar tu progreso.') })
     ),
-    Promise.all([modalidadDeHoy(usuario.id), asistencias.siguienteTipo(usuario.id)]).then(
-      ([m, proximo]) => ({ ok: true as const, datos: { modalidad: m.modalidad, configurada: m.configurada, proximo } }),
+    Promise.all([horarioSemana, asistencias.siguienteTipo(usuario.id)]).then(
+      ([dias, proximo]) => ({ ok: true as const, datos: { ...modalidadDeHoyEn(dias), proximo } }),
       (e) => ({ ok: false as const, mensaje: mensajeAmigable(e, 'No se pudo cargar la información de hoy.') })
     ),
     estadoVentana().catch(() => null),
@@ -61,7 +63,7 @@ async function cargar(): Promise<DatosInicio> {
       ([h, tope]) => horasPorDia(h, tope),
       () => null
     ),
-    semanaConRespaldo(usuario.id).then(
+    horarioSemana.then(
       (dias) => dias.map((d) => d.dia_semana),
       () => null
     )
@@ -213,8 +215,9 @@ function FilaSiase({ ventana, onAbrir }: { ventana: EstadoVentanaSiase; onAbrir:
       : 'Ventana cerrada'
   return (
     <FilaDato etiqueta="Reporte SIASE" detalle={detalle} detalleAlerta={ventana.abierta}>
+      {/* "Ver" y no "Subir": aquí no se sabe si el reporte del mes ya se entregó. */}
       <Button variant="link" onClick={onAbrir}>
-        {ventana.abierta ? 'Subir' : 'Ver'}
+        Ver
       </Button>
     </FilaDato>
   )

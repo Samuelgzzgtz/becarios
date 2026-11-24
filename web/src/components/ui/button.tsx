@@ -4,9 +4,10 @@ import { cn } from "@/lib/utils"
 import { Slot } from "radix-ui"
 
 // Variantes de Pasalista: un principal casi negro por pantalla, secundario en gris,
-// acciones de texto subrayadas. Área táctil de 44 px en todos los tamaños.
+// acciones de texto subrayadas. Área táctil de 44 px en todos los tamaños. El foco lo
+// pinta la regla base :focus-visible de ui/estilos.css (contorno sólido del color del texto).
 const buttonVariants = cva(
-  "inline-flex shrink-0 items-center justify-center gap-2 rounded-md text-sm font-medium whitespace-nowrap transition-[background-color,opacity] duration-150 outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50 disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-4",
+  "inline-flex shrink-0 items-center justify-center gap-2 rounded-md text-sm font-medium whitespace-nowrap transition-[background-color,opacity] duration-150 disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-4",
   {
     variants: {
       variant: {

@@ -84,7 +84,8 @@
   --destructive: var(--peligro);
   --border: var(--regla);
   --input: var(--control);
-  --ring: var(--marca-ritmo);
+  /* Foco: borde de 2 px del color del texto (más de 3:1 en claro y oscuro). */
+  --ring: var(--texto);
 
   color-scheme: light;
 }

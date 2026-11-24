@@ -77,6 +77,8 @@ export function useVolver(respaldo = '/'): () => void {
  * Pantalla: título de texto sobre el fondo (con "Volver" si aplica) y el contenido.
  * [saludo] pone el título en peso normal (el "Hola, Ana" del becario).
  * [barraAccion] queda fija abajo (botón principal).
+ * Junto a la barra lateral del administrador el contenido se queda en 720 px; [ancha]
+ * lo deja ocupar todo el espacio (tablas).
  */
 export function Pantalla(props: {
   titulo: string
@@ -87,13 +89,14 @@ export function Pantalla(props: {
   barraAccion?: ReactNode
   children: ReactNode
   sinRelleno?: boolean
+  ancha?: boolean
 }) {
   useEffect(() => {
     document.title = `${props.titulo} · Pasalista`
   }, [props.titulo])
 
   return (
-    <div className="flex min-h-0 flex-1 flex-col">
+    <div className={cn('flex min-h-0 w-full flex-1 flex-col', !props.ancha && 'max-w-[720px]')}>
       <header className="flex items-center gap-3 px-4 pt-[calc(18px+var(--seguro-arriba))] pb-3.5 lg:pt-7">
         {props.onVolver && (
           <button
@@ -245,7 +248,7 @@ export function IconoCircular(props: { icono: Icono; tono?: Tono; tamano?: numbe
 }
 
 export function Badge(props: { texto: string; tono: Tono; className?: string }) {
-  return <BadgeUi className={cn('h-5 self-center border-0 px-2 py-0 text-xs', PASTILLA[props.tono], props.className)}>{props.texto}</BadgeUi>
+  return <BadgeUi className={cn('h-5 border-0 px-2 py-0 text-xs', PASTILLA[props.tono], props.className)}>{props.texto}</BadgeUi>
 }
 
 /** Tonos pálidos para avatares (sin violetas ni índigos); cada persona conserva siempre el mismo. */
@@ -357,7 +360,10 @@ export function FilaProgreso(props: { etiqueta: string; horas: number; meta: num
   return (
     <div className="py-2.5">
       <div className="fila">
-        <span className="crece">{props.etiqueta}</span>
+        <span className="crece">
+          {props.etiqueta}
+          {progreso >= 1 && <span className="sr-only">, meta cumplida</span>}
+        </span>
         <HorasDeMeta horas={props.horas} meta={meta} atrasado={meta != null && meta > 0 && !vaAlRitmo(progreso, props.ritmoEsperado)} />
       </div>
       {meta != null && meta > 0 && (
@@ -402,7 +408,7 @@ export function TarjetaIndicador(props: {
         <span className={cn(props.alerta && 'text-alerta')}>{props.valor}</span>
         {props.detalle && <span className="text-sm font-normal tracking-normal text-texto-2"> {props.detalle}</span>}
       </span>
-      <span className="truncate text-[13px] text-texto-2">{props.etiqueta}</span>
+      <span className="text-[13px] text-texto-2">{props.etiqueta}</span>
     </>
   )
   const clases = 'flex min-w-0 flex-col gap-0.5 bg-superficie px-3.5 py-3 text-left'
@@ -557,7 +563,7 @@ export function Dialogo(props: {
  * Solo en escritorio (lg) bajan a 14 px para igualar el resto del texto.
  */
 const TEXTO_CAMPO = 'text-base md:text-base lg:text-sm'
-const CONTROL = 'flex items-center gap-2 rounded-md border border-control bg-superficie px-3 focus-within:ring-[3px] focus-within:ring-ring/40'
+const CONTROL = 'flex items-center gap-2 rounded-md border border-control bg-superficie px-3 focus-within:border-ring focus-within:ring-1 focus-within:ring-ring'
 const ETIQUETA = 'text-[13px] font-medium'
 
 function AyudaOError(props: { id: string; error?: string | null; ayuda?: string | null }) {
@@ -658,6 +664,7 @@ export function Desplegable<T>(props: {
         value={clave}
         disabled={props.deshabilitado}
         aria-invalid={props.error ? true : undefined}
+        aria-describedby={props.error || props.ayuda ? `${id}-ayuda` : undefined}
         className={cn('h-11 border-control bg-superficie shadow-none dark:bg-superficie', TEXTO_CAMPO, props.error && 'border-peligro')}
         onChange={(e) => {
           const o = props.opciones.find((x) => props.claveDe(x) === e.target.value)

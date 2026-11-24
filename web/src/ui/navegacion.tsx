@@ -1,4 +1,4 @@
-import { useEffect, useState, type CSSProperties, type ReactNode } from 'react'
+import { useEffect, useRef, useState, type CSSProperties, type ReactNode } from 'react'
 import { NavLink, Navigate, Outlet, useLocation } from 'react-router-dom'
 import {
   ArrowLeftRight,
@@ -128,8 +128,8 @@ function BarraNavegacion({ destinos, className }: { destinos: Destino[]; classNa
 /**
  * Barra lateral del administrador en escritorio, sobre el mismo fondo de la página.
  * Los conteos salen de las dos consultas del panel (indicadores y por revisar): se piden
- * una vez y al volver a la app; al recargar se quedan los números anteriores. Si fallan,
- * la barra se queda sin números.
+ * al entrar, al cambiar de pantalla (tras firmar o aprobar) y al volver a la app; al
+ * recargar se quedan los números anteriores. Si fallan, la barra se queda sin números.
  */
 function BarraLateralAdmin() {
   const { datos, recargar } = useCarga(
@@ -141,6 +141,14 @@ function BarraLateralAdmin() {
     ''
   )
   useAlReanudar(recargar)
+  // La carga inicial ya la hace useCarga; aquí solo los cambios de ruta posteriores.
+  const { pathname } = useLocation()
+  const ruta = useRef(pathname)
+  useEffect(() => {
+    if (ruta.current === pathname) return
+    ruta.current = pathname
+    recargar()
+  }, [pathname, recargar])
   const conteos: Record<string, number | null | undefined> = {
     '/admin/becarios': datos?.becarios_activos,
     '/admin/ingenieros': datos?.ingenieros_activos,
@@ -159,7 +167,7 @@ function BarraLateralAdmin() {
         end={fin}
         className={({ isActive }) =>
           cn(
-            'flex h-8 items-center gap-2.5 rounded-md px-2 text-[13px] no-underline transition-colors',
+            'flex h-9 items-center gap-2.5 rounded-md px-2 text-[13px] no-underline transition-colors',
             isActive ? 'bg-activo-nav font-medium text-texto' : 'text-texto-2 hover:text-texto'
           )
         }
@@ -185,7 +193,7 @@ function BarraLateralAdmin() {
         {principales.map((d, i) => enlace(d, i === 0))}
         {HERRAMIENTAS_ADMIN.map((g) => (
           <div key={g.grupo} className="contents">
-            <p className="px-2 pt-5 pb-1 text-xs text-texto-2">{g.grupo}</p>
+            <p className="px-2 pt-5 pb-1 text-[13px] font-semibold">{g.grupo}</p>
             {g.accesos.map((a) => enlace({ ruta: a.ruta, texto: a.titulo, icono: a.icono }))}
           </div>
         ))}

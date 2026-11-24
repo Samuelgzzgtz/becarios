@@ -116,11 +116,12 @@ export default function RegistrarAsistencia() {
   /*
    * La cámara ocupa toda la pantalla; abajo, una hoja blanca con lo que se verifica
    * (rostro, ubicación, modalidad) y el botón. La ubicación no se valida en el teléfono
-   * (M-13): solo se dice si se adjuntó.
+   * (M-13): solo se dice si se adjuntó. En pantallas bajas la hoja se desplaza por dentro
+   * para no tapar la cámara ni cortar el botón.
    */
   return (
     <div className="fixed inset-0 z-20 flex flex-col bg-[var(--escaner)]">
-      <div className="relative min-h-0 flex-1">
+      <div className="relative min-h-[25dvh] flex-1">
         <MarcoCamara
           video={camara.video}
           espejo
@@ -137,7 +138,7 @@ export default function RegistrarAsistencia() {
         </div>
       </div>
 
-      <section className="relative z-10 -mt-4 rounded-t-2xl bg-superficie px-4 pt-3 pb-[calc(20px+var(--seguro-abajo))]">
+      <section className="relative z-10 -mt-4 max-h-[75dvh] overflow-y-auto rounded-t-2xl bg-superficie px-4 pt-3 pb-[calc(20px+var(--seguro-abajo))]">
         <div className="mb-3">
           <FilaCheque
             icono={ScanFace}
@@ -153,7 +154,9 @@ export default function RegistrarAsistencia() {
               estado.tipo !== 'exito'
                 ? 'Se envía con el registro si el teléfono la da'
                 : estado.ubicada
-                  ? 'Se envió con tu registro'
+                  ? estado.enCola
+                    ? 'Se guardó con tu registro'
+                    : 'Se envió con tu registro'
                   : 'El teléfono no la dio; se registró sin ella'
             }
             resultado={estado.tipo === 'exito' && estado.ubicada ? 'ok' : null}

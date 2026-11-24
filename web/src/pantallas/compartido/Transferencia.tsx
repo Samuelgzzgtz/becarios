@@ -21,12 +21,12 @@ export function TarjetaTransferencia({ detalle, children }: { detalle: Transfere
       <div className="fila" style={{ marginTop: 12, alignItems: 'flex-start' }}>
         <div className="crece">
           <p className="chico texto-2">De</p>
-          <p>{detalle.origen?.nombre ?? '—'}</p>
+          <p>{detalle.origen?.nombre ?? '–'}</p>
         </div>
         <ArrowRight color="var(--texto-2)" aria-label="hacia" style={{ marginTop: 10 }} />
         <div className="crece">
           <p className="chico texto-2">A</p>
-          <p>{detalle.destino?.nombre ?? '—'}</p>
+          <p>{detalle.destino?.nombre ?? '–'}</p>
         </div>
       </div>
       <p style={{ marginTop: 12 }}>“{t.motivo}”</p>

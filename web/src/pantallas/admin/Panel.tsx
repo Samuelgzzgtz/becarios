@@ -34,7 +34,7 @@ export default function PanelAdmin() {
       <SegunEstado estado={estado} onReintentar={recargar}>
         {(d) => {
           const fin = fechaDeTexto(d.periodo_fin)
-          const pendientes = d.siase_por_firmar > 0 || (d.porRevisar ?? 0) > 0
+          const pendientes = d.siase_por_firmar > 0 || d.porRevisar !== 0
           return (
             <>
               {pendientes && (
@@ -50,11 +50,16 @@ export default function PanelAdmin() {
                       </Button>
                     </div>
                   )}
-                  {(d.porRevisar ?? 0) > 0 && (
+                  {/* Si no se pudo contar (null), la fila se queda con "–" para no esconder lo pendiente. */}
+                  {d.porRevisar !== 0 && (
                     <div className="fila border-regla py-3 [&+&]:border-t">
                       <span className="crece">
-                        <span className="block font-medium">{plural(d.porRevisar ?? 0, 'registro', 'registros')} por revisar</span>
-                        <span className="block text-[13px] text-texto-2">Los aprueba el ingeniero de cada becario</span>
+                        <span className="block font-medium">
+                          {d.porRevisar == null ? 'Registros por revisar: –' : `${plural(d.porRevisar, 'registro', 'registros')} por revisar`}
+                        </span>
+                        <span className="block text-[13px] text-texto-2">
+                          {d.porRevisar == null ? 'No se pudo contar; ábrelo para verlos' : 'Los aprueba el ingeniero de cada becario'}
+                        </span>
                       </span>
                       <Button variant="link" onClick={() => navegar('/admin/revisar')}>
                         Ver
@@ -90,8 +95,9 @@ export default function PanelAdmin() {
               <div className="rounded-lg bg-superficie px-4">
                 <div className="fila py-3">
                   <span className="crece">
-                    <span className="block text-[13px] text-texto-2">Periodo actual</span>
-                    <span className={d.periodo_nombre ? 'block font-medium' : 'block font-medium text-peligro'}>{d.periodo_nombre ?? 'No hay periodo activo'}</span>
+                    <span className={d.periodo_nombre ? 'block font-medium' : 'block font-medium text-peligro'}>
+                      {d.periodo_nombre ? `Periodo ${d.periodo_nombre}` : 'No hay periodo activo'}
+                    </span>
                     {fin && <span className="block text-[13px] text-texto-2">Termina el {fechaMedia(fin)}</span>}
                   </span>
                   <Button variant="link" onClick={() => navegar('/admin/semestres')}>

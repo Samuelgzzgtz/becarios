@@ -125,9 +125,11 @@ export default function Revisar(props: {
     }
   }
 
-  // Filtro por tipo; si el tipo elegido ya no tiene registros (se aprobaron), vuelve a "Todos".
+  // Filtro por tipo; si el tipo elegido ya no tiene registros (se aprobaron), vuelve a "Todos"
+  // y se olvida, para que no reaparezca solo al recargar.
   const tipos = estado.tipo === 'listo' ? conteoPorTipo(estado.datos) : []
   const activo = filtro && tipos.some(([t]) => t === filtro) ? filtro : null
+  if (filtro && activo == null && estado.tipo === 'listo') setFiltro(null)
 
   return (
     <Pantalla
@@ -284,7 +286,7 @@ function FilaAnomalia(props: { a: Anomalia; ocupado: boolean; onAprobar?: () => 
       </div>
       {props.onAsignar && (
         <div className="mt-2 flex items-center gap-3 pl-[42px]">
-          <Badge texto="Sin ingeniero activo" tono="alerta" />
+          <span className="min-w-0 flex-1 text-[13px] font-medium text-alerta">Sin ingeniero activo: nadie puede aprobar</span>
           <Button variant="link" className="-my-1" onClick={props.onAsignar}>
             Asignar ingeniero
           </Button>
@@ -305,7 +307,7 @@ function FilaAnomalia(props: { a: Anomalia; ocupado: boolean; onAprobar?: () => 
             </Button>
           </>
         ) : (
-          <Button variant="link" onClick={props.onCorregir} aria-label={`Agregar salida o corregir registros de ${a.becario_nombre}`}>
+          <Button variant="link" onClick={props.onCorregir} aria-label={`Agregar salida de ${a.becario_nombre}`}>
             Agregar salida
           </Button>
         )}

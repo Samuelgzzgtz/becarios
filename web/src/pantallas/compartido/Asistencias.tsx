@@ -36,7 +36,7 @@ export const semanaPasada = (): FiltroFechas => {
 export function TarjetaAsistencia(props: { item: AsistenciaUi; nombreBecario?: string | null; onEliminar?: () => void }) {
   const a = props.item.asistencia
   const instante = parsear(a.ocurrido_en)
-  const h = instante ? hora(instante) : '—'
+  const h = instante ? hora(instante) : '–'
   const ModalidadI = iconoModalidad(a.modalidad)
   const Verificacion = a.verificado_por ? UserCheck : ScanFace
   return (

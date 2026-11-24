@@ -36,12 +36,13 @@ export default function Becarios() {
   const asignar = (u: Usuario) => navegar(`/admin/becario/${u.id}/asignar`)
 
   return (
-    <Pantalla titulo="Becarios" subtitulo={lista.datos ? plural(lista.datos.length, 'becario', 'becarios') : null}>
+    <Pantalla ancha titulo="Becarios" subtitulo={lista.datos ? plural(lista.datos.length, 'becario', 'becarios') : null}>
       <div className="flex flex-col gap-2 md:flex-row">
         <div className="md:flex-1">
           <Buscador valor={busqueda} onCambio={setBusqueda} placeholder="Nombre o matrícula" />
         </div>
-        <div className="grid grid-cols-2 gap-2 md:flex">
+        {/* En el teléfono el estado va angosto para que "Todos los ingenieros" quepa. */}
+        <div className="grid grid-cols-[minmax(0,1fr)_8rem] gap-2 md:flex">
           {asignaciones.ingenieros.length > 0 && (
             <div className="md:w-56">
               <Desplegable

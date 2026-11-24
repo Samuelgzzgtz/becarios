@@ -161,7 +161,7 @@ export default function MiCuenta({ conVolver = false }: { conVolver?: boolean })
                   </>
                 )}
                 <Divisor />
-                <FilaInfo etiqueta="Semestre actual" icono={CalendarDays} valor={d.periodo ?? '—'} />
+                <FilaInfo etiqueta="Semestre actual" icono={CalendarDays} valor={d.periodo ?? '–'} />
               </Tarjeta>
 
               {u.perfil === 'ingeniero' && (
