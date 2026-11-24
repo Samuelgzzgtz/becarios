@@ -4,6 +4,7 @@ import {
   ArrowLeft,
   Ban,
   Building2,
+  Check,
   ChevronLeft,
   ChevronRight,
   CircleHelp,
@@ -47,7 +48,7 @@ const PASTILLA: Record<Tono, string> = {
   exito: 'bg-dato-c text-sobre-dato-c',
   alerta: 'bg-alerta-c text-alerta',
   peligro: 'bg-peligro-c text-peligro',
-  info: 'bg-neutro-c text-sobre-neutro-c',
+  info: 'bg-info-c text-sobre-info-c',
   neutro: 'bg-neutro-c text-sobre-neutro-c'
 }
 
@@ -56,7 +57,7 @@ const COLOR_ICONO: Record<Tono, string> = {
   exito: 'text-dato',
   alerta: 'text-alerta',
   peligro: 'text-peligro',
-  info: 'text-texto-2',
+  info: 'text-info',
   neutro: 'text-texto-2'
 }
 
@@ -293,11 +294,14 @@ export function AvisoBanner(props: {
   const I = props.icono
   const acciones = (props.textoAccion && props.onAccion) || (props.textoAccionSecundaria && props.onAccionSecundaria)
   return (
-    <div className="flex items-start gap-3 rounded-lg bg-superficie px-4 py-3.5" role={props.tono === 'peligro' ? 'alert' : undefined}>
+    <div
+      className={cn('flex items-start gap-3 rounded-lg px-4 py-3.5', props.tono === 'info' ? 'bg-info-c text-sobre-info-c' : 'bg-superficie')}
+      role={props.tono === 'peligro' ? 'alert' : undefined}
+    >
       {I && <I className={cn('mt-0.5 size-[18px] shrink-0', COLOR_ICONO[props.tono])} strokeWidth={1.75} aria-hidden />}
       <div className="min-w-0 flex-1">
         {props.titulo && <p className="font-medium">{props.titulo}</p>}
-        <p className={cn(props.titulo && 'text-[13px] text-texto-2')}>{props.texto}</p>
+        <p className={cn(props.titulo && 'text-[13px]', props.titulo && props.tono !== 'info' && 'text-texto-2')}>{props.texto}</p>
         {acciones && (
           <div className="mt-1 -mb-2 flex flex-wrap gap-x-4">
             {props.textoAccion && props.onAccion && (
@@ -363,8 +367,8 @@ export function FilaProgreso(props: { etiqueta: string; horas: number; meta: num
       <div className="fila">
         <span className="crece">
           {props.etiqueta}
-          {progreso >= 1 && <span className="sr-only">, meta cumplida</span>}
         </span>
+        {progreso >= 1 && <Check className="size-4 shrink-0 text-dato" aria-label="Meta cumplida" />}
         <HorasDeMeta horas={props.horas} meta={meta} atrasado={meta != null && meta > 0 && !vaAlRitmo(progreso, props.ritmoEsperado)} />
       </div>
       {meta != null && meta > 0 && (
@@ -745,7 +749,7 @@ export function Chip(props: { texto: string; activo: boolean; onClick: () => voi
       className={cn(
         // 36 px a la vista y 44 px de área táctil (el ::after; .chips deja el espacio arriba y abajo).
         'relative inline-flex h-9 shrink-0 items-center rounded-full px-3 text-[13px] font-medium whitespace-nowrap transition-colors after:absolute after:inset-x-0 after:-inset-y-1',
-        props.activo ? 'bg-tinta text-sobre-tinta' : 'bg-superficie text-texto hover:bg-elevado in-[.tarjeta]:bg-elevado'
+        props.activo ? 'bg-primario text-sobre-primario' : 'bg-superficie text-texto hover:bg-elevado in-[.tarjeta]:bg-elevado'
       )}
     >
       {props.texto}
